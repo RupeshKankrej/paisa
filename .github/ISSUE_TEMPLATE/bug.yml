@@ -1,0 +1,43 @@
+name: Bug
+description: Something built in an earlier phase does not behave as SPEC.md says.
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: input
+    id: phase
+    attributes:
+      label: Phase / feature it belongs to
+      placeholder: "Phase 2 — parser"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected (quote SPEC.md if possible)
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+    validations:
+      required: true
+  - type: textarea
+    id: sample
+    attributes:
+      label: Sample message / data (mask account numbers and balances)
+      render: text
+  - type: input
+    id: device
+    attributes:
+      label: Device and iOS version
+      placeholder: "iPhone 15, iOS 26.1"

@@ -1,0 +1,43 @@
+name: Phase
+description: One build phase from docs/SPEC.md section 4. One issue per phase, one Claude Code session per issue.
+title: "Phase N: "
+labels: ["phase"]
+body:
+  - type: input
+    id: phase
+    attributes:
+      label: Phase number
+      placeholder: "3"
+    validations:
+      required: true
+  - type: input
+    id: session
+    attributes:
+      label: Claude Code session name
+      description: The name you will pass to `claude -n` and later `claude --resume`.
+      placeholder: "phase-3-expenses"
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope (copy from SPEC.md section 4)
+      placeholder: Month picker, list grouped by day, uncategorised rows greyed…
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Paste the acceptance column for this phase; tick them off in the PR.
+      value: |
+        - [ ]
+  - type: textarea
+    id: spec_refs
+    attributes:
+      label: Spec sections
+      placeholder: "5.2, 5.3, 5.4"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / decisions made before starting
