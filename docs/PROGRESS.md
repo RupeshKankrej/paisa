@@ -21,10 +21,11 @@ The sender filter was not tried. A test SMS from another phone cannot come from 
 - Rupesh confirmed on the device that the capture works ("yes it is working").
 
 ### What to verify on the device
-These were requested but not separately confirmed:
-- A real HDFC alert from a `VM-HDFCBK`-style sender produces a line (SPEC 2.1 risk a).
-- It still fires when iOS sorts the SMS into Transactions (SPEC 2.1 risk b).
-- It writes while the phone is locked. A message before the first unlock after a restart may fail, because of iOS file protection.
+Confirmed by Rupesh: real HDFC alerts for both money sent and money received trigger the automation and appear in the app, using the text filter. This covers real bank senders (SPEC 2.1 risk a).
+
+Not separately confirmed:
+- Whether those alerts were sorted into Transactions when they fired (SPEC 2.1 risk b).
+- Whether it writes while the phone is locked. A message before the first unlock after a restart may fail, because of iOS file protection.
 
 ### Open issues and setup notes
 - The free-team install expires after 7 days and the automation stops until it is re-run from Xcode. Next expiry is about 2026-11-06.
