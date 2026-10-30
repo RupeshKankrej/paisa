@@ -1,5 +1,38 @@
 # Progress
 
+## Phase 1: Foundation (2026-10-31)
+
+Status: built on branch `phase-1-foundation`, not merged. Rupesh confirmed it on the iPhone.
+
+### What was built
+- Riverpod, go_router and drift. The generated `lib/data/database.g.dart` is committed; regenerate with `dart run build_runner build`.
+- `lib/data/database.dart`: all six tables from SPEC 3.2, with the 8 categories seeded when the database is created.
+- `lib/core/money.dart` (`format`, `tryParse`) and `lib/core/month_key.dart` (`of`, `shift`, `label`), pure Dart with tests.
+- `lib/app/`: theme (light and dark) and the five-tab shell. Categories lists the seeded rows so the database is exercised on a device; the other four tabs are placeholders.
+- Removed the Phase 0 inbox screen and its test. The Swift intent, `Inbox` and the `paisa/inbox` channel are unchanged, for the Phase 2 reader.
+
+### Additions to the SPEC 3.2 schema
+- `ingest_log.raw_text` (nullable): SPEC 5.1 must show the text of failed messages, and those have no transaction row.
+- `ingest_log.ref_no` (nullable): SPEC 3.2 says the log keeps it but lists no column.
+- Unique indexes on `budgets` and `salary`, so a category or the salary can have only one default and one override per month.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 35 passed.
+- Release build installed on the iPhone 15 (iOS 27.2). Rupesh confirmed the tabs switch, the 8 categories show, and a force-quit and reopen launches from the home screen with no duplicates.
+- Simulator (iOS 27.2): debug build launches. The runtime was installed with `xcodebuild -downloadPlatform iOS`.
+
+### What to verify on the device
+Nothing outstanding for Phase 1.
+
+### Open issues and setup notes
+- The app no longer shows captured messages until Phase 2. The intent still appends to `inbox.jsonl`, and nothing reads or truncates it.
+- Install updates with `xcrun devicectl device install app`, not `flutter install`. It installs over the app, so the data and the developer trust stay.
+- Phase 2 must seed the default HDFC tracked sender (SPEC 5.1), in a migration if the database already exists on the phone. Phase 1 seeded categories only.
+- SPEC mentions a settings store (5.1 last `received_at`, 5.11 month boundary), but 3.2 has no table for it. Phases 2 and 4 need to add one.
+- Category icons are stored as Material icon names. The name-to-icon mapping comes with the first screen that shows them.
+- Not built, as nothing uses them yet: `result types` and date helpers beyond `MonthKey` (SPEC 3.1). `Period` is Phase 4.
+- App name: kept "Paisa".
+
 ## Phase 0: Capture spike (2026-10-30)
 
 Status: acceptance passed on iPhone 15, iOS 27.2, as reported by Rupesh. Branch `phase-0-capture-spike`, not merged.
