@@ -1,0 +1,35 @@
+name: Feature / spec change
+description: A new idea or a change to an existing feature. Gets added to SPEC.md and BACKLOG.md before any code.
+title: "Feature: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What should change
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+  - type: input
+    id: spec_section
+    attributes:
+      label: SPEC.md section to update (or "new")
+      placeholder: "5.11"
+  - type: dropdown
+    id: when
+    attributes:
+      label: When
+      options:
+        - Fold into a phase not yet started
+        - Needs its own phase after 7
+        - Later (Android / AI phase)
+  - type: checkboxes
+    id: done
+    attributes:
+      label: Before closing
+      options:
+        - label: SPEC.md updated
+        - label: Relevant phase row in section 4 updated
