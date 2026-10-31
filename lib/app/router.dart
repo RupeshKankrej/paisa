@@ -9,12 +9,21 @@ import '../features/settings/settings_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/home',
+  redirect: (context, state) => widgetLink(state.uri),
   routes: [
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => _TabShell(shell: shell),
       branches: [
         _tab('/home', const HomeScreen()),
-        _tab('/expenses', const ExpensesScreen()),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/expenses',
+              builder: (context, state) =>
+                  ExpensesScreen(addRequest: state.uri.queryParameters['add']),
+            ),
+          ],
+        ),
         _tab('/categories', const CategoriesScreen()),
         _tab('/dashboards', const DashboardsScreen()),
         _tab('/settings', const SettingsScreen()),
@@ -22,6 +31,15 @@ final router = GoRouter(
     ),
   ],
 );
+
+/// Where a widget tap goes (SPEC 6). Each add link gets a new value, so a second
+/// tap opens the sheet again.
+String? widgetLink(Uri uri) {
+  if (uri.scheme != 'paisa') return null;
+  return uri.host == 'add'
+      ? '/expenses?add=${DateTime.now().microsecondsSinceEpoch}'
+      : '/expenses';
+}
 
 StatefulShellBranch _tab(String path, Widget screen) => StatefulShellBranch(
   routes: [GoRoute(path: path, builder: (context, state) => screen)],

@@ -1,5 +1,41 @@
 # Progress
 
+## Phase 6: Widget (2026-10-31)
+
+Status: built on branch `phase-6-widget`, not merged. Tests pass. The widget has not yet been seen on a home screen; the device checks below are waiting on Rupesh.
+
+### What was built
+- `lib/domain/widget_summary.dart`: builds the SPEC 3.3 JSON, in pure Dart.
+- `widgetSummaryProvider` in `lib/data/providers.dart`: rebuilds when the current period's transactions, salary, categories or the salary day change. `lib/main.dart` publishes each new value and refreshes on resume.
+- `lib/widget/widget_bridge.dart` and a `paisa/widget` channel in `AppDelegate.swift`: atomic write of `widget_summary.json` to the App Group, then a `home_widget` reload.
+- `ios/PaisaWidget/`: WidgetKit extension with small and medium families, App Group entitlement, bundle ID `com.rupeshkankrej.paisa.PaisaWidget`, embedded in Runner.
+- Deep links: the `paisa` URL scheme and a router redirect. `paisa://expenses` opens Expenses and `paisa://add` opens the add sheet.
+
+### Decisions
+- `home_widget` can only write to UserDefaults, so the file SPEC 3.3 asks for goes over our own channel, and `home_widget` only does the reload.
+- The widget is labelled with the month from the JSON, not "this month". After a month end, or while SMS rows wait for the app to open (SPEC 6), it shows the period its figures belong to.
+- Swift cannot call the Dart Money helper, so the widget has its own `money()`. `₹1,55,453.00`, `-₹2,000.00` and `₹0.05` were checked by running it.
+- Medium shows the top 3 categories by spend and an add link. Small shows spent, remaining and the bar only.
+- With no salary set, the widget shows a dash for remaining and no bar, as on Home.
+- Budget limits are not in the summary, so a limit change does not rewrite the file. SPEC 6 lists budget changes, but nothing in the JSON depends on them.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 129 passed, including the summary following the database and both links through the platform navigation message.
+- Simulator (iPhone 18 Pro, iOS 27.2): the app wrote `widget_summary.json` with spent 4,800.50 and salary 1,00,000, matching the seeded data. `simctl openurl` stops at an "Open in Paisa?" prompt that cannot be tapped, so real URL delivery from iOS is untested. The widget UI has not been rendered anywhere yet.
+- Release build signed with the free team, including the extension and its App Group.
+
+### What to verify on the device
+1. Long-press the home screen, add the Paisa widget, small and medium. Spent and remaining match Home.
+2. Open the app, add an expense, go home: the widget figures change.
+3. Tap the small widget, from both a force-quit and a running app: Expenses opens.
+4. Tap "Add expense" on the medium widget, from both states: the add sheet opens. Tap the rest of the medium widget: Expenses opens.
+5. Set a salary override below spend: remaining turns red and the bar is full. Clear it.
+6. Turn on salary day: the widget month follows the period label. Turn it off.
+
+### Open issues and setup notes
+- Free-team install now expires about 2026-11-07. The widget also stops working when the install expires.
+- SMS rows reach the widget only after the app next opens, as SPEC 6 expects.
+
 ## Phase 5: Dashboards (2026-10-31)
 
 Status: built on branch `phase-5-dashboards` and merged to `main` by Rupesh (PR #7). A force-push dropped the merge from `main`; Rupesh restored it in `f7b583f`. Tests pass. Rupesh reported the device checks below passed on the iPhone 15 (2026-10-31).

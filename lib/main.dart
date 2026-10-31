@@ -22,8 +22,21 @@ class _PaisaAppState extends ConsumerState<PaisaApp> {
   @override
   void initState() {
     super.initState();
-    _lifecycle = AppLifecycleListener(onResume: _drainInbox);
+    _lifecycle = AppLifecycleListener(
+      onResume: () {
+        _drainInbox();
+        ref.invalidate(widgetSummaryProvider);
+      },
+    );
     _drainInbox();
+    ref.listenManual(widgetSummaryProvider, (_, json) {
+      if (json == null) return;
+      ref
+          .read(widgetPublisherProvider)(json)
+          .catchError(
+            (Object e) => debugPrint('Widget update failed: ${e.runtimeType}'),
+          );
+    }, fireImmediately: true);
   }
 
   @override
