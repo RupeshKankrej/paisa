@@ -28,6 +28,7 @@ class SettingsScreen extends ConsumerWidget {
   Future<void> _setSalaryDay(WidgetRef ref, int? day) async {
     await ref.read(databaseProvider).setSalaryDay(day);
     ref.read(pickedMonthProvider.notifier).state = null;
+    ref.invalidate(cardMonthProvider);
   }
 
   Future<void> _editSalary(

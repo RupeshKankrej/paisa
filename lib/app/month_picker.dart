@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart' show StateProvider;
 
 import '../core/month_key.dart';
 import '../core/period.dart';
@@ -233,9 +234,17 @@ class _SheetChip extends StatelessWidget {
 /// A horizontal swipe on [child] changes the shared month by [months]: right goes
 /// back, left goes forward and stops at the current period (SPEC 5.13, 5.17).
 class MonthSwipe extends ConsumerStatefulWidget {
-  const MonthSwipe({super.key, this.months = 1, required this.child});
+  const MonthSwipe({
+    super.key,
+    this.months = 1,
+    this.picked,
+    required this.child,
+  });
 
   final int months;
+
+  /// Where the month is kept, for a card with its own; the shared one otherwise.
+  final StateProvider<String?>? picked;
   final Widget child;
 
   @override
@@ -248,12 +257,13 @@ class _MonthSwipeState extends ConsumerState<MonthSwipe> {
 
   void _end() {
     if (_distance.abs() < _minDistance) return;
+    final picked = widget.picked ?? pickedMonthProvider;
     final next = MonthKey.shift(
-      ref.read(selectedMonthProvider),
+      ref.read(picked) ?? _currentKey(ref),
       _distance > 0 ? -widget.months : widget.months,
     );
     if (_distance < 0 && next.compareTo(_currentKey(ref)) > 0) return;
-    ref.read(pickedMonthProvider.notifier).state = next;
+    ref.read(picked.notifier).state = next;
   }
 
   @override

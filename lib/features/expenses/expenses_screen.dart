@@ -65,22 +65,9 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     final db = ref.read(databaseProvider);
     await db.deleteTransaction(row.id);
     if (!mounted) return;
-    _messenger.currentState!
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: const Text('Deleted'),
-          duration: const Duration(seconds: 5),
-          persist: false, // an action otherwise keeps it up indefinitely
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () async {
-              await db.restoreTransaction(row);
-              if (mounted) setState(() => _dismissed.remove(row.id));
-            },
-          ),
-        ),
-      );
+    showDeletedSnackBar(_messenger.currentState!, db, row, () {
+      if (mounted) setState(() => _dismissed.remove(row.id));
+    });
   }
 
   @override
@@ -229,7 +216,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               spacing: 8,
               children: [
                 Expanded(
-                  child: Text(_dayLabel(day.first.occurredAt), style: caption),
+                  child: Text(dayLabel(day.first.occurredAt), style: caption),
                 ),
                 Text(dayTotal(day), style: caption),
               ],
@@ -238,16 +225,9 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           GroupedCard(
             children: [
               for (final row in day)
-                Dismissible(
+                SwipeToDelete(
                   key: ValueKey(row.id),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    color: Colors.red,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 24),
-                    child: const Icon(Icons.delete, color: Colors.white),
-                  ),
-                  onDismissed: (_) => _delete(row),
+                  onDismissed: () => _delete(row),
                   child: TransactionTile(
                     row: row,
                     category: categories[row.categoryId],
@@ -273,6 +253,56 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   }
 }
 
+/// The red swipe-left delete on a transaction row. The caller must drop the row
+/// from its list at once, before the database stream catches up, or Dismissible
+/// throws.
+class SwipeToDelete extends StatelessWidget {
+  const SwipeToDelete({
+    required super.key,
+    required this.onDismissed,
+    required this.child,
+  });
+
+  final VoidCallback onDismissed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Dismissible(
+    key: key!,
+    direction: DismissDirection.endToStart,
+    background: Container(
+      color: Colors.red,
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.only(right: 24),
+      child: const Icon(Icons.delete, color: Colors.white),
+    ),
+    onDismissed: (_) => onDismissed(),
+    child: child,
+  );
+}
+
+void showDeletedSnackBar(
+  ScaffoldMessengerState messenger,
+  AppDatabase db,
+  TransactionRow row,
+  VoidCallback onRestored,
+) => messenger
+  ..clearSnackBars()
+  ..showSnackBar(
+    SnackBar(
+      content: const Text('Deleted'),
+      duration: const Duration(seconds: 5),
+      persist: false, // an action otherwise keeps it up indefinitely
+      action: SnackBarAction(
+        label: 'Undo',
+        onPressed: () async {
+          await db.restoreTransaction(row);
+          onRestored();
+        },
+      ),
+    ),
+  );
+
 const _weekdays = [
   'Monday',
   'Tuesday',
@@ -284,7 +314,7 @@ const _weekdays = [
 ];
 
 /// 'Monday, 28 Sep'.
-String _dayLabel(DateTime day) =>
+String dayLabel(DateTime day) =>
     '${_weekdays[day.weekday - 1]}, ${Period.shortDate(day)}';
 
 /// A day's spend, or its income with a plus when nothing was spent.

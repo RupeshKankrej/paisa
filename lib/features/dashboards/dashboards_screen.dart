@@ -15,6 +15,7 @@ import '../../data/providers.dart';
 import '../../domain/budget.dart';
 import '../../domain/dashboards.dart';
 import '../../domain/models.dart';
+import 'day_sheet.dart';
 
 const _spentColor = AppColors.expense;
 const _incomeColor = AppColors.income;
@@ -66,7 +67,7 @@ class DashboardsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: tabAppBar(),
+      appBar: tabAppBar(title: const SizedBox.shrink()),
       floatingActionButton: const AddFab(),
       body: ListView(
         padding: listClearance(context),
@@ -86,9 +87,11 @@ class _ChartCard extends StatelessWidget {
     required this.title,
     required this.rows,
     required this.child,
+    this.subtitle,
   });
 
   final String title;
+  final String? subtitle;
   final AsyncValue<List<TransactionRow>> rows;
   final Widget Function(List<TransactionRow> rows) child;
 
@@ -103,6 +106,8 @@ class _ChartCard extends StatelessWidget {
           spacing: 12,
           children: [
             Text(title, style: Theme.of(context).textTheme.titleMedium),
+            if (subtitle case final subtitle?)
+              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
             rows.when(
               data: child,
               error: (error, _) => Text('Could not load: $error'),
@@ -156,16 +161,39 @@ class _Swatch extends StatelessWidget {
   );
 }
 
-/// Income vs expenses, income left and the calendar, moving together: a swipe
-/// shifts all three by one window (SPEC 5.17).
+const _incomeCard = 'income', _leftCard = 'left', _calendarCard = 'calendar';
+const _dayWiseCard = 'dayWise', _pieCard = 'pie';
+
+/// A card's month: each card swipes and selects on its own.
+String _cardMonth(WidgetRef ref, String card) =>
+    ref.watch(cardMonthProvider(card)) ??
+    Period.containing(DateTime.now(), ref.watch(salaryDayProvider).value).key;
+
+/// The 6 periods around a card's month, and that month's own totals.
+({List<MonthTotal> totals, MonthTotal selected}) _windowOf(
+  WidgetRef ref,
+  String card,
+  Map<String, MonthTotal> byKey,
+) {
+  final month = _cardMonth(ref, card);
+  MonthTotal of(String key) => byKey[key] ?? (key: key, spent: 0, income: 0);
+  final current = Period.containing(
+    DateTime.now(),
+    ref.watch(salaryDayProvider).value,
+  ).key;
+  return (
+    totals: [for (final key in periodWindow(month, current)) of(key)],
+    selected: of(month),
+  );
+}
+
+/// Income vs expenses, income left and the calendar (SPEC 5.17).
 class _WindowCards extends ConsumerWidget {
   const _WindowCards();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(selectedMonthProvider);
     final salaryDay = ref.watch(salaryDayProvider).value;
-    final now = DateTime.now();
     return ref
         .watch(allTransactionsProvider)
         .when(
@@ -179,39 +207,31 @@ class _WindowCards extends ConsumerWidget {
               for (final t in monthTotals(
                 rows.map((r) => (r.occurredAt, r.type, r.amountPaise)),
                 salaryDay,
-                now,
+                DateTime.now(),
               ))
                 t.key: t,
             };
-            final keys = periodWindow(
-              selected,
-              Period.containing(now, salaryDay).key,
-            );
-            final totals = [
-              for (final key in keys)
-                byKey[key] ?? (key: key, spent: 0, income: 0),
-            ];
-            final current =
-                byKey[selected] ?? (key: selected, spent: 0, income: 0);
-            return MonthSwipe(
-              months: analyticsWindow,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _IncomeExpensesCard(totals, current),
-                  _IncomeLeftCard(totals, current),
-                  _CalendarCard(rows),
-                ],
-              ),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _IncomeExpensesCard(byKey),
+                _IncomeLeftCard(byKey),
+                _CalendarCard(rows),
+              ],
             );
           },
         );
   }
 }
 
-Widget _plainCard(Widget child) => Card(
-  margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-  child: Padding(padding: const EdgeInsets.all(16), child: child),
+/// A card that swipes only its own month, by [months].
+Widget _swipeCard(String card, int months, Widget child) => MonthSwipe(
+  months: months,
+  picked: cardMonthProvider(card),
+  child: Card(
+    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+    child: Padding(padding: const EdgeInsets.all(16), child: child),
+  ),
 );
 
 bool _hasData(List<MonthTotal> totals) =>
@@ -221,6 +241,7 @@ bool _hasData(List<MonthTotal> totals) =>
 /// Tapping anywhere in a group selects that period.
 class _WindowBars extends ConsumerWidget {
   const _WindowBars({
+    required this.card,
     required this.totals,
     required this.groups,
     required this.minY,
@@ -228,6 +249,7 @@ class _WindowBars extends ConsumerWidget {
     required this.axisLabel,
   });
 
+  final String card;
   final List<MonthTotal> totals;
   final List<BarChartGroupData> groups;
   final double minY;
@@ -236,7 +258,7 @@ class _WindowBars extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final selected = ref.watch(selectedMonthProvider);
+    final selected = _cardMonth(ref, card);
     final keys = [for (final t in totals) t.key];
     final span = max(maxY, -minY);
     return SizedBox(
@@ -287,7 +309,7 @@ class _WindowBars extends ConsumerWidget {
             touchCallback: (event, response) {
               final index = response?.spot?.touchedBarGroupIndex;
               if (event is FlTapUpEvent && index != null) {
-                ref.read(pickedMonthProvider.notifier).state = keys[index];
+                ref.read(cardMonthProvider(card).notifier).state = keys[index];
               }
             },
           ),
@@ -298,14 +320,14 @@ class _WindowBars extends ConsumerWidget {
   }
 }
 
-class _IncomeExpensesCard extends StatelessWidget {
-  const _IncomeExpensesCard(this.totals, this.current);
+class _IncomeExpensesCard extends ConsumerWidget {
+  const _IncomeExpensesCard(this.byKey);
 
-  final List<MonthTotal> totals;
-  final MonthTotal current;
+  final Map<String, MonthTotal> byKey;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final (:totals, selected: current) = _windowOf(ref, _incomeCard, byKey);
     final top = max(
       1,
       totals.map((t) => max(t.spent, t.income)).reduce(max),
@@ -339,7 +361,9 @@ class _IncomeExpensesCard extends StatelessWidget {
         ],
       ),
     );
-    return _plainCard(
+    return _swipeCard(
+      _incomeCard,
+      analyticsWindow,
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
@@ -362,6 +386,7 @@ class _IncomeExpensesCard extends StatelessWidget {
                       '${Money.format(t.spent)}',
               ].join('. '),
               child: _WindowBars(
+                card: _incomeCard,
                 totals: totals,
                 minY: 0,
                 maxY: top * 1.05,
@@ -386,13 +411,13 @@ class _IncomeExpensesCard extends StatelessWidget {
 }
 
 class _IncomeLeftCard extends ConsumerWidget {
-  const _IncomeLeftCard(this.totals, this.current);
+  const _IncomeLeftCard(this.byKey);
 
-  final List<MonthTotal> totals;
-  final MonthTotal current;
+  final Map<String, MonthTotal> byKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final (:totals, selected: current) = _windowOf(ref, _leftCard, byKey);
     final percent = ref.watch(incomeLeftPercentProvider).value ?? false;
     final values = [
       for (final t in totals)
@@ -407,7 +432,9 @@ class _IncomeLeftCard extends ConsumerWidget {
         : (current.income - current.spent).toDouble();
     String format(double value) =>
         percent ? '${value.round()}%' : Money.compact(value.round());
-    return _plainCard(
+    return _swipeCard(
+      _leftCard,
+      analyticsWindow,
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
@@ -449,6 +476,7 @@ class _IncomeLeftCard extends ConsumerWidget {
             const _EmptyChart('No transactions in these months.')
           else
             _WindowBars(
+              card: _leftCard,
               totals: totals,
               minY: bottom,
               maxY: top,
@@ -537,21 +565,32 @@ class _CalendarCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final period = Period.forMonthKey(
-      ref.watch(selectedMonthProvider),
-      ref.watch(salaryDayProvider).value,
-    );
+    final month = _cardMonth(ref, _calendarCard);
+    final salaryDay = ref.watch(salaryDayProvider).value;
+    final period = Period.forMonthKey(month, salaryDay);
     final days = dailySpend(_debits(rows), period.start, period.end);
     final most = days.map((d) => d.paise).fold(0, max);
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final caption = Theme.of(context).textTheme.bodySmall;
-    return _plainCard(
+    return _swipeCard(
+      _calendarCard,
+      1,
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
         children: [
-          Text('Calendar', style: caption),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Calendar', style: caption),
+              Text(
+                MonthKey.label(month),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+              if (salaryDay != null) Text(period.rangeLabel, style: caption),
+            ],
+          ),
           Row(
             children: [
               for (final letter in 'MTWTFSS'.split(''))
@@ -576,7 +615,13 @@ class _CalendarCard extends ConsumerWidget {
               // Monday first, as in the reference.
               for (var i = 1; i < days.first.start.weekday; i++)
                 const SizedBox.shrink(),
-              for (final day in days) _DayCell(day, most, day.start == today),
+              for (final day in days)
+                _DayCell(
+                  key: ValueKey(day.start),
+                  day,
+                  most,
+                  day.start == today,
+                ),
             ],
           ),
         ],
@@ -586,7 +631,7 @@ class _CalendarCard extends ConsumerWidget {
 }
 
 class _DayCell extends StatelessWidget {
-  const _DayCell(this.day, this.most, this.today);
+  const _DayCell(this.day, this.most, this.today, {super.key});
 
   final Bucket day;
   final int most;
@@ -595,45 +640,53 @@ class _DayCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    void open() => showDaySheet(context, day.start);
     return Semantics(
       label: '${Period.shortDate(day.start)}: ${Money.format(day.paise)}',
+      button: true,
+      onTap: open,
       excludeSemantics: true,
-      child: Container(
-        padding: const EdgeInsets.all(2),
-        decoration: BoxDecoration(
-          color: day.paise == 0
-              ? palette.surfaceRaised
-              : AppColors.expense.withValues(alpha: heatLevel(day.paise, most)),
-          borderRadius: BorderRadius.circular(10),
-          border: today ? Border.all(color: palette.textPrimary) : null,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            Text(
-              '${day.start.day}',
-              style: TextStyle(
-                fontSize: 11,
-                color: day.paise == 0
-                    ? palette.textSecondary
-                    : palette.textPrimary,
-              ),
-            ),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                // shortcut: no rupee sign, it does not fit a seventh of the card.
-                Money.compact(day.paise).replaceFirst('₹', ''),
+      child: GestureDetector(
+        onTap: open,
+        child: Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: day.paise == 0
+                ? palette.surfaceRaised
+                : AppColors.expense.withValues(
+                    alpha: heatLevel(day.paise, most),
+                  ),
+            borderRadius: BorderRadius.circular(10),
+            border: today ? Border.all(color: palette.textPrimary) : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              Text(
+                '${day.start.day}',
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 11,
                   color: day.paise == 0
                       ? palette.textSecondary
                       : palette.textPrimary,
                 ),
               ),
-            ),
-          ],
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  // shortcut: no rupee sign, it does not fit a seventh of the card.
+                  Money.compact(day.paise).replaceFirst('₹', ''),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: day.paise == 0
+                        ? palette.textSecondary
+                        : palette.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -645,10 +698,12 @@ class _DayWiseCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final month = ref.watch(selectedMonthProvider);
+    final month = _cardMonth(ref, _dayWiseCard);
     return MonthSwipe(
+      picked: cardMonthProvider(_dayWiseCard),
       child: _ChartCard(
         title: 'Day-wise spend',
+        subtitle: MonthKey.label(month),
         rows: ref.watch(transactionsProvider(month)),
         child: (rows) {
           final period = Period.forMonthKey(
@@ -839,10 +894,12 @@ class _BudgetPieCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final month = ref.watch(selectedMonthProvider);
+    final month = _cardMonth(ref, _pieCard);
     return MonthSwipe(
+      picked: cardMonthProvider(_pieCard),
       child: _ChartCard(
         title: 'Budget',
+        subtitle: MonthKey.label(month),
         rows: ref.watch(transactionsProvider(month)),
         child: (rows) {
           final categories = ref.watch(categoriesProvider).value ?? const [];

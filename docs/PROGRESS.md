@@ -10,6 +10,7 @@ Status: built on branch `phase-10-budget-analytics-settings` (from `main`), not 
 - Analytics: `periodWindow` gives the 6-period window. Income vs expenses, income left (with saved amount/percent toggle) and the calendar heatmap move together on a swipe, by `MonthSwipe(months: 6)`.
 - Settings: grouped list with icon tiles, plus Appearance (System, Light, Dark).
 - Light theme: `AppPalette` is a theme extension, read through `context.palette`; `AppColors` keeps only colours shared by both themes.
+- From the iPhone check, Rupesh asked for these (SPEC 5.17 updated, as Rupesh decided): every Analytics card now keeps its own month in `cardMonthProvider`, so a swipe or bar tap moves only that card and never the app-wide month. A tapped bar's figures show at the top of its card. The calendar shows its month and year and opens `day_sheet.dart` on a date tap, where rows edit and swipe-delete as on Activity (shared `SwipeToDelete`, `showDeletedSnackBar`).
 - Pure helpers with tests: `limitAfterEdit`, `budgetLeft`, `canSaveLimit`, `wholePercentLabel`, `windowLabel`, `incomeLeftPercent`, `heatLevel`. No schema change: new choices are rows in `settings`.
 
 ### Decisions
@@ -18,7 +19,9 @@ Status: built on branch `phase-10-budget-analytics-settings` (from `main`), not 
 - A blank amount removes the limit (or, for month only, falls back to the default) and can always be saved. Otherwise limits past a lowered salary could never be removed. Anything else that leaves the amount negative is blocked, as 5.16 says.
 - With no salary set there is no cap to check, so limits save and the sheet says "No salary set".
 - Allocate holds edits in memory: each row's cap counts edits not yet confirmed, and dismissing the sheet drops them.
-- The window counts back from the current period, so it has no state of its own: a swipe shifts the app-wide month by 6 and keeps the same slot highlighted.
+- The window counts back from the current period: a swipe shifts the card's month by 6 and keeps the same slot highlighted.
+- Day-wise and the budget pie are independent too, as they are cards on the same screen, and show their month. With nothing left for it to drive, the Analytics month caption is gone. Changing the month boundary returns every card to the current period.
+- The day sheet lists debits only, matching the cell's total. A zero day opens with "No expenses on this day". Undo lives in the sheet, so closing the sheet makes a delete final. A saved edit moves the other tabs to that row's month, as a save anywhere does.
 - The window cards replace the old 12-month chart. Day-wise, Date range and the budget pie stay below them, so 5.8 behaviour is kept (see BACKLOG).
 - The Budget tab keeps the uncategorised shortcut but drops the last-5 list (see BACKLOG). Tapping "of ₹X" on the ring sets the month's salary override.
 - Summary keeps its note for limits above the salary: lowering a salary can still cause it.
@@ -31,7 +34,7 @@ Status: built on branch `phase-10-budget-analytics-settings` (from `main`), not 
 - `Money.compact` wrote large negative amounts as `₹-5000`. It now gives `-₹5k`.
 
 ### Checks
-- `flutter analyze`: no issues. `flutter test`: 190 passed.
+- `flutter analyze`: no issues. `flutter test`: 195 passed.
 - Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point with seeded data, deleted afterwards. Viewed in both themes: Budget, keypad blocked over salary, Analytics amount mode, Settings. Dark only: a window crossing a year. Light only: Allocate, percent mode, calendar, Activity, Summary. This found an overflow in the Allocate header, a blank row under the calendar and colliding axis labels, all fixed; the last two fixes were not viewed again. Real swipes and taps are covered by widget tests only. The simulator still has that temporary debug build installed.
 
 ### What to verify on the device
@@ -44,7 +47,7 @@ Status: built on branch `phase-10-budget-analytics-settings` (from `main`), not 
 7. Tap a row on Summary: the same keypad, with the same block.
 8. Every month against <Month> only: a month-only limit does not change other months. Clear the amount and save: the limit goes.
 9. Long-press the backspace, in this keypad and the add sheet: the amount clears.
-10. Analytics, side by side with references 07, 08, 22 and 23: swipe right moves back 6 months on all three cards; swipe left returns and stops at the current window. Tap a bar: the legend and calendar follow. Vertical scrolling still works when starting on a chart.
+10. Analytics, compared with references 07, 08, 22 and 23: swipe each card; only that card moves, and the bar cards stop at the current window. Tap a bar: only that card's top figures change. Vertical scrolling still works when starting on a chart. The calendar shows month and year. Tap a date: its expenses and total. Tap a row to edit, swipe one to delete, then Undo.
 11. Percent toggle: force-quit, it stays. A month with no income is a dashed outline.
 12. Set an override below spend: the budget pie further down shows "Over salary by" and the ring. Clear it.
 13. Settings, compare with reference 09. Appearance: Light, Dark, System, on every tab and sheet, looking for anything hard to read.

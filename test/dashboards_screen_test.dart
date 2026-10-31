@@ -114,43 +114,137 @@ void main() {
     expect(find.text('₹700.00'), findsWidgets);
   });
 
-  testWidgets(
-    'a swipe moves all three cards a window, stopping at the newest',
-    (tester) async {
-      final older = MonthKey.shift(month, -6);
-      await add(123400, at: MonthKey.start(older));
-      await add(5000);
-      await pump(tester);
-      expect(find.text('₹1,234.00'), findsNothing);
+  testWidgets('each card swipes and selects on its own', (tester) async {
+    final older = MonthKey.shift(month, -6);
+    await add(123400, at: MonthKey.start(older));
+    await add(5000);
+    await pump(tester);
+    Text left() => tester.widget<Text>(find.byKey(const Key('income-left')));
+    expect(find.text(MonthKey.label(month)), findsNWidgets(3));
+    expect(left().data, '-₹50.00');
 
-      await tester.drag(find.byType(BarChart).first, const Offset(100, 0));
-      await settle(tester);
-      expect(find.text('₹1,234.00'), findsOneWidget, reason: 'expenses legend');
-      expect(find.text('-₹1,234.00'), findsOneWidget, reason: 'income left');
-      final days = tester
-          .widgetList<Semantics>(find.byType(Semantics))
-          .where((w) => w.properties.label?.endsWith(': ₹1,234.00') ?? false);
-      expect(days, hasLength(1), reason: 'the calendar followed');
+    await tester.drag(find.byType(BarChart).first, const Offset(100, 0));
+    await settle(tester);
+    expect(find.text('₹1,234.00'), findsOneWidget, reason: 'its legend moved');
+    expect(left().data, '-₹50.00', reason: 'income left did not');
+    expect(find.text(MonthKey.label(month)), findsNWidgets(3));
 
-      await tester.drag(find.text('Calendar'), const Offset(-100, 0));
+    await tester.drag(find.byType(BarChart).at(1), const Offset(100, 0));
+    await settle(tester);
+    expect(left().data, '-₹1,234.00');
+
+    await tester.drag(find.text('Calendar'), const Offset(100, 0));
+    await settle(tester);
+    expect(
+      find.text(MonthKey.label(MonthKey.shift(month, -1))),
+      findsOneWidget,
+      reason: 'the calendar moved one month, day-wise and pie stayed',
+    );
+    expect(find.text(MonthKey.label(month)), findsNWidgets(2));
+
+    await tester.drag(find.text('Calendar'), const Offset(-100, 0));
+    await settle(tester);
+    await tester.drag(find.text('Calendar'), const Offset(-100, 0));
+    await settle(tester);
+    expect(
+      find.text(MonthKey.label(month)),
+      findsNWidgets(3),
+      reason: 'no further than the current period',
+    );
+  });
+
+  testWidgets('a tapped bar changes only its own card', (tester) async {
+    final last = MonthKey.start(MonthKey.shift(month, -1));
+    await add(70000, at: last);
+    await add(5000);
+    await pump(tester);
+    Text left() => tester.widget<Text>(find.byKey(const Key('income-left')));
+
+    final box = tester.getRect(find.byType(BarChart).first);
+    final slot = (box.width - 44) / 6;
+    await tester.tapAt(Offset(box.right - 44 - slot * 1.5, box.center.dy));
+    await settle(tester);
+    expect(find.text('₹700.00'), findsOneWidget, reason: 'its legend');
+    expect(left().data, '-₹50.00');
+  });
+
+  group('the day sheet', () {
+    Future<void> openDay(WidgetTester tester) async {
+      await tester.tap(find.byKey(ValueKey(DateTime(start.year, start.month))));
       await settle(tester);
-      expect(find.text('₹1,234.00'), findsNothing);
-      await tester.drag(find.text('Calendar'), const Offset(-100, 0));
-      await settle(tester);
-      expect(
-        tester
-            .widget<BarChart>(find.byType(BarChart).first)
-            .data
-            .barGroups
-            .last
-            .barRods
-            .last
-            .toY,
-        5000,
-        reason: 'no further than the current period',
+    }
+
+    Text total(WidgetTester tester) =>
+        tester.widget<Text>(find.byKey(const Key('day-total')));
+
+    Future<void> seed() async {
+      await db.addTransaction(
+        TransactionsCompanion.insert(
+          type: TransactionType.debit,
+          amountPaise: 9000,
+          occurredAt: start.add(const Duration(hours: 9)),
+          source: TransactionSource.manual,
+          counterparty: const Value('Lunch'),
+          categoryId: const Value(food),
+        ),
       );
-    },
-  );
+      await add(100000, at: start.add(const Duration(hours: 10)));
+      await add(5000, type: TransactionType.credit);
+      await add(7700, at: start.add(const Duration(days: 1)));
+    }
+
+    testWidgets('lists only that day\'s expenses with their total', (
+      tester,
+    ) async {
+      await seed();
+      await pump(tester);
+      await openDay(tester);
+      expect(total(tester).data, '-₹1,090.00');
+      expect(find.text('Lunch'), findsOneWidget);
+      expect(find.text('₹77.00'), findsNothing);
+      expect(find.text('+₹50.00'), findsNothing);
+
+      await tester.tap(find.byTooltip('Close'));
+      await settle(tester);
+      expect(find.text('Total amount'), findsNothing);
+    });
+
+    testWidgets('a tap edits, and the edit shows at once', (tester) async {
+      await seed();
+      await pump(tester);
+      await openDay(tester);
+      await tester.tap(find.text('Lunch'));
+      await settle(tester);
+      expect(find.byKey(const Key('sheet-amount')), findsOneWidget);
+      await tester.tap(find.byTooltip('Backspace'));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('key-save')));
+      await settle(tester);
+      expect(find.byKey(const Key('sheet-amount')), findsNothing);
+      expect(total(tester).data, '-₹1,009.00');
+    });
+
+    testWidgets('a swipe deletes, and Undo restores it', (tester) async {
+      await seed();
+      await pump(tester);
+      await openDay(tester);
+      await tester.drag(find.text('Lunch'), const Offset(-600, 0));
+      await settle(tester);
+      expect(find.text('Lunch'), findsNothing);
+      expect(total(tester).data, '-₹1,000.00');
+
+      await tester.tap(find.text('Undo'));
+      await settle(tester);
+      expect(find.text('Lunch'), findsOneWidget);
+      expect(total(tester).data, '-₹1,090.00');
+    });
+
+    testWidgets('a day with no expenses says so', (tester) async {
+      await pump(tester);
+      await openDay(tester);
+      expect(find.text('No expenses on this day'), findsOneWidget);
+    });
+  });
 
   testWidgets('income left: the toggle persists, zero income is dashed', (
     tester,
@@ -316,7 +410,7 @@ void main() {
       ),
     );
     await settle(tester);
-    widgetRef.read(pickedMonthProvider.notifier).state = '2026-11';
+    widgetRef.read(cardMonthProvider('dayWise').notifier).state = '2026-11';
     await settle(tester);
 
     final chart = tester.widget<BarChart>(find.byType(BarChart).last);

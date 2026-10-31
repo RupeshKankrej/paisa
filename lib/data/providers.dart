@@ -105,6 +105,12 @@ final budgetAmountsProvider = StreamProvider<Map<int, Map<String?, int>>>(
 /// Null until a month is chosen, which means the current one.
 final pickedMonthProvider = StateProvider<String?>((ref) => null);
 
+/// Each Analytics card's own month, independent of the app-wide one and of the
+/// other cards. Null means the current period.
+final cardMonthProvider = StateProvider.family<String?, String>(
+  (ref, card) => null,
+);
+
 final selectedMonthProvider = Provider<String>(
   (ref) =>
       ref.watch(pickedMonthProvider) ??
