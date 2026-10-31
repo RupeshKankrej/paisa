@@ -155,6 +155,12 @@ void main() {
 
     final line = chart.data.extraLinesData.horizontalLines.single;
     expect(line.dashArray, isNotNull);
+    expect(line.label.show, isTrue);
+    expect(
+      chart.data.borderData.border.bottom.width,
+      greaterThan(0),
+      reason: 'a solid line marks zero',
+    );
     expect(line.y, (40000 / now.day).round());
   });
 

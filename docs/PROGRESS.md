@@ -2,7 +2,7 @@
 
 ## Phase 5: Dashboards (2026-10-31)
 
-Status: built on branch `phase-5-dashboards`, not merged. Tests pass and all four charts were viewed on the simulator. Release build installed on the iPhone 15; Rupesh confirmed the date and month pickers and the pie chart on the iPhone. Rupesh then reported a grey bar and spillover below the zero line on Expenses vs income; both changes below await confirmation.
+Status: built on branch `phase-5-dashboards`, not merged. Tests pass and all four charts were viewed on the simulator. Release build installed on the iPhone 15; Rupesh confirmed the date and month pickers and the pie chart on the iPhone. The grey month highlight was removed at Rupesh's request. The fix for the Day-wise spillover below awaits confirmation.
 
 ### What was built
 - `lib/domain/dashboards.dart`: period totals, daily and weekly buckets, daily average and budget pie slices, in pure Dart.
@@ -19,7 +19,7 @@ Status: built on branch `phase-5-dashboards`, not merged. Tests pass and all fou
 - A range of exactly 90 days is daily; 91 or more is by week. The average stays per day. The end date cannot be later than today.
 - All credits count as income, as SPEC 3.2 says. The open question in SPEC 8 about refunds and transfers still stands.
 
-- The year under January was removed from the month-wise axis. fl_chart clamps bars at zero, so that label was the only thing drawn lower than the rest and is the likely spillover; the cause is not confirmed.
+- Charts have a solid line at zero, and the day-wise average is coloured and labelled "avg". Rupesh saw bars spilling below zero on Day-wise; reproduced on the simulator, nothing went below zero, but with one large day the dashed average sat just above zero and looked like the zero line.
 
 ### Checks
 - `flutter analyze`: no issues. `flutter test`: 124 passed.

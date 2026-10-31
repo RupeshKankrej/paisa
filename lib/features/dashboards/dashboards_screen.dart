@@ -25,6 +25,13 @@ Iterable<(DateTime, int)> _debits(List<TransactionRow> rows) => rows
     .where((r) => r.type == TransactionType.debit)
     .map((r) => (r.occurredAt, r.amountPaise));
 
+/// A solid line at zero, so the dashed average is not mistaken for it.
+FlBorderData _baseline(BuildContext context) => FlBorderData(
+  border: Border(
+    bottom: BorderSide(color: Theme.of(context).colorScheme.onSurfaceVariant),
+  ),
+);
+
 SideTitles _amountAxis() => SideTitles(
   showTitles: true,
   reservedSize: _axisWidth,
@@ -236,14 +243,17 @@ class _MonthWiseCardState extends ConsumerState<_MonthWiseCard> {
                         minY: 0,
                         maxY: top,
                         alignment: BarChartAlignment.spaceAround,
-                        borderData: FlBorderData(show: false),
+                        borderData: _baseline(context),
                         gridData: const FlGridData(drawVerticalLine: false),
                         titlesData: _titles(
                           right: _amountAxis(),
-                          bottom: _bottomAxis(
-                            (i) =>
-                                MonthKey.label(totals[i].key).substring(0, 3),
-                          ),
+                          bottom: _bottomAxis((i) {
+                            final key = totals[i].key;
+                            final name = MonthKey.label(key).substring(0, 3);
+                            return key.endsWith('-01')
+                                ? '$name\n${key.substring(0, 4)}'
+                                : name;
+                          }),
                         ),
                         barTouchData: BarTouchData(
                           handleBuiltInTouches: false,
@@ -316,7 +326,7 @@ class _DayWiseCard extends ConsumerWidget {
                   minY: 0,
                   maxY: days.map((d) => d.paise).reduce(max) * 1.1,
                   alignment: BarChartAlignment.spaceAround,
-                  borderData: FlBorderData(show: false),
+                  borderData: _baseline(context),
                   gridData: const FlGridData(drawVerticalLine: false),
                   titlesData: _titles(
                     left: _amountAxis(),
@@ -330,9 +340,19 @@ class _DayWiseCard extends ConsumerWidget {
                     horizontalLines: [
                       HorizontalLine(
                         y: average.toDouble(),
-                        color: Theme.of(context).colorScheme.onSurface,
-                        strokeWidth: 1,
+                        color: Theme.of(context).colorScheme.primary,
+                        strokeWidth: 1.5,
                         dashArray: const [6, 4],
+                        label: HorizontalLineLabel(
+                          show: true,
+                          alignment: Alignment.topLeft,
+                          padding: const EdgeInsets.only(bottom: 2),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          labelResolver: (_) => 'avg',
+                        ),
                       ),
                     ],
                   ),
@@ -431,7 +451,7 @@ class _DateRangeCardState extends ConsumerState<_DateRangeCard> {
                     maxX: max(1, points.length - 1).toDouble(),
                     minY: 0,
                     maxY: points.map((p) => p.paise).reduce(max) * 1.1,
-                    borderData: FlBorderData(show: false),
+                    borderData: _baseline(context),
                     gridData: const FlGridData(drawVerticalLine: false),
                     // The built-in tooltip would show raw paise.
                     lineTouchData: const LineTouchData(enabled: false),
