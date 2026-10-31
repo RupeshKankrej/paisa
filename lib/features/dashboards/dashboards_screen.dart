@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/shell_widgets.dart';
+import '../../app/month_picker.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/money.dart';
 import '../../core/month_key.dart';
@@ -299,82 +300,84 @@ class _DayWiseCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedMonthProvider);
-    return _ChartCard(
-      title: 'Day-wise spend',
-      rows: ref.watch(transactionsProvider(month)),
-      child: (rows) {
-        final period = Period.forMonthKey(
-          month,
-          ref.watch(salaryDayProvider).value,
-        );
-        final days = dailySpend(_debits(rows), period.start, period.end);
-        final total = sumPaise(days.map((d) => d.paise));
-        if (total == 0) {
-          return _EmptyChart('No spending in ${MonthKey.label(month)}.');
-        }
-        final average = dailyAverage(days, DateTime.now());
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 8,
-          children: [
-            Text('Average ${Money.format(average)} a day'),
-            SizedBox(
-              height: _chartHeight,
-              child: BarChart(
-                BarChartData(
-                  minY: 0,
-                  maxY: days.map((d) => d.paise).reduce(max) * 1.1,
-                  alignment: BarChartAlignment.spaceAround,
-                  borderData: _baseline(context),
-                  gridData: const FlGridData(drawVerticalLine: false),
-                  titlesData: _titles(
-                    left: _amountAxis(),
-                    bottom: _bottomAxis(
-                      (i) => i % 5 == 0 ? '${days[i].start.day}' : '',
-                    ),
-                  ),
-                  // The built-in tooltip would show raw paise.
-                  barTouchData: BarTouchData(enabled: false),
-                  extraLinesData: ExtraLinesData(
-                    horizontalLines: [
-                      HorizontalLine(
-                        y: average.toDouble(),
-                        color: Theme.of(context).colorScheme.primary,
-                        strokeWidth: 1.5,
-                        dashArray: const [6, 4],
-                        label: HorizontalLineLabel(
-                          show: true,
-                          alignment: Alignment.topLeft,
-                          padding: const EdgeInsets.only(bottom: 2),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          labelResolver: (_) => 'avg',
-                        ),
+    return MonthSwipe(
+      child: _ChartCard(
+        title: 'Day-wise spend',
+        rows: ref.watch(transactionsProvider(month)),
+        child: (rows) {
+          final period = Period.forMonthKey(
+            month,
+            ref.watch(salaryDayProvider).value,
+          );
+          final days = dailySpend(_debits(rows), period.start, period.end);
+          final total = sumPaise(days.map((d) => d.paise));
+          if (total == 0) {
+            return _EmptyChart('No spending in ${MonthKey.label(month)}.');
+          }
+          final average = dailyAverage(days, DateTime.now());
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 8,
+            children: [
+              Text('Average ${Money.format(average)} a day'),
+              SizedBox(
+                height: _chartHeight,
+                child: BarChart(
+                  BarChartData(
+                    minY: 0,
+                    maxY: days.map((d) => d.paise).reduce(max) * 1.1,
+                    alignment: BarChartAlignment.spaceAround,
+                    borderData: _baseline(context),
+                    gridData: const FlGridData(drawVerticalLine: false),
+                    titlesData: _titles(
+                      left: _amountAxis(),
+                      bottom: _bottomAxis(
+                        (i) => i % 5 == 0 ? '${days[i].start.day}' : '',
                       ),
+                    ),
+                    // The built-in tooltip would show raw paise.
+                    barTouchData: BarTouchData(enabled: false),
+                    extraLinesData: ExtraLinesData(
+                      horizontalLines: [
+                        HorizontalLine(
+                          y: average.toDouble(),
+                          color: Theme.of(context).colorScheme.primary,
+                          strokeWidth: 1.5,
+                          dashArray: const [6, 4],
+                          label: HorizontalLineLabel(
+                            show: true,
+                            alignment: Alignment.topLeft,
+                            padding: const EdgeInsets.only(bottom: 2),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            labelResolver: (_) => 'avg',
+                          ),
+                        ),
+                      ],
+                    ),
+                    barGroups: [
+                      for (final (i, day) in days.indexed)
+                        BarChartGroupData(
+                          x: i,
+                          barRods: [
+                            BarChartRodData(
+                              toY: day.paise.toDouble(),
+                              color: _spentColor,
+                              width: 5,
+                              borderRadius: BorderRadius.zero,
+                            ),
+                          ],
+                        ),
                     ],
                   ),
-                  barGroups: [
-                    for (final (i, day) in days.indexed)
-                      BarChartGroupData(
-                        x: i,
-                        barRods: [
-                          BarChartRodData(
-                            toY: day.paise.toDouble(),
-                            color: _spentColor,
-                            width: 5,
-                            borderRadius: BorderRadius.zero,
-                          ),
-                        ],
-                      ),
-                  ],
                 ),
               ),
-            ),
-          ],
-        );
-      },
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -491,94 +494,96 @@ class _BudgetPieCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedMonthProvider);
-    return _ChartCard(
-      title: 'Budget',
-      rows: ref.watch(transactionsProvider(month)),
-      child: (rows) {
-        final categories = ref.watch(categoriesProvider).value ?? const [];
-        final budgets = ref.watch(budgetAmountsProvider).value ?? const {};
-        final salary = resolveAmount(
-          ref.watch(salaryAmountsProvider).value ?? const {},
-          month,
-        );
-        final spend = spendOf(rows);
-        final limits = {
-          for (final c in categories)
-            c.id: ?resolveAmount(budgets[c.id] ?? const {}, month),
-        };
-        final pie = budgetPie(limits, spend, salary);
-        final byId = {for (final c in categories) c.id: c};
-        final over = pie.overSalaryBy > 0;
-        final ring = pie.salaryRing;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 12,
-          children: [
-            if (over)
-              Text(
-                'Over salary by ${Money.format(pie.overSalaryBy)}',
-                style: const TextStyle(color: Colors.red),
-              ),
-            if (pie.isEmpty)
-              const _EmptyChart(
-                'Set a salary or category limits to see this chart.',
-              )
-            else ...[
-              SizedBox(
-                height: _radius * 2,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    PieChart(
-                      PieChartData(
-                        centerSpaceRadius: 0,
-                        sectionsSpace: 0,
-                        startDegreeOffset: -90,
-                        pieTouchData: PieTouchData(enabled: false),
-                        sections: [
-                          for (final slice in pie.slices)
-                            ..._sections(slice, byId[slice.categoryId]),
-                        ],
+    return MonthSwipe(
+      child: _ChartCard(
+        title: 'Budget',
+        rows: ref.watch(transactionsProvider(month)),
+        child: (rows) {
+          final categories = ref.watch(categoriesProvider).value ?? const [];
+          final budgets = ref.watch(budgetAmountsProvider).value ?? const {};
+          final salary = resolveAmount(
+            ref.watch(salaryAmountsProvider).value ?? const {},
+            month,
+          );
+          final spend = spendOf(rows);
+          final limits = {
+            for (final c in categories)
+              c.id: ?resolveAmount(budgets[c.id] ?? const {}, month),
+          };
+          final pie = budgetPie(limits, spend, salary);
+          final byId = {for (final c in categories) c.id: c};
+          final over = pie.overSalaryBy > 0;
+          final ring = pie.salaryRing;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 12,
+            children: [
+              if (over)
+                Text(
+                  'Over salary by ${Money.format(pie.overSalaryBy)}',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              if (pie.isEmpty)
+                const _EmptyChart(
+                  'Set a salary or category limits to see this chart.',
+                )
+              else ...[
+                SizedBox(
+                  height: _radius * 2,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      PieChart(
+                        PieChartData(
+                          centerSpaceRadius: 0,
+                          sectionsSpace: 0,
+                          startDegreeOffset: -90,
+                          pieTouchData: PieTouchData(enabled: false),
+                          sections: [
+                            for (final slice in pie.slices)
+                              ..._sections(slice, byId[slice.categoryId]),
+                          ],
+                        ),
                       ),
-                    ),
-                    if (ring != null)
-                      IgnorePointer(
-                        child: Container(
-                          key: const Key('salary-ring'),
-                          width: _radius * 2 * ring,
-                          height: _radius * 2 * ring,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              width: 1.5,
+                      if (ring != null)
+                        IgnorePointer(
+                          child: Container(
+                            key: const Key('salary-ring'),
+                            width: _radius * 2 * ring,
+                            height: _radius * 2 * ring,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                width: 1.5,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              if (over && salary != null)
-                Text(
-                  'The outer edge is total spend, '
-                  '${Money.format(sumPaise(spend.values))}. '
-                  'The thin ring is the salary, ${Money.format(salary)}.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                if (over && salary != null)
+                  Text(
+                    'The outer edge is total spend, '
+                    '${Money.format(sumPaise(spend.values))}. '
+                    'The thin ring is the salary, ${Money.format(salary)}.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+              ],
+              for (final slice in pie.slices)
+                _LegendRow.slice(slice, byId[slice.categoryId]),
+              for (final c in categories)
+                if (!limits.containsKey(c.id) && (spend[c.id] ?? 0) > 0)
+                  _LegendRow(
+                    Color(c.color),
+                    c.name,
+                    'No limit · Spent ${Money.format(spend[c.id]!)}',
+                  ),
             ],
-            for (final slice in pie.slices)
-              _LegendRow.slice(slice, byId[slice.categoryId]),
-            for (final c in categories)
-              if (!limits.containsKey(c.id) && (spend[c.id] ?? 0) > 0)
-                _LegendRow(
-                  Color(c.color),
-                  c.name,
-                  'No limit · Spent ${Money.format(spend[c.id]!)}',
-                ),
-          ],
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

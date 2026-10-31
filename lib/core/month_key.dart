@@ -42,6 +42,17 @@ abstract final class MonthKey {
     for (var key = from; key.compareTo(to) <= 0; key = shift(key, 1)) key,
   ];
 
+  /// Years the month picker offers, newest first: back to the oldest of [keys]
+  /// and at least 5 years including [current]'s (SPEC 5.13).
+  static List<int> pickerYears(String current, Iterable<String> keys) {
+    final years = [current, ...keys].map((k) => _parse(k).$1).toList()..sort();
+    final newest = years.last;
+    final oldest = years.first < _parse(current).$1 - 4
+        ? years.first
+        : _parse(current).$1 - 4;
+    return [for (var y = newest; y >= oldest; y--) y];
+  }
+
   static (int, int) _parse(String key) {
     final match = _key.firstMatch(key);
     if (match == null) throw FormatException('Bad month key', key);

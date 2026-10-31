@@ -6,6 +6,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:paisa/app/month_picker.dart';
 import 'package:paisa/core/month_key.dart';
 import 'package:paisa/core/theme/app_theme.dart';
 import 'package:paisa/data/database.dart';
@@ -135,31 +136,72 @@ void main() {
       findsNothing,
     );
 
-    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.tap(find.byType(MonthPicker));
     await tester.pumpAndSettle();
     final lastMonth = MonthKey.shift(MonthKey.of(now), -1);
-    await tester.tap(find.text(MonthKey.label(lastMonth)).last);
+    await tester.tap(find.text(lastMonth.substring(0, 4)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(MonthKey.label(lastMonth).substring(0, 3)));
     await settle(tester);
+    expect(find.byType(BottomSheet), findsNothing);
     expect(find.text('Last month'), findsOneWidget);
     expect(find.text('Newer'), findsNothing);
   });
 
-  testWidgets('the month picker offers the last 12 months with no data', (
+  testWidgets('the month sheet offers 5 years and disables future months', (
     tester,
   ) async {
     await pumpScreen(tester);
-    await tester.tap(find.byType(DropdownButton<String>));
+    expect(find.text('This month'), findsOneWidget);
+    await tester.tap(find.byType(MonthPicker));
     await tester.pumpAndSettle();
-    final current = MonthKey.of(now);
-    expect(
-      find.text(MonthKey.label(MonthKey.shift(current, -11))),
-      findsWidgets,
+    expect(find.text('Select date'), findsOneWidget);
+    expect(find.text('${now.year - 4}'), findsOneWidget);
+    expect(find.text('${now.year + 1}'), findsNothing);
+    expect(find.text('Swipe on any chart to change months'), findsOneWidget);
+
+    // A disabled month ignores the tap, so the sheet stays up.
+    if (now.month < 12) {
+      final next = MonthKey.shift(MonthKey.of(now), 1);
+      await tester.tap(find.text(MonthKey.label(next).substring(0, 3)));
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomSheet), findsOneWidget);
+    }
+  });
+
+  testWidgets('a swipe on the header changes month, stopping at the current', (
+    tester,
+  ) async {
+    final monthStart = DateTime(now.year, now.month);
+    await add('This one', at: monthStart.add(const Duration(hours: 9)));
+    await add(
+      'Last one',
+      paise: 7000,
+      at: monthStart.subtract(const Duration(days: 1)),
     );
-    expect(
-      find.text(MonthKey.label(MonthKey.shift(current, -12))),
-      findsNothing,
-    );
-    expect(find.text(MonthKey.label(MonthKey.shift(current, 1))), findsNothing);
+    await pumpScreen(tester);
+    final chart = find.byType(BarChart);
+
+    await tester.drag(chart, const Offset(100, 0));
+    await settle(tester);
+    expect(find.text('This one'), findsOneWidget, reason: 'no future months');
+
+    await tester.drag(chart, const Offset(-100, 0));
+    await settle(tester);
+    expect(find.text('Last one'), findsOneWidget);
+    expect(find.text('This one'), findsNothing);
+    final data = tester.widget<BarChart>(chart).data;
+    expect(data.maxY, 7000, reason: 'the bars follow the month');
+    expect(find.text('This month'), findsNothing);
+
+    await tester.drag(chart, const Offset(10, 0));
+    await settle(tester);
+    expect(find.text('Last one'), findsOneWidget, reason: 'too short to count');
+
+    await tester.drag(chart, const Offset(100, 0));
+    await settle(tester);
+    expect(find.text('This one'), findsOneWidget);
+    expect(find.text('This month'), findsOneWidget);
   });
 
   testWidgets('filter chips separate expenses and income', (tester) async {

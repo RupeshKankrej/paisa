@@ -289,4 +289,16 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
+
+  testWidgets('a swipe on the day-wise card changes month', (tester) async {
+    await add(5000);
+    await pump(tester);
+    final card = find.text('Day-wise spend');
+    await tester.drag(card, const Offset(-100, 0));
+    await settle(tester);
+    expect(
+      find.text('No spending in ${MonthKey.label(MonthKey.shift(month, -1))}.'),
+      findsOneWidget,
+    );
+  });
 }

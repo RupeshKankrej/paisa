@@ -116,14 +116,16 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
       padding: listClearance(context),
       children: [
         SizedBox(height: belowFloatingBar(context)),
-        _Donut(
-          slices: [
-            if (uncategorised != null) (Colors.grey, uncategorised.paise),
-            for (final c in shown)
-              if (paiseOf(c) > 0) (Color(c.color), paiseOf(c)),
-          ],
-          total: total,
-          salary: over ? salary : null,
+        MonthSwipe(
+          child: _Donut(
+            slices: [
+              if (uncategorised != null) (Colors.grey, uncategorised.paise),
+              for (final c in shown)
+                if (paiseOf(c) > 0) (Color(c.color), paiseOf(c)),
+            ],
+            total: total,
+            salary: over ? salary : null,
+          ),
         ),
         if (expenses && salary != null)
           Padding(

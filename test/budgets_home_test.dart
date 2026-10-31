@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:paisa/app/month_picker.dart';
 import 'package:paisa/core/month_key.dart';
 import 'package:paisa/core/period.dart';
 import 'package:paisa/data/database.dart';
@@ -279,11 +280,25 @@ void main() {
     expect(find.textContaining('more than the salary'), findsNothing);
   });
 
-  testWidgets('the month picker in the donut can be tapped', (tester) async {
+  testWidgets('the month picker and a swipe on the donut both work', (
+    tester,
+  ) async {
+    await add(5000, category: food);
     await pump(tester, const CategoriesScreen());
-    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.drag(find.byType(PieChart), const Offset(-100, 0));
+    await settle(tester);
+    expect(
+      find.text('₹50.00'),
+      findsNothing,
+      reason: 'previous month is empty',
+    );
+    await tester.drag(find.byType(PieChart), const Offset(100, 0));
+    await settle(tester);
+    expect(find.text('₹50.00'), findsWidgets);
+
+    await tester.tap(find.byType(MonthPicker));
     await tester.pumpAndSettle();
-    expect(find.text(MonthKey.label(MonthKey.shift(month, -1))), findsWidgets);
+    expect(find.text('Select date'), findsOneWidget);
   });
 
   testWidgets('Summary marks spend past the salary on the donut', (

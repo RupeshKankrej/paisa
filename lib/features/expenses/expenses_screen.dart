@@ -102,30 +102,32 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         body: ListView(
           padding: listClearance(context),
           children: [
-            DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [AppColors.heroTop, AppColors.bg],
+            MonthSwipe(
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [AppColors.heroTop, AppColors.bg],
+                  ),
                 ),
-              ),
-              child: Padding(
-                padding: EdgeInsets.only(top: belowFloatingBar(context)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Center(child: MonthPicker()),
-                    Center(child: HeroAmount(sumPaise(spendOf(rows).values))),
-                    const SizedBox(height: 16),
-                    DayBarChart(
-                      rows: rows,
-                      period: Period.forMonthKey(
-                        month,
-                        ref.watch(salaryDayProvider).value,
+                child: Padding(
+                  padding: EdgeInsets.only(top: belowFloatingBar(context)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Center(child: MonthPicker()),
+                      Center(child: HeroAmount(sumPaise(spendOf(rows).values))),
+                      const SizedBox(height: 16),
+                      DayBarChart(
+                        rows: rows,
+                        period: Period.forMonthKey(
+                          month,
+                          ref.watch(salaryDayProvider).value,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

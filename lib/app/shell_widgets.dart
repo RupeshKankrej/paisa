@@ -46,11 +46,33 @@ class _SettingsButton extends StatelessWidget {
 }
 
 /// The round add button every tab shows, lifted clear of the pill nav.
-class AddFab extends ConsumerWidget {
+class AddFab extends ConsumerStatefulWidget {
   const AddFab({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Padding(
+  ConsumerState<AddFab> createState() => _AddFabState();
+}
+
+class _AddFabState extends ConsumerState<AddFab> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Reading the view does not subscribe to it, and the first frame on a phone
+  // can have no safe area yet, which left the button under the pill.
+  @override
+  void didChangeMetrics() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) => Padding(
     // A Scaffold strips safe-area insets from its FAB, so ask the view. Less 16,
     // the margin the Scaffold already leaves below a FAB.
     padding: EdgeInsets.only(

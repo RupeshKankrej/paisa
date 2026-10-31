@@ -78,7 +78,14 @@ class DayBarChart extends StatelessWidget {
                     BarChartRodData(
                       toY: day.paise.toDouble(),
                       width: 6,
-                      color: AppColors.textPrimary.withValues(alpha: 0.45),
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          AppColors.textPrimary.withValues(alpha: 0.15),
+                          AppColors.textPrimary.withValues(alpha: 0.7),
+                        ],
+                      ),
                       borderRadius: BorderRadius.circular(3),
                       backDrawRodData: BackgroundBarChartRodData(
                         show: true,
