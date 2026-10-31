@@ -348,15 +348,26 @@ class $CategoriesTable extends Categories
     type: DriftSqlType.int,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _iconMeta = const VerificationMeta('icon');
+  static const VerificationMeta _emojiMeta = const VerificationMeta('emoji');
   @override
-  late final GeneratedColumn<String> icon = GeneratedColumn<String>(
-    'icon',
+  late final GeneratedColumn<String> emoji = GeneratedColumn<String>(
+    'emoji',
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('🎯'),
   );
+  @override
+  late final GeneratedColumnWithTypeConverter<CategoryType, String> type =
+      GeneratedColumn<String>(
+        'type',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('expense'),
+      ).withConverter<CategoryType>($CategoriesTable.$convertertype);
   static const VerificationMeta _sortOrderMeta = const VerificationMeta(
     'sortOrder',
   );
@@ -388,7 +399,8 @@ class $CategoriesTable extends Categories
     id,
     name,
     color,
-    icon,
+    emoji,
+    type,
     sortOrder,
     isArchived,
   ];
@@ -423,13 +435,11 @@ class $CategoriesTable extends Categories
     } else if (isInserting) {
       context.missing(_colorMeta);
     }
-    if (data.containsKey('icon')) {
+    if (data.containsKey('emoji')) {
       context.handle(
-        _iconMeta,
-        icon.isAcceptableOrUnknown(data['icon']!, _iconMeta),
+        _emojiMeta,
+        emoji.isAcceptableOrUnknown(data['emoji']!, _emojiMeta),
       );
-    } else if (isInserting) {
-      context.missing(_iconMeta);
     }
     if (data.containsKey('sort_order')) {
       context.handle(
@@ -466,10 +476,16 @@ class $CategoriesTable extends Categories
         DriftSqlType.int,
         data['${effectivePrefix}color'],
       )!,
-      icon: attachedDatabase.typeMapping.read(
+      emoji: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
-        data['${effectivePrefix}icon'],
+        data['${effectivePrefix}emoji'],
       )!,
+      type: $CategoriesTable.$convertertype.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}type'],
+        )!,
+      ),
       sortOrder: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
@@ -485,20 +501,25 @@ class $CategoriesTable extends Categories
   $CategoriesTable createAlias(String alias) {
     return $CategoriesTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<CategoryType, String, String> $convertertype =
+      const EnumNameConverter<CategoryType>(CategoryType.values);
 }
 
 class Category extends DataClass implements Insertable<Category> {
   final int id;
   final String name;
   final int color;
-  final String icon;
+  final String emoji;
+  final CategoryType type;
   final int sortOrder;
   final bool isArchived;
   const Category({
     required this.id,
     required this.name,
     required this.color,
-    required this.icon,
+    required this.emoji,
+    required this.type,
     required this.sortOrder,
     required this.isArchived,
   });
@@ -508,7 +529,12 @@ class Category extends DataClass implements Insertable<Category> {
     map['id'] = Variable<int>(id);
     map['name'] = Variable<String>(name);
     map['color'] = Variable<int>(color);
-    map['icon'] = Variable<String>(icon);
+    map['emoji'] = Variable<String>(emoji);
+    {
+      map['type'] = Variable<String>(
+        $CategoriesTable.$convertertype.toSql(type),
+      );
+    }
     map['sort_order'] = Variable<int>(sortOrder);
     map['is_archived'] = Variable<bool>(isArchived);
     return map;
@@ -519,7 +545,8 @@ class Category extends DataClass implements Insertable<Category> {
       id: Value(id),
       name: Value(name),
       color: Value(color),
-      icon: Value(icon),
+      emoji: Value(emoji),
+      type: Value(type),
       sortOrder: Value(sortOrder),
       isArchived: Value(isArchived),
     );
@@ -534,7 +561,10 @@ class Category extends DataClass implements Insertable<Category> {
       id: serializer.fromJson<int>(json['id']),
       name: serializer.fromJson<String>(json['name']),
       color: serializer.fromJson<int>(json['color']),
-      icon: serializer.fromJson<String>(json['icon']),
+      emoji: serializer.fromJson<String>(json['emoji']),
+      type: $CategoriesTable.$convertertype.fromJson(
+        serializer.fromJson<String>(json['type']),
+      ),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
     );
@@ -546,7 +576,10 @@ class Category extends DataClass implements Insertable<Category> {
       'id': serializer.toJson<int>(id),
       'name': serializer.toJson<String>(name),
       'color': serializer.toJson<int>(color),
-      'icon': serializer.toJson<String>(icon),
+      'emoji': serializer.toJson<String>(emoji),
+      'type': serializer.toJson<String>(
+        $CategoriesTable.$convertertype.toJson(type),
+      ),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'isArchived': serializer.toJson<bool>(isArchived),
     };
@@ -556,14 +589,16 @@ class Category extends DataClass implements Insertable<Category> {
     int? id,
     String? name,
     int? color,
-    String? icon,
+    String? emoji,
+    CategoryType? type,
     int? sortOrder,
     bool? isArchived,
   }) => Category(
     id: id ?? this.id,
     name: name ?? this.name,
     color: color ?? this.color,
-    icon: icon ?? this.icon,
+    emoji: emoji ?? this.emoji,
+    type: type ?? this.type,
     sortOrder: sortOrder ?? this.sortOrder,
     isArchived: isArchived ?? this.isArchived,
   );
@@ -572,7 +607,8 @@ class Category extends DataClass implements Insertable<Category> {
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
       color: data.color.present ? data.color.value : this.color,
-      icon: data.icon.present ? data.icon.value : this.icon,
+      emoji: data.emoji.present ? data.emoji.value : this.emoji,
+      type: data.type.present ? data.type.value : this.type,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       isArchived: data.isArchived.present
           ? data.isArchived.value
@@ -586,7 +622,8 @@ class Category extends DataClass implements Insertable<Category> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('color: $color, ')
-          ..write('icon: $icon, ')
+          ..write('emoji: $emoji, ')
+          ..write('type: $type, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('isArchived: $isArchived')
           ..write(')'))
@@ -594,7 +631,8 @@ class Category extends DataClass implements Insertable<Category> {
   }
 
   @override
-  int get hashCode => Object.hash(id, name, color, icon, sortOrder, isArchived);
+  int get hashCode =>
+      Object.hash(id, name, color, emoji, type, sortOrder, isArchived);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -602,7 +640,8 @@ class Category extends DataClass implements Insertable<Category> {
           other.id == this.id &&
           other.name == this.name &&
           other.color == this.color &&
-          other.icon == this.icon &&
+          other.emoji == this.emoji &&
+          other.type == this.type &&
           other.sortOrder == this.sortOrder &&
           other.isArchived == this.isArchived);
 }
@@ -611,14 +650,16 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<int> id;
   final Value<String> name;
   final Value<int> color;
-  final Value<String> icon;
+  final Value<String> emoji;
+  final Value<CategoryType> type;
   final Value<int> sortOrder;
   final Value<bool> isArchived;
   const CategoriesCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
     this.color = const Value.absent(),
-    this.icon = const Value.absent(),
+    this.emoji = const Value.absent(),
+    this.type = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.isArchived = const Value.absent(),
   });
@@ -626,18 +667,19 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     this.id = const Value.absent(),
     required String name,
     required int color,
-    required String icon,
+    this.emoji = const Value.absent(),
+    this.type = const Value.absent(),
     required int sortOrder,
     this.isArchived = const Value.absent(),
   }) : name = Value(name),
        color = Value(color),
-       icon = Value(icon),
        sortOrder = Value(sortOrder);
   static Insertable<Category> custom({
     Expression<int>? id,
     Expression<String>? name,
     Expression<int>? color,
-    Expression<String>? icon,
+    Expression<String>? emoji,
+    Expression<String>? type,
     Expression<int>? sortOrder,
     Expression<bool>? isArchived,
   }) {
@@ -645,7 +687,8 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       if (id != null) 'id': id,
       if (name != null) 'name': name,
       if (color != null) 'color': color,
-      if (icon != null) 'icon': icon,
+      if (emoji != null) 'emoji': emoji,
+      if (type != null) 'type': type,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (isArchived != null) 'is_archived': isArchived,
     });
@@ -655,7 +698,8 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Value<int>? id,
     Value<String>? name,
     Value<int>? color,
-    Value<String>? icon,
+    Value<String>? emoji,
+    Value<CategoryType>? type,
     Value<int>? sortOrder,
     Value<bool>? isArchived,
   }) {
@@ -663,7 +707,8 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       id: id ?? this.id,
       name: name ?? this.name,
       color: color ?? this.color,
-      icon: icon ?? this.icon,
+      emoji: emoji ?? this.emoji,
+      type: type ?? this.type,
       sortOrder: sortOrder ?? this.sortOrder,
       isArchived: isArchived ?? this.isArchived,
     );
@@ -681,8 +726,13 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     if (color.present) {
       map['color'] = Variable<int>(color.value);
     }
-    if (icon.present) {
-      map['icon'] = Variable<String>(icon.value);
+    if (emoji.present) {
+      map['emoji'] = Variable<String>(emoji.value);
+    }
+    if (type.present) {
+      map['type'] = Variable<String>(
+        $CategoriesTable.$convertertype.toSql(type.value),
+      );
     }
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
@@ -699,7 +749,8 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('id: $id, ')
           ..write('name: $name, ')
           ..write('color: $color, ')
-          ..write('icon: $icon, ')
+          ..write('emoji: $emoji, ')
+          ..write('type: $type, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('isArchived: $isArchived')
           ..write(')'))
@@ -2938,7 +2989,8 @@ typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
   Value<int> id,
   required String name,
   required int color,
-  required String icon,
+  Value<String> emoji,
+  Value<CategoryType> type,
   required int sortOrder,
   Value<bool> isArchived,
 });
@@ -2946,7 +2998,8 @@ typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
   Value<int> id,
   Value<String> name,
   Value<int> color,
-  Value<String> icon,
+  Value<String> emoji,
+  Value<CategoryType> type,
   Value<int> sortOrder,
   Value<bool> isArchived,
 });
@@ -3017,10 +3070,16 @@ class $$CategoriesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get icon => $composableBuilder(
-    column: $table.icon,
+  ColumnFilters<String> get emoji => $composableBuilder(
+    column: $table.emoji,
     builder: (column) => ColumnFilters(column),
   );
+
+  ColumnWithTypeConverterFilters<CategoryType, CategoryType, String> get type =>
+      $composableBuilder(
+        column: $table.type,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
@@ -3107,8 +3166,13 @@ class $$CategoriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get icon => $composableBuilder(
-    column: $table.icon,
+  ColumnOrderings<String> get emoji => $composableBuilder(
+    column: $table.emoji,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get type => $composableBuilder(
+    column: $table.type,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -3141,8 +3205,11 @@ class $$CategoriesTableAnnotationComposer
   GeneratedColumn<int> get color =>
       $composableBuilder(column: $table.color, builder: (column) => column);
 
-  GeneratedColumn<String> get icon =>
-      $composableBuilder(column: $table.icon, builder: (column) => column);
+  GeneratedColumn<String> get emoji =>
+      $composableBuilder(column: $table.emoji, builder: (column) => column);
+
+  GeneratedColumnWithTypeConverter<CategoryType, String> get type =>
+      $composableBuilder(column: $table.type, builder: (column) => column);
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
@@ -3234,14 +3301,16 @@ class $$CategoriesTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
                 Value<int> color = const Value.absent(),
-                Value<String> icon = const Value.absent(),
+                Value<String> emoji = const Value.absent(),
+                Value<CategoryType> type = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
               }) => CategoriesCompanion(
                 id: id,
                 name: name,
                 color: color,
-                icon: icon,
+                emoji: emoji,
+                type: type,
                 sortOrder: sortOrder,
                 isArchived: isArchived,
               ),
@@ -3250,14 +3319,16 @@ class $$CategoriesTableTableManager
                 Value<int> id = const Value.absent(),
                 required String name,
                 required int color,
-                required String icon,
+                Value<String> emoji = const Value.absent(),
+                Value<CategoryType> type = const Value.absent(),
                 required int sortOrder,
                 Value<bool> isArchived = const Value.absent(),
               }) => CategoriesCompanion.insert(
                 id: id,
                 name: name,
                 color: color,
-                icon: icon,
+                emoji: emoji,
+                type: type,
                 sortOrder: sortOrder,
                 isArchived: isArchived,
               ),

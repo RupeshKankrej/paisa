@@ -11,8 +11,10 @@ import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/budget.dart';
+import '../../domain/categories.dart';
 import '../../domain/models.dart';
 import 'category_picker.dart';
+import 'month_summary_card.dart';
 
 const _levelColors = {
   BudgetLevel.under: Colors.green,
@@ -30,6 +32,11 @@ class CategoriesScreen extends ConsumerStatefulWidget {
 
 class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   var _type = TransactionType.debit;
+
+  void _openFilter() => showCategoryFilter(
+    context,
+    _type == TransactionType.debit ? CategoryType.expense : CategoryType.income,
+  );
 
   Future<void> _editLimit(
     Category category,
@@ -88,29 +95,37 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
       ref.watch(salaryAmountsProvider).value ?? const {},
       month,
     );
+    final filter = ref.watch(categoryFilterProvider).value;
     final totals = totalsByCategory(
       rows
-          .where((r) => r.type == _type)
+          .where((r) => r.type == _type && filterMatches(filter, r.categoryId))
           .map((r) => (r.categoryId, r.amountPaise)),
     );
     final total = sumPaise(totals.values.map((t) => t.paise));
+    // Salary compares with all spend, whatever the filter narrows the donut to.
+    final spent = sumPaise(spendOf(rows).values);
     final limits = sumPaise(
-      categories.map(
-        (c) => resolveAmount(budgets[c.id] ?? const {}, month) ?? 0,
-      ),
+      categories
+          .where((c) => !c.isArchived)
+          .map((c) => resolveAmount(budgets[c.id] ?? const {}, month) ?? 0),
     );
     int paiseOf(Category c) => totals[c.id]?.paise ?? 0;
     final shown =
         [
           // SPEC 5.7 wants a row per category, so a limit can be set before spending.
           for (final c in categories)
-            if (expenses || paiseOf(c) > 0) c,
+            if (paiseOf(c) > 0 ||
+                (expenses &&
+                    c.type == CategoryType.expense &&
+                    !c.isArchived &&
+                    filterMatches(filter, c.id)))
+              c,
         ]..sort((a, b) {
           final byAmount = paiseOf(b).compareTo(paiseOf(a));
           return byAmount != 0 ? byAmount : a.sortOrder.compareTo(b.sortOrder);
         });
     final uncategorised = totals[null];
-    final over = expenses && salary != null && total > salary;
+    final over = expenses && salary != null && spent > salary;
     final captionStyle = Theme.of(context).textTheme.bodySmall;
     return ListView(
       padding: listClearance(context),
@@ -124,7 +139,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                 if (paiseOf(c) > 0) (Color(c.color), paiseOf(c)),
             ],
             total: total,
-            salary: over ? salary : null,
+            salary: over && filter == null ? salary : null,
           ),
         ),
         if (expenses && salary != null)
@@ -132,8 +147,8 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
             padding: const EdgeInsets.only(top: 12),
             child: Text(
               over
-                  ? 'Over salary by ${Money.format(total - salary)}'
-                  : '${Money.format(salary - total)} left of '
+                  ? 'Over salary by ${Money.format(spent - salary)}'
+                  : '${Money.format(salary - spent)} left of '
                         '${Money.format(salary)}',
               textAlign: TextAlign.center,
               style: over
@@ -142,21 +157,43 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
             ),
           ),
         const SizedBox(height: 16),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+        Padding(
+          padding: const EdgeInsets.only(right: 16),
           child: Row(
-            spacing: 8,
             children: [
-              for (final (label, type) in const [
-                ('Expenses', TransactionType.debit),
-                ('Income', TransactionType.credit),
-              ])
-                ChoiceChip(
-                  label: Text(label),
-                  selected: _type == type,
-                  onSelected: (_) => setState(() => _type = type),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    spacing: 8,
+                    children: [
+                      for (final (label, type) in const [
+                        ('Expenses', TransactionType.debit),
+                        ('Income', TransactionType.credit),
+                      ])
+                        ChoiceChip(
+                          label: Text(label),
+                          selected: _type == type,
+                          onSelected: (_) => setState(() => _type = type),
+                        ),
+                      if (filter != null)
+                        ChoiceChip(
+                          label: Text(filterLabel(filter)),
+                          selected: true,
+                          onSelected: (_) => _openFilter(),
+                        ),
+                    ],
+                  ),
                 ),
+              ),
+              // Outside the scroll, so it stays reachable when chips are added.
+              IconButton(
+                tooltip: 'Filter categories',
+                style: IconButton.styleFrom(backgroundColor: AppColors.surface),
+                icon: const Icon(Icons.edit, size: 18),
+                onPressed: _openFilter,
+              ),
             ],
           ),
         ),

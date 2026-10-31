@@ -28,3 +28,6 @@ density and feel with our own widgets. Do not copy logos, icons or the seasonal 
 | 21-budget-keypad-over.png | Same sheet, amount exceeds salary (red, blocked) | 10 |
 | 22-analytics-range.png | Analytics after swiping to an earlier 6-month window | 10 |
 | 23-analytics-calendar-range.png | Income-left + calendar for that window | 10 |
+| 24-category-swipe-delete.png | Categories screen, swipe-left reveals delete | 9 |
+| 25-category-delete-confirm.png | Delete confirmation sheet (ours moves transactions to Uncategorised, never deletes them) | 9 |
+| 26-category-edit-sheet.png | Tap a category: edit sheet with Delete / Save | 9 |

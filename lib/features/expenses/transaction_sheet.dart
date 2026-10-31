@@ -7,6 +7,7 @@ import '../../core/period.dart';
 import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
+import '../../domain/categories.dart';
 import '../../domain/models.dart';
 import '../budgets/category_picker.dart';
 
@@ -54,6 +55,12 @@ Future<void> openTransactionSheet(
   ).key;
   if (!ref.read(expenseFilterProvider).matches(saved.type, saved.categoryId)) {
     ref.read(expenseFilterProvider.notifier).state = ExpenseFilter.all;
+  }
+  if (!filterMatches(
+    ref.read(categoryFilterProvider).value,
+    saved.categoryId,
+  )) {
+    await ref.read(databaseProvider).setCategoryFilter(null);
   }
 }
 
@@ -108,6 +115,18 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
     super.dispose();
   }
 
+  CategoryType get _categoryType => _type == TransactionType.debit
+      ? CategoryType.expense
+      : CategoryType.income;
+
+  // The strip now lists the other type, so its selection would be invisible.
+  void _toggleType() => setState(() {
+    _type = _type == TransactionType.debit
+        ? TransactionType.credit
+        : TransactionType.debit;
+    _categoryId = _stripFirst = null;
+  });
+
   void _setAmount(String amount) => setState(() {
     _amount = amount;
     _error = null;
@@ -137,10 +156,14 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
   }
 
   Future<void> _pickFromGrid() async {
-    final id = await showCategoryPicker(context);
-    if (id == null || !mounted) return;
-    _stripFirst = id;
-    _setCategory(id);
+    final category = await showCategoryPicker(context, _categoryType);
+    if (category == null || !mounted) return;
+    _stripFirst = category.id;
+    // The grid has its own Expense/Income toggle; the row follows it.
+    _type = category.type == CategoryType.income
+        ? TransactionType.credit
+        : TransactionType.debit;
+    _setCategory(category.id);
     if (_strip.hasClients) _strip.jumpTo(0);
   }
 
@@ -304,11 +327,7 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
                     label: Text(
                       _type == TransactionType.debit ? 'Expense' : 'Income',
                     ),
-                    onPressed: () => setState(
-                      () => _type = _type == TransactionType.debit
-                          ? TransactionType.credit
-                          : TransactionType.debit,
-                    ),
+                    onPressed: _toggleType,
                   ),
                   if (last4 != null)
                     Chip(
@@ -346,8 +365,8 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
   }
 
   Widget _categoryStrip() {
-    final categories =
-        ref.watch(categoriesProvider).value ?? const <Category>[];
+    final all = ref.watch(categoriesProvider).value ?? const <Category>[];
+    final categories = pickableCategories(all, _categoryType);
     return Row(
       spacing: 8,
       children: [
@@ -366,7 +385,9 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
                 child: Row(
                   children: [
                     for (final c in [
-                      ...categories.where((c) => c.id == _stripFirst),
+                      // First also when archived or of the other type: an older
+                      // row may hold such a category.
+                      ...all.where((c) => c.id == _stripFirst),
                       ...categories.where((c) => c.id != _stripFirst),
                     ])
                       _StripItem(
@@ -492,7 +513,7 @@ class _StripItem extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Text(
-            '${categoryEmoji(category)}  ${category.name}',
+            '${category.emoji}  ${category.name}',
             style: TextStyle(
               color: selected ? AppColors.textPrimary : AppColors.textSecondary,
               fontWeight: FontWeight.w500,

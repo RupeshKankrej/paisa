@@ -6,7 +6,6 @@ import '../../app/shell_widgets.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/models.dart';
-import '../budgets/category_picker.dart';
 import '../budgets/month_summary_card.dart';
 import '../expenses/expenses_screen.dart';
 import '../expenses/transaction_sheet.dart';
@@ -67,7 +66,7 @@ class HomeScreen extends ConsumerWidget {
                 TransactionTile(
                   row: row,
                   category: categories[row.categoryId],
-                  onTap: () => categoriseTransaction(context, ref, row),
+                  onTap: () => showTransactionSheet(context, existing: row),
                   onLongPress: () =>
                       showTransactionSheet(context, existing: row),
                 ),

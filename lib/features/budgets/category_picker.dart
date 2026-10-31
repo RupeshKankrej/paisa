@@ -1,25 +1,13 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
-
-// Categories store a Material icon name from Phase 1; SPEC 5.12 draws emoji.
-const _emoji = {
-  'restaurant': '🍽️',
-  'directions_car': '🚗',
-  'home': '🏠',
-  'receipt_long': '🧾',
-  'shopping_bag': '🛍️',
-  'favorite': '🩺',
-  'movie': '🎬',
-  'category': '📦',
-};
-
-String categoryEmoji(Category category) =>
-    _emoji[category.icon] ?? _emoji['category']!;
+import '../../domain/categories.dart';
+import '../../domain/models.dart';
+import 'category_edit_sheet.dart';
+import 'manage_categories_screen.dart';
 
 /// Icon tile: an emoji on surface with a border in the category's colour, or a
 /// grey placeholder when there is no category.
@@ -46,7 +34,7 @@ class CategoryAvatar extends StatelessWidget {
       child: category == null
           ? const Icon(Icons.help_outline, color: Colors.grey)
           : Text(
-              categoryEmoji(category),
+              category.emoji,
               style: const TextStyle(fontSize: 20),
               semanticsLabel: '',
             ),
@@ -54,90 +42,191 @@ class CategoryAvatar extends StatelessWidget {
   }
 }
 
-/// Asks for a category and saves it on [row] straight away.
-Future<void> categoriseTransaction(
-  BuildContext context,
-  WidgetRef ref,
-  TransactionRow row,
-) async {
-  final id = await showCategoryPicker(context);
-  if (id == null) return;
-  await ref
-      .read(databaseProvider)
-      .updateTransaction(row.id, TransactionsCompanion(categoryId: Value(id)));
+/// The Expense/Income control. Takes the width its parent gives it.
+class CategoryTypeSegment extends StatelessWidget {
+  const CategoryTypeSegment({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final CategoryType value;
+  final ValueChanged<CategoryType> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      color: AppColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(AppRadii.round),
+    ),
+    child: Row(
+      children: [
+        for (final (label, type) in const [
+          ('Expense', CategoryType.expense),
+          ('Income', CategoryType.income),
+        ])
+          Expanded(
+            child: Semantics(
+              button: true,
+              selected: type == value,
+              child: Material(
+                color: type == value ? AppColors.bg : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppRadii.round),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => onChanged(type),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: type == value
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
 }
 
-/// Returns the chosen category's id, or null if dismissed.
-Future<int?> showCategoryPicker(BuildContext context) =>
-    showModalBottomSheet<int>(
+/// The category grid sheet (SPEC 5.14). Returns the choice, or null if dismissed.
+Future<Category?> showCategoryPicker(BuildContext context, CategoryType type) =>
+    showModalBottomSheet<Category>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
-      builder: (_) => const _CategoryPicker(),
+      builder: (_) => _CategoryGridSheet(type: type, multiSelect: false),
     );
 
-class _CategoryPicker extends ConsumerStatefulWidget {
-  const _CategoryPicker();
+/// The same grid with multi-select. Each tap applies at once.
+Future<void> showCategoryFilter(BuildContext context, CategoryType type) =>
+    showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      builder: (_) => _CategoryGridSheet(type: type, multiSelect: true),
+    );
+
+class _CategoryGridSheet extends ConsumerStatefulWidget {
+  const _CategoryGridSheet({required this.type, required this.multiSelect});
+
+  final CategoryType type;
+  final bool multiSelect;
 
   @override
-  ConsumerState<_CategoryPicker> createState() => _CategoryPickerState();
+  ConsumerState<_CategoryGridSheet> createState() => _CategoryGridSheetState();
 }
 
-class _CategoryPickerState extends ConsumerState<_CategoryPicker> {
-  var _search = '';
+class _CategoryGridSheetState extends ConsumerState<_CategoryGridSheet> {
+  late var _type = widget.type;
 
-  Future<void> _newCategory(List<Category> categories) async {
-    final id = await showDialog<int>(
-      context: context,
-      builder: (_) => _NewCategoryDialog(
-        ref.read(databaseProvider),
-        categories,
-        _search.trim(),
-      ),
-    );
-    if (id != null && mounted) Navigator.of(context).pop(id);
+  Future<void> _addNew(Set<int>? filter) async {
+    final category = await showCategoryEditSheet(context, type: _type);
+    if (category == null || !mounted) return;
+    if (!widget.multiSelect) {
+      Navigator.of(context).pop(category);
+    } else if (filter != null) {
+      await ref.read(databaseProvider).setCategoryFilter({
+        ...filter,
+        category.id,
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final categories = ref.watch(categoriesProvider).value ?? const [];
-    final query = _search.trim().toLowerCase();
+    final all = ref.watch(categoriesProvider).value ?? const <Category>[];
+    final filter = ref.watch(categoryFilterProvider).value;
+    final db = ref.read(databaseProvider);
     return SafeArea(
       child: Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 16,
-        ),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          spacing: 16,
           children: [
-            TextField(
-              decoration: const InputDecoration(
-                hintText: 'Search categories',
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: (text) => setState(() => _search = text),
+            Row(
+              children: [
+                const SizedBox(width: 48), // balances the pencil
+                Expanded(
+                  child: Center(
+                    child: SizedBox(
+                      width: 220,
+                      child: CategoryTypeSegment(
+                        value: _type,
+                        onChanged: (type) => setState(() => _type = type),
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Edit categories',
+                  style: IconButton.styleFrom(
+                    backgroundColor: AppColors.surfaceRaised,
+                  ),
+                  icon: const Icon(Icons.edit, size: 20),
+                  onPressed: () =>
+                      Navigator.of(context, rootNavigator: true).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => ManageCategoriesScreen(type: _type),
+                        ),
+                      ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
+            if (widget.multiSelect)
+              Row(
+                spacing: 8,
+                children: [
+                  ActionChip(
+                    backgroundColor: AppColors.surfaceRaised,
+                    label: const Text('All'),
+                    onPressed: () => db.setCategoryFilter(null),
+                  ),
+                  ActionChip(
+                    backgroundColor: AppColors.surfaceRaised,
+                    label: const Text('None'),
+                    onPressed: () => db.setCategoryFilter(const {}),
+                  ),
+                ],
+              ),
             Flexible(
-              child: GridView.extent(
+              child: GridView.count(
                 shrinkWrap: true,
-                maxCrossAxisExtent: 88,
+                crossAxisCount: 4,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
                 childAspectRatio: 0.85,
                 children: [
-                  for (final category in categories)
-                    if (category.name.toLowerCase().contains(query))
-                      _GridItem(
-                        avatar: CategoryAvatar(category),
-                        label: category.name,
-                        onTap: () => Navigator.of(context).pop(category.id),
-                      ),
-                  _GridItem(
-                    avatar: const CircleAvatar(child: Icon(Icons.add)),
-                    label: 'New category',
-                    onTap: () => _newCategory(categories),
-                  ),
+                  for (final c in pickableCategories(all, _type))
+                    _Tile(
+                      emoji: c.emoji,
+                      name: c.name,
+                      outline: widget.multiSelect && filterMatches(filter, c.id)
+                          ? Color(c.color)
+                          : null,
+                      selected: widget.multiSelect
+                          ? filterMatches(filter, c.id)
+                          : null,
+                      onTap: widget.multiSelect
+                          ? () => db.setCategoryFilter(
+                              toggleFilter(filter, c.id, [
+                                for (final a in all)
+                                  if (!a.isArchived) a.id,
+                              ]),
+                            )
+                          : () => Navigator.of(context).pop(c),
+                    ),
+                  _AddNewTile(onTap: () => _addNew(filter)),
                 ],
               ),
             ),
@@ -148,96 +237,119 @@ class _CategoryPickerState extends ConsumerState<_CategoryPicker> {
   }
 }
 
-class _GridItem extends StatelessWidget {
-  const _GridItem({
-    required this.avatar,
-    required this.label,
+class _Tile extends StatelessWidget {
+  const _Tile({
+    required this.emoji,
+    required this.name,
     required this.onTap,
+    this.outline,
+    this.selected,
   });
 
-  final Widget avatar;
-  final String label;
+  final String emoji;
+  final String name;
+  final VoidCallback onTap;
+  final Color? outline;
+  final bool? selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final outline = this.outline;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: AppColors.surfaceRaised,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.chip),
+          side: outline == null
+              ? BorderSide.none
+              : BorderSide(color: outline, width: 2),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              spacing: 8,
+              children: [
+                Text(
+                  emoji,
+                  style: const TextStyle(fontSize: 26),
+                  semanticsLabel: '',
+                ),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddNewTile extends StatelessWidget {
+  const _AddNewTile({required this.onTap});
+
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          avatar,
-          const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NewCategoryDialog extends StatefulWidget {
-  const _NewCategoryDialog(this.db, this.existing, this.initialName);
-
-  final AppDatabase db;
-  final List<Category> existing;
-  final String initialName;
-
-  @override
-  State<_NewCategoryDialog> createState() => _NewCategoryDialogState();
-}
-
-class _NewCategoryDialogState extends State<_NewCategoryDialog> {
-  final _form = GlobalKey<FormState>();
-  late final _name = TextEditingController(text: widget.initialName);
-
-  @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  String? _validate(String? value) {
-    final name = value?.trim().toLowerCase() ?? '';
-    if (name.isEmpty) return 'Required';
-    return widget.existing.any((c) => c.name.toLowerCase() == name)
-        ? 'Already exists'
-        : null;
-  }
-
-  Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
-    final id = await widget.db.addCategory(_name.text.trim());
-    if (mounted) Navigator.of(context).pop(id);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('New category'),
-      content: Form(
-        key: _form,
-        child: TextFormField(
-          controller: _name,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(labelText: 'Name'),
-          validator: _validate,
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _DashedBorder(),
+    child: Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.chip),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          spacing: 8,
+          children: [
+            Icon(Icons.add, color: AppColors.textSecondary),
+            Text(
+              'Add new',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+          ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
+    ),
+  );
+}
+
+class _DashedBorder extends CustomPainter {
+  static const _dash = 8.0;
+  static const _gap = 6.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.textSecondary
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    final outline = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Offset.zero & size,
+          const Radius.circular(AppRadii.chip),
         ),
-        FilledButton(onPressed: _save, child: const Text('Add')),
-      ],
-    );
+      );
+    for (final metric in outline.computeMetrics()) {
+      for (var d = 0.0; d < metric.length; d += _dash + _gap) {
+        canvas.drawPath(metric.extractPath(d, d + _dash), paint);
+      }
+    }
   }
+
+  @override
+  bool shouldRepaint(_DashedBorder oldDelegate) => false;
 }

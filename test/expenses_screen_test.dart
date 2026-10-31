@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show DatabaseConnection, Value;
 import 'package:drift/native.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paisa/app/month_picker.dart';
@@ -209,12 +210,18 @@ void main() {
     await add('Salary', type: TransactionType.credit);
     await pumpScreen(tester);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Income'));
+    final income = find.widgetWithText(ChoiceChip, 'Income');
+    await tester.ensureVisible(income);
+    await tester.pumpAndSettle();
+    await tester.tap(income);
     await tester.pumpAndSettle();
     expect(find.text('Salary'), findsOneWidget);
     expect(find.text('Shop'), findsNothing);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Expenses'));
+    final expenses = find.widgetWithText(ChoiceChip, 'Expenses');
+    await tester.ensureVisible(expenses);
+    await tester.pumpAndSettle();
+    await tester.tap(expenses);
     await tester.pumpAndSettle();
     expect(find.text('Salary'), findsNothing);
     expect(find.text('Shop'), findsOneWidget);
@@ -227,26 +234,28 @@ void main() {
     expect(find.text('N' * 40), findsOneWidget);
   });
 
-  testWidgets('tapping a row picks a category and saves immediately', (
-    tester,
-  ) async {
-    await add('Shop');
-    await pumpScreen(tester);
+  testWidgets(
+    'tapping an uncategorised row edits it; the grid sets a category',
+    (tester) async {
+      await add('Shop');
+      await pumpScreen(tester);
 
-    await tester.tap(find.text('Shop'));
-    await settle(tester);
-    await tester.enterText(find.byType(TextField).last, 'tra');
-    await tester.pumpAndSettle();
-    expect(find.text('Food'), findsNothing);
-    await tester.tap(find.text('Travel'));
-    await settle(tester);
+      await tester.tap(find.text('Shop'));
+      await settle(tester);
+      expect(find.byKey(const Key('sheet-amount')), findsOneWidget);
+      await tester.tap(find.byTooltip('All categories'));
+      await settle(tester);
+      await tester.tap(find.text('Transportation').last);
+      await settle(tester);
+      await save(tester);
 
-    final travel = await (db.select(
-      db.categories,
-    )..where((c) => c.name.equals('Travel'))).getSingle();
-    expect((await rows()).single.categoryId, travel.id);
-    expect(find.textContaining('Tap to categorise'), findsNothing);
-  });
+      final travel = await (db.select(
+        db.categories,
+      )..where((c) => c.name.equals('Transportation'))).getSingle();
+      expect((await rows()).single.categoryId, travel.id);
+      expect(find.textContaining('Tap to categorise'), findsNothing);
+    },
+  );
 
   testWidgets('New category rejects a duplicate, then creates and assigns', (
     tester,
@@ -254,27 +263,66 @@ void main() {
     await add('Shop');
     await pumpScreen(tester);
 
+    final emojiCalls = <String>[];
+    final messenger = tester.binding.defaultBinaryMessenger;
+    const channel = MethodChannel('paisa/emoji');
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      emojiCalls.add(call.method);
+      return null;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    Future<void> emojiFromIos(String text) => messenger.handlePlatformMessage(
+      channel.name,
+      channel.codec.encodeMethodCall(MethodCall('typed', text)),
+      (_) {},
+    );
+
     await tester.tap(find.text('Shop'));
     await settle(tester);
-    await tester.tap(find.text('New category'));
+    await tester.tap(find.byTooltip('All categories'));
+    await settle(tester);
+    await tester.tap(find.text('Add new'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Name'),
-      ' food ',
-    );
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    final addButton = find.widgetWithText(FilledButton, 'Add');
+    bool enabled() => tester.widget<FilledButton>(addButton).onPressed != null;
+    expect(enabled(), isFalse, reason: 'no name yet');
+    await tester.enterText(find.byKey(const Key('category-name')), ' food ');
     await tester.pumpAndSettle();
     expect(find.text('Already exists'), findsOneWidget);
+    expect(enabled(), isFalse);
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Pets');
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.enterText(find.byKey(const Key('category-name')), 'Pets');
+    await tester.tap(find.byKey(const Key('category-emoji')));
+    await tester.pump();
+    expect(emojiCalls, ['open']);
+    // Letters are refused; an emoji replaces the default on the tile.
+    await emojiFromIos('a');
+    expect(find.text('🎯'), findsOneWidget);
+    await emojiFromIos('🐶');
+    await tester.pump();
+    expect(find.text('🐶'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('category-colour')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('swatch-41')));
+    await tester.pumpAndSettle();
+    await tester.tap(addButton);
     await settle(tester);
+    await save(tester);
 
     final pets = await (db.select(
       db.categories,
     )..where((c) => c.name.equals('Pets'))).getSingle();
-    expect(pets.sortOrder, 8);
+    expect(pets.emoji, '🐶');
+    expect(pets.color, 0xFFFFFFFF);
     expect((await rows()).single.categoryId, pets.id);
+  });
+
+  testWidgets('tapping a categorised row opens the edit sheet', (tester) async {
+    await add('Lunch', categoryId: 1);
+    await pumpScreen(tester);
+    await tester.tap(find.text('Lunch'));
+    await settle(tester);
+    expect(find.byKey(const Key('sheet-amount')), findsOneWidget);
   });
 
   testWidgets('swipe deletes, undo restores the same row', (tester) async {
@@ -402,14 +450,14 @@ void main() {
 
     await tester.tap(find.byTooltip('All categories'));
     await settle(tester);
-    await tester.tap(find.text('Other').last);
+    await tester.tap(find.text('Extras').last);
     await settle(tester);
     await press(tester, '5');
     await save(tester);
 
     final other = await (db.select(
       db.categories,
-    )..where((c) => c.name.equals('Other'))).getSingle();
+    )..where((c) => c.name.equals('Extras'))).getSingle();
     expect((await rows()).single.categoryId, other.id);
   });
 
@@ -425,7 +473,7 @@ void main() {
     await press(tester, '50');
     await tester.tap(find.text('Expense'));
     await tester.pumpAndSettle();
-    await pickInStrip(tester, 'Food');
+    await pickInStrip(tester, 'Salary');
     await save(tester);
 
     expect((await rows()).single.type, TransactionType.credit);

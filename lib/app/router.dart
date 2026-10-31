@@ -26,7 +26,7 @@ final router = GoRouter(
           ],
         ),
         _tab('/categories', const CategoriesScreen()),
-        // Home stands in as the Budget tab until Phase 9 builds that screen.
+        // Home stands in as the Budget tab until Phase 10 builds that screen.
         _tab('/home', const HomeScreen()),
         _tab('/dashboards', const DashboardsScreen()),
         _tab('/accounts', const AccountsScreen()),

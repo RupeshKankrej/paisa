@@ -16,6 +16,9 @@ abstract final class AppColors {
 
   /// Debit amounts in lists: SPEC 5.2 keeps them red-ish.
   static const debit = Color(0xFFE8737A);
+
+  /// Swipe-delete action and destructive buttons (references 24, 25).
+  static const delete = Color(0xFFCB5550);
 }
 
 abstract final class AppRadii {

@@ -10,26 +10,113 @@ void main() {
   setUp(() => db = AppDatabase(NativeDatabase.memory()));
   tearDown(() => db.close());
 
-  test('seeds the default categories in order', () async {
+  test('seeds the default categories per type, in order', () async {
     final categories = await db.watchCategories().first;
-    expect(categories.map((c) => c.name), [
+    Iterable<String> names(CategoryType type) =>
+        categories.where((c) => c.type == type).map((c) => c.name);
+    expect(names(CategoryType.expense), [
+      'Housing',
       'Food',
-      'Travel',
-      'Rent',
-      'Bills',
+      'Groceries',
+      'Utilities',
+      'Transportation',
       'Shopping',
-      'Health',
+      'Clothes',
+      'Going out',
       'Entertainment',
-      'Other',
+      'Subscriptions',
+      'Extras',
+      'Medicines',
+      'Investments',
     ]);
+    expect(names(CategoryType.income), ['Salary', 'Investments']);
+    expect(categories.first.emoji, '🏠');
   });
 
-  test('archived categories are hidden', () async {
-    await (db.update(db.categories)..where((c) => c.name.equals('Rent'))).write(
-      const CategoriesCompanion(isArchived: Value(true)),
+  test(
+    'a new category goes last and a taken name returns the old one',
+    () async {
+      Future<Category> add(String name) => db.addCategory(
+        name: name,
+        type: CategoryType.income,
+        emoji: '🪙',
+        color: 1,
+      );
+      final tips = await add(' Tips ');
+      expect(tips.name, 'Tips');
+      expect((await add('tips')).id, tips.id);
+      final income = (await db.watchCategories().first).where(
+        (c) => c.type == CategoryType.income,
+      );
+      expect(income.map((c) => c.name), ['Salary', 'Investments', 'Tips']);
+      // Unique per type only.
+      final expense = await db.addCategory(
+        name: 'Tips',
+        type: CategoryType.expense,
+        emoji: '🪙',
+        color: 1,
+      );
+      expect(expense.id, isNot(tips.id));
+    },
+  );
+
+  test('reorder persists and only touches the given type', () async {
+    final before = await db.watchCategories().first;
+    final ids = [
+      for (final c in before)
+        if (c.type == CategoryType.income) c.id,
+    ];
+    await db.reorderCategories(ids.reversed.toList());
+    final after = await db.watchCategories().first;
+    expect(
+      after.where((c) => c.type == CategoryType.income).map((c) => c.name),
+      ['Investments', 'Salary'],
     );
-    final categories = await db.watchCategories().first;
-    expect(categories.map((c) => c.name), isNot(contains('Rent')));
+    expect(
+      after.where((c) => c.type == CategoryType.expense).first.name,
+      'Housing',
+    );
+  });
+
+  test(
+    'delete uncategorises rows, drops budgets and clears the filter',
+    () async {
+      await db.addTransaction(
+        TransactionsCompanion.insert(
+          type: TransactionType.debit,
+          amountPaise: 100,
+          occurredAt: DateTime(2026, 10, 30),
+          source: TransactionSource.manual,
+          categoryId: const Value(1),
+        ),
+      );
+      await db.setBudget(1, null, 500);
+      await db.setCategoryFilter({1});
+
+      await db.deleteCategory(1);
+
+      expect((await db.select(db.transactions).getSingle()).categoryId, isNull);
+      expect(await db.select(db.budgets).get(), isEmpty);
+      expect(await db.watchCategoryFilter().first, isNull);
+      expect(
+        (await db.watchCategories().first).map((c) => c.id),
+        isNot(contains(1)),
+      );
+    },
+  );
+
+  test('archiving keeps the row and leaves a wider filter narrowed', () async {
+    await db.setCategoryFilter({1, 2});
+    await db.setCategoryArchived(1, true);
+    expect(
+      (await db.watchCategories().first)
+          .firstWhere((c) => c.id == 1)
+          .isArchived,
+      isTrue,
+    );
+    expect(await db.watchCategoryFilter().first, {2});
+    await db.setCategoryArchived(1, false);
+    expect(await db.watchCategoryFilter().first, {2});
   });
 
   test('one salary default and one override per month', () async {

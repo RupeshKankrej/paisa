@@ -6,7 +6,7 @@ final _chipShape = RoundedRectangleBorder(
   borderRadius: BorderRadius.circular(AppRadii.chip),
 );
 
-/// Dark only until Phase 9 adds the light variant.
+/// Dark only until Phase 10 adds the light variant.
 ThemeData appTheme() => ThemeData(
   brightness: Brightness.dark,
   colorScheme: const ColorScheme.dark(

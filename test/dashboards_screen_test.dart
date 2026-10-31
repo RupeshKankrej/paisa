@@ -10,7 +10,7 @@ import 'package:paisa/data/providers.dart';
 import 'package:paisa/domain/models.dart';
 import 'package:paisa/features/dashboards/dashboards_screen.dart';
 
-const food = 1, travel = 2;
+const food = 2, travel = 5;
 
 void main() {
   late AppDatabase db;
