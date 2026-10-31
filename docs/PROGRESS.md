@@ -2,7 +2,7 @@
 
 ## Phase 10: UI Budget, Analytics, Settings (2026-11-01)
 
-Status: built on branch `phase-10-budget-analytics-settings` (from `main`), not merged. Tests pass and the screens were viewed on the simulator in both themes. The device checks below are waiting for Rupesh.
+Status: built on branch `phase-10-budget-analytics-settings` (from `main`), not merged. Tests pass and the screens were viewed on the simulator in both themes. On the iPhone 15, Rupesh reported things working correctly (2026-11-01), after the Analytics changes and the salary income change. The report did not go through the list below item by item.
 
 ### What was built
 - `budget_screen.dart`: salary ring, category cards with ring icons, Add category, Allocate sheet. It replaces Home on the Budget tab; `home_screen.dart` and `month_summary_card.dart` are gone.
