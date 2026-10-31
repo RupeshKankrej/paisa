@@ -163,24 +163,39 @@ void main() {
       await v1.select(v1.categories).get();
       await v1.customStatement('DROP TABLE settings');
       await v1.delete(v1.trackedSenders).go();
+      await v1.customStatement('DROP TABLE categories');
+      await v1.customStatement('''
+        CREATE TABLE categories (
+          id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+          color INTEGER NOT NULL, icon TEXT NOT NULL,
+          sort_order INTEGER NOT NULL,
+          is_archived INTEGER NOT NULL DEFAULT 0)
+      ''');
       // Colours as Phase 1 seeded them, plus one the palette never had.
-      await v1.customStatement(
-        "UPDATE categories SET color = 0xFFE57373 WHERE name = 'Food'",
-      );
-      await v1.customStatement(
-        "UPDATE categories SET color = 0xFF123456 WHERE name = 'Other'",
-      );
+      await v1.customStatement('''
+        INSERT INTO categories (name, color, icon, sort_order) VALUES
+          ('Food', 0xFFE57373, 'restaurant', 0),
+          ('Other', 0xFF123456, 'category', 7)
+      ''');
       await v1.customStatement('PRAGMA user_version = 1');
       await v1.close();
 
       final upgraded = AppDatabase(NativeDatabase(file));
       addTearDown(upgraded.close);
       final categories = await upgraded.select(upgraded.categories).get();
-      expect(categories, hasLength(8));
-      int colorOf(String name) =>
-          categories.firstWhere((c) => c.name == name).color;
-      expect(colorOf('Food'), 0xFF5AA9F5);
-      expect(colorOf('Other'), 0xFF123456);
+      expect(categories.map((c) => (c.name, c.type)), [
+        ('Food', CategoryType.expense),
+        ('Other', CategoryType.expense),
+        ('Salary', CategoryType.income),
+        ('Investments', CategoryType.income),
+      ]);
+      Category named(String name) =>
+          categories.firstWhere((c) => c.name == name);
+      expect(named('Food').color, 0xFF5AA9F5);
+      expect(named('Food').emoji, '🍽️');
+      expect(named('Food').id, 1, reason: 'links stay');
+      expect(named('Other').color, 0xFF123456);
+      expect(named('Other').emoji, '📦');
       final sender = await upgraded.select(upgraded.trackedSenders).getSingle();
       expect(sender.matchPattern, 'HDFC Bank');
       await ingestInbox(upgraded, line(debitSample));

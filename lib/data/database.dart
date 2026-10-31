@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
 import '../core/period.dart';
+import '../domain/categories.dart';
 import '../domain/models.dart';
 
 part 'database.g.dart';
@@ -25,7 +26,9 @@ class Categories extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get name => text()();
   IntColumn get color => integer()(); // ARGB
-  TextColumn get icon => text()();
+  TextColumn get emoji => text().withDefault(const Constant('🎯'))();
+  TextColumn get type =>
+      textEnum<CategoryType>().withDefault(const Constant('expense'))();
   IntColumn get sortOrder => integer()();
   BoolColumn get isArchived => boolean().withDefault(const Constant(false))();
 }
@@ -97,13 +100,18 @@ class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'paisa'));
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
-      await batch((b) => b.insertAll(categories, _seedCategories));
+      await batch(
+        (b) => b.insertAll(categories, [
+          ..._seeds(_expenseSeeds, CategoryType.expense),
+          ..._seeds(_incomeSeeds, CategoryType.income),
+        ]),
+      );
       await into(trackedSenders).insert(_seedSender);
     },
     onUpgrade: (m, from, to) async {
@@ -114,20 +122,44 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         // Matches on colour, so categories added by the user move with the seed.
         for (final (i, old) in _phase1Colors.indexed) {
-          await (update(categories)..where((c) => c.color.equals(old))).write(
-            CategoriesCompanion(color: Value(_seedCategories[i].color.value)),
+          await customStatement(
+            'UPDATE categories SET color = ? WHERE color = ?',
+            [categoryColors[i], old],
           );
         }
+      }
+      if (from < 4) {
+        // Ids stay, so transactions and budgets keep their links. The expense
+        // seed changed too, but renaming someone's categories is not ours to do.
+        await m.addColumn(categories, categories.emoji);
+        await m.addColumn(categories, categories.type);
+        await customStatement('''
+          UPDATE categories SET emoji = CASE icon
+            WHEN 'restaurant' THEN '🍽️'
+            WHEN 'directions_car' THEN '🚗'
+            WHEN 'home' THEN '🏠'
+            WHEN 'receipt_long' THEN '🧾'
+            WHEN 'shopping_bag' THEN '🛍️'
+            WHEN 'favorite' THEN '🩺'
+            WHEN 'movie' THEN '🎬'
+            ELSE '📦' END
+        ''');
+        await customStatement('ALTER TABLE categories DROP COLUMN icon');
+        await batch(
+          (b) => b.insertAll(
+            categories,
+            _seeds(_incomeSeeds, CategoryType.income),
+          ),
+        );
       }
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
   );
 
-  Stream<List<Category>> watchCategories() =>
-      (select(categories)
-            ..where((c) => c.isArchived.equals(false))
-            ..orderBy([(c) => OrderingTerm(expression: c.sortOrder)]))
-          .watch();
+  /// Archived ones too, as old rows still need their name and colour.
+  Stream<List<Category>> watchCategories() => (select(
+    categories,
+  )..orderBy([(c) => OrderingTerm(expression: c.sortOrder)])).watch();
 
   Stream<List<TrackedSender>> watchTrackedSenders() =>
       select(trackedSenders).watch();
@@ -249,21 +281,101 @@ class AppDatabase extends _$AppDatabase {
         }
       });
 
-  /// Colour comes from a fixed palette, as the sheet only asks for a name.
-  Future<int> addCategory(String name) => transaction(() async {
-    final count = await categories.count().getSingle();
-    return into(categories).insert(
+  /// Returns the existing category if the name is taken for that type, so a
+  /// double tap on a quick add cannot create two.
+  Future<Category> addCategory({
+    required String name,
+    required CategoryType type,
+    required String emoji,
+    required int color,
+  }) => transaction(() async {
+    final all = await select(categories).get();
+    for (final c in all) {
+      if (c.type == type && nameTaken([c.name], name)) return c;
+    }
+    final last = all.fold(-1, (a, c) => a > c.sortOrder ? a : c.sortOrder);
+    return into(categories).insertReturning(
       CategoriesCompanion.insert(
-        name: name,
-        color: _seedCategories[count % _seedCategories.length].color.value,
-        icon: 'category',
-        sortOrder: count,
+        name: name.trim(),
+        color: color,
+        emoji: Value(emoji),
+        type: Value(type),
+        sortOrder: last + 1,
       ),
     );
   });
+
+  Future<void> updateCategory(
+    int id, {
+    required String name,
+    required String emoji,
+    required int color,
+  }) => (update(categories)..where((c) => c.id.equals(id))).write(
+    CategoriesCompanion(
+      name: Value(name.trim()),
+      emoji: Value(emoji),
+      color: Value(color),
+    ),
+  );
+
+  Future<void> setCategoryArchived(int id, bool archived) =>
+      transaction(() async {
+        await (update(categories)..where((c) => c.id.equals(id))).write(
+          CategoriesCompanion(isArchived: Value(archived)),
+        );
+        if (archived) await _dropFromFilter(id);
+      });
+
+  /// Its transactions become uncategorised; its budgets go with it.
+  Future<void> deleteCategory(int id) => transaction(() async {
+    await (update(transactions)..where((t) => t.categoryId.equals(id))).write(
+      TransactionsCompanion(
+        categoryId: const Value(null),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+    await (delete(budgets)..where((b) => b.categoryId.equals(id))).go();
+    await (delete(categories)..where((c) => c.id.equals(id))).go();
+    await _dropFromFilter(id);
+  });
+
+  /// [ids] in their new order.
+  Future<void> reorderCategories(List<int> ids) => transaction(() async {
+    for (final (i, id) in ids.indexed) {
+      await (update(categories)..where((c) => c.id.equals(id))).write(
+        CategoriesCompanion(sortOrder: Value(i)),
+      );
+    }
+  });
+
+  /// Null means all categories. Kept across launches until cleared (SPEC 5.14).
+  Stream<Set<int>?> watchCategoryFilter() =>
+      (select(settings)..where((s) => s.key.equals(_categoryFilterKey)))
+          .watchSingleOrNull()
+          .map((row) => row == null ? null : decodeFilter(row.value));
+
+  Future<void> setCategoryFilter(Set<int>? filter) => filter == null
+      ? (delete(settings)..where((s) => s.key.equals(_categoryFilterKey))).go()
+      : into(settings).insertOnConflictUpdate(
+          SettingsCompanion.insert(
+            key: _categoryFilterKey,
+            value: encodeFilter(filter),
+          ),
+        );
+
+  // A filter left holding only a removed category would hide everything.
+  Future<void> _dropFromFilter(int id) async {
+    final row = await (select(
+      settings,
+    )..where((s) => s.key.equals(_categoryFilterKey))).getSingleOrNull();
+    final filter = row == null ? null : decodeFilter(row.value);
+    if (filter == null || !filter.remove(id)) return;
+    await setCategoryFilter(filter.isEmpty ? null : filter);
+  }
 }
 
 const _salaryDayKey = 'salary_day';
+const _categoryFilterKey = 'category_filter';
 
 final _seedSender = TrackedSendersCompanion.insert(
   label: 'HDFC Bank',
@@ -282,23 +394,34 @@ const _phase1Colors = [
   0xFF90A4AE,
 ];
 
-final _seedCategories =
-    [
-          ('Food', 0xFF5AA9F5, 'restaurant'),
-          ('Travel', 0xFFE8737A, 'directions_car'),
-          ('Rent', 0xFF7B6CF6, 'home'),
-          ('Bills', 0xFFF2A65A, 'receipt_long'),
-          ('Shopping', 0xFFF0C36A, 'shopping_bag'),
-          ('Health', 0xFFB36CF6, 'favorite'),
-          ('Entertainment', 0xFFF07AC8, 'movie'),
-          ('Other', 0xFF4CC38A, 'category'),
-        ].indexed
-        .map(
-          (e) => CategoriesCompanion.insert(
-            name: e.$2.$1,
-            color: e.$2.$2,
-            icon: e.$2.$3,
-            sortOrder: e.$1,
-          ),
-        )
-        .toList();
+const _expenseSeeds = [
+  ('Housing', '🏠'),
+  ('Food', '🍽️'),
+  ('Groceries', '🛒'),
+  ('Utilities', '💡'),
+  ('Transportation', '🚗'),
+  ('Shopping', '🛍️'),
+  ('Clothes', '👕'),
+  ('Going out', '🍻'),
+  ('Entertainment', '🍿'),
+  ('Subscriptions', '📅'),
+  ('Extras', '🤷'),
+  ('Medicines', '💊'),
+  ('Investments', '📈'),
+];
+
+const _incomeSeeds = [('Salary', '💰'), ('Investments', '📊')];
+
+List<CategoriesCompanion> _seeds(
+  List<(String, String)> seeds,
+  CategoryType type,
+) => [
+  for (final (i, (name, emoji)) in seeds.indexed)
+    CategoriesCompanion.insert(
+      name: name,
+      color: categoryColors[i % categoryColors.length],
+      emoji: Value(emoji),
+      type: Value(type),
+      sortOrder: i,
+    ),
+];

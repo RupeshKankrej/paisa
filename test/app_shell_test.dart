@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paisa/app/shell_widgets.dart';
 import 'package:paisa/data/database.dart';
+import 'package:paisa/domain/models.dart';
 import 'package:paisa/data/providers.dart';
 import 'package:paisa/features/budgets/categories_screen.dart';
 import 'package:paisa/features/dashboards/dashboards_screen.dart';
@@ -48,7 +49,8 @@ void main() {
                 id: 1,
                 name: 'Food',
                 color: 0xFFE57373,
-                icon: 'restaurant',
+                emoji: '🍽️',
+                type: CategoryType.expense,
                 sortOrder: 0,
                 isArchived: false,
               ),

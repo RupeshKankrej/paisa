@@ -7,6 +7,7 @@ import '../../core/money.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/models.dart';
+import '../budgets/manage_categories_screen.dart';
 
 // Rupesh's salary usually lands on the 28th (SPEC 5.1 sample).
 const _defaultSalaryDay = 28;
@@ -98,6 +99,15 @@ class SettingsScreen extends ConsumerWidget {
                 onChanged: (day) => _setSalaryDay(ref, day),
               ),
             ),
+          ListTile(
+            title: const Text('Categories'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ManageCategoriesScreen(),
+              ),
+            ),
+          ),
           const Divider(),
           ListTile(
             title: const Text('Imported messages'),

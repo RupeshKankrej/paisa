@@ -15,8 +15,19 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   return db;
 });
 
+/// Archived ones included, as old rows still need their name and colour.
 final categoriesProvider = StreamProvider<List<Category>>(
   (ref) => ref.watch(databaseProvider).watchCategories(),
+);
+
+/// What a picker offers: not archived, of one type.
+List<Category> pickableCategories(List<Category> all, CategoryType type) => [
+  for (final c in all)
+    if (c.type == type && !c.isArchived) c,
+];
+
+final categoryFilterProvider = StreamProvider<Set<int>?>(
+  (ref) => ref.watch(databaseProvider).watchCategoryFilter(),
 );
 
 final trackedSendersProvider = StreamProvider<List<TrackedSender>>(

@@ -9,6 +9,7 @@ import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/budget.dart';
+import '../../domain/categories.dart';
 import '../../domain/models.dart';
 import '../budgets/category_picker.dart';
 import '../budgets/month_summary_card.dart';
@@ -92,7 +93,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     final selected = ref.watch(expenseFilterProvider);
     final month = ref.watch(selectedMonthProvider);
     final transactions = ref.watch(transactionsProvider(month));
-    final rows = transactions.value ?? const <TransactionRow>[];
+    final categoryFilter = ref.watch(categoryFilterProvider).value;
+    List<TransactionRow> narrowed(List<TransactionRow> rows) => [
+      for (final r in rows)
+        if (filterMatches(categoryFilter, r.categoryId)) r,
+    ];
+    final rows = narrowed(transactions.value ?? const []);
     return ScaffoldMessenger(
       key: _messenger,
       child: Scaffold(
@@ -154,6 +160,13 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               child: Row(
                 spacing: 8,
                 children: [
+                  // First, so an active filter is never scrolled out of sight.
+                  ChoiceChip(
+                    label: Text(filterLabel(categoryFilter)),
+                    selected: categoryFilter != null,
+                    onSelected: (_) =>
+                        showCategoryFilter(context, CategoryType.expense),
+                  ),
                   for (final (label, filter) in _filters)
                     ChoiceChip(
                       label: Text(label),
@@ -176,7 +189,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                   child: Text('Could not load transactions: $error'),
                 ),
               ),
-              data: (rows) => _list(rows, categories, selected),
+              data: (rows) => _list(narrowed(rows), categories, selected),
             ),
           ],
         ),

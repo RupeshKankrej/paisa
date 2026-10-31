@@ -209,12 +209,18 @@ void main() {
     await add('Salary', type: TransactionType.credit);
     await pumpScreen(tester);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Income'));
+    final income = find.widgetWithText(ChoiceChip, 'Income');
+    await tester.ensureVisible(income);
+    await tester.pumpAndSettle();
+    await tester.tap(income);
     await tester.pumpAndSettle();
     expect(find.text('Salary'), findsOneWidget);
     expect(find.text('Shop'), findsNothing);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Expenses'));
+    final expenses = find.widgetWithText(ChoiceChip, 'Expenses');
+    await tester.ensureVisible(expenses);
+    await tester.pumpAndSettle();
+    await tester.tap(expenses);
     await tester.pumpAndSettle();
     expect(find.text('Salary'), findsNothing);
     expect(find.text('Shop'), findsOneWidget);
@@ -235,15 +241,12 @@ void main() {
 
     await tester.tap(find.text('Shop'));
     await settle(tester);
-    await tester.enterText(find.byType(TextField).last, 'tra');
-    await tester.pumpAndSettle();
-    expect(find.text('Food'), findsNothing);
-    await tester.tap(find.text('Travel'));
+    await tester.tap(find.text('Transportation'));
     await settle(tester);
 
     final travel = await (db.select(
       db.categories,
-    )..where((c) => c.name.equals('Travel'))).getSingle();
+    )..where((c) => c.name.equals('Transportation'))).getSingle();
     expect((await rows()).single.categoryId, travel.id);
     expect(find.textContaining('Tap to categorise'), findsNothing);
   });
@@ -256,24 +259,30 @@ void main() {
 
     await tester.tap(find.text('Shop'));
     await settle(tester);
-    await tester.tap(find.text('New category'));
+    await tester.tap(find.text('Add new'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextFormField, 'Name'),
-      ' food ',
-    );
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    final addButton = find.widgetWithText(FilledButton, 'Add');
+    bool enabled() => tester.widget<FilledButton>(addButton).onPressed != null;
+    expect(enabled(), isFalse, reason: 'no name yet');
+    await tester.enterText(find.byKey(const Key('category-name')), ' food ');
     await tester.pumpAndSettle();
     expect(find.text('Already exists'), findsOneWidget);
+    expect(enabled(), isFalse);
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Pets');
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
+    await tester.enterText(find.byKey(const Key('category-name')), 'Pets');
+    await tester.enterText(find.byKey(const Key('category-emoji')), '🎯🐶');
+    await tester.tap(find.byKey(const Key('category-colour')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('swatch-41')));
+    await tester.pumpAndSettle();
+    await tester.tap(addButton);
     await settle(tester);
 
     final pets = await (db.select(
       db.categories,
     )..where((c) => c.name.equals('Pets'))).getSingle();
-    expect(pets.sortOrder, 8);
+    expect(pets.emoji, '🐶');
+    expect(pets.color, 0xFFFFFFFF);
     expect((await rows()).single.categoryId, pets.id);
   });
 
@@ -402,14 +411,14 @@ void main() {
 
     await tester.tap(find.byTooltip('All categories'));
     await settle(tester);
-    await tester.tap(find.text('Other').last);
+    await tester.tap(find.text('Extras').last);
     await settle(tester);
     await press(tester, '5');
     await save(tester);
 
     final other = await (db.select(
       db.categories,
-    )..where((c) => c.name.equals('Other'))).getSingle();
+    )..where((c) => c.name.equals('Extras'))).getSingle();
     expect((await rows()).single.categoryId, other.id);
   });
 
@@ -425,7 +434,7 @@ void main() {
     await press(tester, '50');
     await tester.tap(find.text('Expense'));
     await tester.pumpAndSettle();
-    await pickInStrip(tester, 'Food');
+    await pickInStrip(tester, 'Salary');
     await save(tester);
 
     expect((await rows()).single.type, TransactionType.credit);

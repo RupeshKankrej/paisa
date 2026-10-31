@@ -5,13 +5,10 @@
 - Show `ignored` stale lines somewhere, so a message skipped after a clock change can be recovered.
 - Update SPEC 3.3: `inbox.jsonl` is now claimed by rename and deleted, not truncated.
 - Show the ignored count in Settings. Ignored messages are invisible today, which hid a misconfigured Shortcut during Phase 2 testing.
-- A row whose category is archived shows the grey placeholder in the list, and no category is selected in the add/edit sheet. Handle this when archiving is built (SPEC 5.9).
-- Colour and icon choice for new categories (Phase 3 asks only for a name).
 - Clear a row's category back to uncategorised.
 - Refresh the selected month when the app resumes in a new month.
 - Parser: add a template for real HDFC UPI credits ("Credit Alert! Rs.1.00 credited to HDFC Bank A/c XX1541 on 31-10-26 from VPA ... (UPI ...)"). One landed in Unparsed on the iPhone on 2026-10-31; the current credit template covers only the "deposited" NEFT wording.
 - Show a trace when a message is skipped as an already-seen fingerprint. It leaves no new log row today, so a Shortcut resending the same wrong text looks exactly like the automation not firing.
-- Show archived categories' spend on the Categories screen when archiving is built (SPEC 5.9); today it would count in the total but have no row.
 - Remember the salary day when the month boundary switch is turned off.
 - Tap a day-wise bar or a date-range point to see its exact amount (SPEC 5.8 asks for this only on the month-wise chart).
 - Keep the month-wise amount axis visible while scrolling back; it sits at the newest end and scrolls away.
@@ -24,3 +21,6 @@
 - Reconcile SPEC 5.12 "the budget pie becomes the Summary donut" with reference 03: the donut shows spend share, so slices match the % pills, and the 5.8 budget pie stays on Analytics. Decide its home in Phase 10.
 - Account chip in the add sheet for manual rows, and the sheet's overflow menu from reference 02. Both need multiple accounts.
 - Whole-rupee amounts on Activity and Summary, as the references show. SPEC 4.1 keeps `₹1,55,453.00` for now.
+- Open the emoji keyboard directly from the new-category sheet (SPEC 5.14). Flutter's text input cannot request it, so today the normal keyboard opens and the user taps its emoji key. Needs a native text field.
+- Decide whether to replace the 8 older categories on an existing install with the new SPEC 5.14 expense seed. The migration only adds the 2 income seeds.
+- The SPEC 5.14 filter has no Uncategorised tile: any subset hides uncategorised rows. The Activity Uncategorised chip needs the filter on All.

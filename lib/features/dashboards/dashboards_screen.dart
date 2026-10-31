@@ -508,7 +508,8 @@ class _BudgetPieCard extends ConsumerWidget {
           final spend = spendOf(rows);
           final limits = {
             for (final c in categories)
-              c.id: ?resolveAmount(budgets[c.id] ?? const {}, month),
+              if (!c.isArchived)
+                c.id: ?resolveAmount(budgets[c.id] ?? const {}, month),
           };
           final pie = budgetPie(limits, spend, salary);
           final byId = {for (final c in categories) c.id: c};

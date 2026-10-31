@@ -1,5 +1,52 @@
 # Progress
 
+## Phase 9: Categories (2026-10-31)
+
+Status: built on branch `phase-9-categories` (from `main`), not merged. Tests pass and the new screens were viewed on the simulator. Device checks below are waiting on Rupesh.
+
+### What was built
+- Schema v4: `categories` gains `type` and `emoji`; `icon` is dropped. Ids stay, so transactions and budgets keep their links.
+- `lib/domain/categories.dart`: palette, quick adds, name clash, emoji check and filter logic, in pure Dart with tests.
+- `category_picker.dart`: one grid sheet for picking and for the multi-select filter, with Expense/Income segment, pencil, Add new.
+- `category_edit_sheet.dart`: new and edit, with emoji field, 42 swatches, Archive and Delete.
+- `manage_categories_screen.dart`: segment, reorderable list, quick adds, New category. Reached from the pencils and Settings → Categories.
+- Filter: stored in `settings`, so it survives a relaunch. It narrows the Activity list, hero and chart, and the Summary donut and rows.
+- The add sheet strip follows the row's type; toggling type clears the category. Picking from the other segment of the grid flips the row's type.
+
+### Decisions
+- An existing install keeps its 8 categories and gains Salary and Investments (income). Only new installs get the full 5.14 seed. Renaming someone's categories was not safe to assume (see BACKLOG). Existing credits stay tagged as they are.
+- Added beyond the spec: an Archived section on the Categories screen. Without it an archived category could not come back, and its name would stay taken.
+- Archived categories still give old rows their name and colour, and their spend still gets a Summary row. This closes two BACKLOG items. Their limits no longer count toward limit totals or the budget pie.
+- Over salary on Summary always compares all spend with salary. With a filter on, the donut's outline and ring are hidden, as they would describe a subset.
+- Tiles start all ticked under All. Unticking one makes a subset, ticking the last returns to All. All and None apply across both types. Tile taps apply at once, with no Confirm.
+- A saved row outside the active filter clears the filter, as with the type chips, so it never seems to vanish.
+- The Activity filter chip comes first in the row: placed after Uncategorised it was off-screen, so the total looked wrong with no visible reason.
+- The Summary pencil sits outside the scrolling chips, and a "N categories" chip shows when a filter is on.
+- The picker's search is gone: SPEC 5.14 and the references have none, though SPEC 5.2 still mentions it.
+- Quick-add colours cycle the 5.12 palette. Palette swatches are read by eye from reference 13. Emoji for Education, Kids, Donations, Refunds and Interest are my picks, as no reference shows them.
+- References: where SPEC 5.14 and the filenames disagree (see the entry below), the filenames were followed.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 164 passed.
+- The upgrade test builds a real v1 file and checks ids, emoji, types and colours after migrating to v4.
+- Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point with in-memory data, deleted afterwards. Viewed: Categories (income), grid, new sheet, palette, filter, Activity and Summary with a filter. This found the off-screen chip, invisible All/None chips and an underlined name field; the fixes were not viewed again on the simulator. Reorder, delete and archive are covered by widget tests only. The simulator still has that temporary build installed.
+
+### What to verify on the device
+1. Force-quit and open: your rows, categories and limits are all there, with the same emoji and colours.
+2. Settings → Categories: Expense and Income lists, side by side with references 15 and 16. Drag a handle and long-press a row to reorder; force-quit; the order stays and drives the grid and add sheet strip.
+3. Quick add: + adds it and removes it from the list.
+4. New category: tap the emoji tile, switch to the emoji key, pick one; pick a colour; Add. It appears in the add sheet strip, Summary donut (after spending in it) and the filter. A duplicate name, any case, is refused.
+5. Tap a row: edit it, archive it, unarchive it from Archived. Delete one with transactions: confirm, rows become uncategorised and dimmed.
+6. Tap an uncategorised row and the add sheet's grid button: compare with references 11 and 14. The pencil opens Categories and back returns to the sheet.
+7. Filter chip on Activity and pencil on Summary: None, tick two, chip reads "2 categories"; list, hero, chart, donut and rows narrow. Force-quit; the filter stays. All clears it.
+8. Add sheet: Income shows income categories. Save a row outside the filter: the filter clears.
+9. Widget figures are unchanged by a filter.
+
+### Open issues and setup notes
+- The emoji tile opens the normal keyboard, as Flutter cannot request the emoji one (see BACKLOG). Letters typed there are ignored.
+- A tagged category of the other type stays on old rows and shows first in the strip when editing.
+- Free-team install expires about 2026-11-07.
+
 ## Spec and design update, no phase (2026-10-31)
 
 Status: docs only, on branch `docs-spec-design-update`, not merged. No code changed, so nothing to verify on the device.

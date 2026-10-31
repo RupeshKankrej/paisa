@@ -16,7 +16,7 @@ import 'package:paisa/features/home/home_screen.dart';
 import 'package:paisa/features/settings/settings_screen.dart';
 import 'package:paisa/main.dart';
 
-const food = 1, travel = 2;
+const food = 2, travel = 5;
 
 void main() {
   late AppDatabase db;
@@ -239,7 +239,7 @@ void main() {
     await seedMonth();
     await db.setBudget(food, null, 100000); // 120% with 1,200.50 spent
     await db.setBudget(travel, null, 40000); // 75% with 300.25 spent
-    await db.setBudget(3, null, 50000); // Rent, nothing spent
+    await db.setBudget(1, null, 50000); // Housing, nothing spent
     await pump(tester, const CategoriesScreen());
 
     expect(find.text('₹8,400.00 left of ₹10,000.00'), findsOneWidget);
@@ -259,16 +259,16 @@ void main() {
       [9925, 120050, 30025],
       reason: 'uncategorised first, then by spend; the credit is left out',
     );
-    expect(barOf(tester, 'Travel').color, Colors.amber);
-    expect(barOf(tester, 'Rent').color, Colors.green);
+    expect(barOf(tester, 'Transportation').color, Colors.amber);
+    expect(barOf(tester, 'Housing').color, Colors.green);
     expect(
       find.descendant(
-        of: find.widgetWithText(ListTile, 'Bills'),
+        of: find.widgetWithText(ListTile, 'Utilities'),
         matching: find.byType(LinearProgressIndicator),
       ),
       findsNothing,
     );
-    expect(inTile('Bills', '₹0.00'), findsOneWidget);
+    expect(inTile('Utilities', '₹0.00'), findsOneWidget);
 
     expect(inTile('Uncategorised', '₹99.25'), findsOneWidget);
     expect(inTile('Uncategorised', '1'), findsOneWidget);
@@ -330,7 +330,7 @@ void main() {
     await tester.tap(find.widgetWithText(ChoiceChip, 'Income'));
     await tester.pumpAndSettle();
     expect(find.text('₹700.00'), findsNWidgets(2), reason: 'centre and row');
-    expect(inTile('Travel', '100.00%'), findsOneWidget);
+    expect(inTile('Transportation', '100.00%'), findsOneWidget);
     expect(find.text('Food'), findsNothing);
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
@@ -351,7 +351,7 @@ void main() {
     await pump(tester, const CategoriesScreen());
     expect(find.textContaining('more than the salary'), findsNothing);
 
-    await tester.tap(find.text('Travel'));
+    await tester.tap(find.text('Transportation'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField).first, '500');
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
