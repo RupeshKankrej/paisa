@@ -252,14 +252,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                   child: TransactionTile(
                     row: row,
                     category: categories[row.categoryId],
-                    onTap: () => row.categoryId == null
-                        ? categoriseTransaction(context, ref, row)
-                        : openTransactionSheet(
-                            context,
-                            ref,
-                            row,
-                            () => _delete(row),
-                          ),
+                    onTap: () => openTransactionSheet(
+                      context,
+                      ref,
+                      row,
+                      () => _delete(row),
+                    ),
                     onLongPress: () => openTransactionSheet(
                       context,
                       ref,

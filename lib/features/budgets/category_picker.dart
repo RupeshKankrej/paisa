@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -97,27 +96,6 @@ class CategoryTypeSegment extends StatelessWidget {
       ],
     ),
   );
-}
-
-/// Asks for a category and saves it on [row] straight away.
-Future<void> categoriseTransaction(
-  BuildContext context,
-  WidgetRef ref,
-  TransactionRow row,
-) async {
-  final category = await showCategoryPicker(
-    context,
-    row.type == TransactionType.debit
-        ? CategoryType.expense
-        : CategoryType.income,
-  );
-  if (category == null) return;
-  await ref
-      .read(databaseProvider)
-      .updateTransaction(
-        row.id,
-        TransactionsCompanion(categoryId: Value(category.id)),
-      );
 }
 
 /// The category grid sheet (SPEC 5.14). Returns the choice, or null if dismissed.

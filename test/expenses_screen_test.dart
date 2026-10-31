@@ -234,23 +234,28 @@ void main() {
     expect(find.text('N' * 40), findsOneWidget);
   });
 
-  testWidgets('tapping a row picks a category and saves immediately', (
-    tester,
-  ) async {
-    await add('Shop');
-    await pumpScreen(tester);
+  testWidgets(
+    'tapping an uncategorised row edits it; the grid sets a category',
+    (tester) async {
+      await add('Shop');
+      await pumpScreen(tester);
 
-    await tester.tap(find.text('Shop'));
-    await settle(tester);
-    await tester.tap(find.text('Transportation'));
-    await settle(tester);
+      await tester.tap(find.text('Shop'));
+      await settle(tester);
+      expect(find.byKey(const Key('sheet-amount')), findsOneWidget);
+      await tester.tap(find.byTooltip('All categories'));
+      await settle(tester);
+      await tester.tap(find.text('Transportation').last);
+      await settle(tester);
+      await save(tester);
 
-    final travel = await (db.select(
-      db.categories,
-    )..where((c) => c.name.equals('Transportation'))).getSingle();
-    expect((await rows()).single.categoryId, travel.id);
-    expect(find.textContaining('Tap to categorise'), findsNothing);
-  });
+      final travel = await (db.select(
+        db.categories,
+      )..where((c) => c.name.equals('Transportation'))).getSingle();
+      expect((await rows()).single.categoryId, travel.id);
+      expect(find.textContaining('Tap to categorise'), findsNothing);
+    },
+  );
 
   testWidgets('New category rejects a duplicate, then creates and assigns', (
     tester,
@@ -273,6 +278,8 @@ void main() {
     );
 
     await tester.tap(find.text('Shop'));
+    await settle(tester);
+    await tester.tap(find.byTooltip('All categories'));
     await settle(tester);
     await tester.tap(find.text('Add new'));
     await tester.pumpAndSettle();
@@ -300,6 +307,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(addButton);
     await settle(tester);
+    await save(tester);
 
     final pets = await (db.select(
       db.categories,
@@ -315,7 +323,6 @@ void main() {
     await tester.tap(find.text('Lunch'));
     await settle(tester);
     expect(find.byKey(const Key('sheet-amount')), findsOneWidget);
-    expect(find.text('Add new'), findsNothing);
   });
 
   testWidgets('swipe deletes, undo restores the same row', (tester) async {
