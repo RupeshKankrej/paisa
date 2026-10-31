@@ -1,5 +1,42 @@
 # Progress
 
+## Phase 2: Parser + ingest (2026-10-31)
+
+Status: built on branch `phase-2-parser-ingest` (from `phase-1-foundation`), not merged. Acceptance tests pass. On the iPhone, Rupesh confirmed a test SMS in the debit format raised Imported messages, and one with different wording reached Unparsed messages. Rupesh also confirmed a real HDFC message parsed correctly and an added sender survives a force-quit.
+
+### What was built
+- `lib/domain/parser/`: normaliser, SHA-256 fingerprint, date parsing and the first-match-wins parser, in pure Dart. Templates are in `templates/hdfc.dart`. The patterns run on normalised text, so a line break in the SMS is a single space. All three date formats work in both templates.
+- `lib/features/ingest/ingest.dart`: the SPEC 5.1 pipeline, committing each line in its own database transaction. `inbox_reader.dart` drains the inbox on launch and resume.
+- `lib/features/settings/settings_screen.dart`: list and add tracked senders, imported count, read-only Unparsed messages list.
+- Schema v2: a `settings` key/value table and the seeded HDFC sender, for new databases and through a migration. `bank` columns now hold the `Bank` enum.
+- Native inbox: `claim` renames `inbox.jsonl` to `inbox.jsonl.claimed` under a file lock shared with the intent, and `ack` deletes it after the database commit. This replaces the "then truncated" in SPEC 3.3: truncating could lose a line on a crash or during a concurrent write.
+
+### Decisions
+- Patterns are case-insensitive "text contains", not regex. The Shortcuts intent passes only the message text, so sender IDs cannot be matched.
+- `occurred_at` is the date in the SMS plus the time of day it arrived, because the SMS has no time.
+- Audit rows use `ignored`, since SPEC has no separate status: ref-guard duplicates (with `ref_no`) and stale lines (with raw text). Untracked messages are `ignored` with no text kept, as they may be private.
+- A line that is not valid JSON is logged `failed` and shown under Unparsed, and later lines still import.
+- The imported count and Unparsed list are in this phase because 5.1 requires the list and the Expenses screen is Phase 3.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 57 passed, including goldens for both 5.1 samples, duplicate delivery and the v1 to v2 migration.
+- Swift `RunnerTests` on the simulator (iOS 27.2): 2 passed, including claim, retry and ack.
+- Simulator, real app and method channel: a line appended to the App Group inbox became one transaction on resume; the same line delivered again added none, and the inbox file was gone after each drain.
+- Release build installed on the iPhone 15 with `devicectl`. Test SMSes triggered the automation: the debit-format one raised Imported, and one with other wording appeared under Unparsed, as reported by Rupesh.
+
+### What to verify on the device
+Nothing outstanding from the Phase 2 list, except that the report did not say whether the real message was a debit or a credit. If the other type lands in Unparsed, its template needs fixing.
+
+### Open issues and setup notes
+- During testing the intent twice received text that was not the SMS: one run sent the literal words `Shortcut Input` (matched by fingerprint), and an earlier run's text is unknown. Both are `ignored` rows and do not appear in Settings. After the input pill was re-checked, a real SMS came through. The exact cause was not isolated.
+- Real wording that differs from a template lands in Unparsed, not in a wrong expense.
+- Any HDFC text matching the tracked pattern with no template, such as an OTP, is `failed` and its text is stored and shown under Unparsed. That follows SPEC 5.1.
+- The stale-line skip follows SPEC 5.1. If the phone's clock is moved backwards, a genuine new message can be skipped. It stays in `ingest_log` as `ignored` with its raw text, but no screen shows it.
+- A database error leaves the claimed file in place and retries on the next resume. A line that always throws would block the inbox; none is known.
+- Transactions cannot be seen in the app until Phase 3. Imported and Unparsed are the only view for now.
+- The `inbox.jsonl.lock` file in the App Group is expected and stays there.
+- `xcodebuild test` shuts down the simulator afterwards, so boot it again before using `simctl`.
+
 ## Phase 1: Foundation (2026-10-31)
 
 Status: built on branch `phase-1-foundation`, not merged. Rupesh confirmed it on the iPhone.

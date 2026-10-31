@@ -42,15 +42,15 @@ class $TrackedSendersTable extends TrackedSenders
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _bankMeta = const VerificationMeta('bank');
   @override
-  late final GeneratedColumn<String> bank = GeneratedColumn<String>(
-    'bank',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
+  late final GeneratedColumnWithTypeConverter<Bank, String> bank =
+      GeneratedColumn<String>(
+        'bank',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      ).withConverter<Bank>($TrackedSendersTable.$converterbank);
   @override
   List<GeneratedColumn> get $columns => [id, label, matchPattern, bank];
   @override
@@ -87,14 +87,6 @@ class $TrackedSendersTable extends TrackedSenders
     } else if (isInserting) {
       context.missing(_matchPatternMeta);
     }
-    if (data.containsKey('bank')) {
-      context.handle(
-        _bankMeta,
-        bank.isAcceptableOrUnknown(data['bank']!, _bankMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_bankMeta);
-    }
     return context;
   }
 
@@ -116,10 +108,12 @@ class $TrackedSendersTable extends TrackedSenders
         DriftSqlType.string,
         data['${effectivePrefix}match_pattern'],
       )!,
-      bank: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}bank'],
-      )!,
+      bank: $TrackedSendersTable.$converterbank.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}bank'],
+        )!,
+      ),
     );
   }
 
@@ -127,13 +121,16 @@ class $TrackedSendersTable extends TrackedSenders
   $TrackedSendersTable createAlias(String alias) {
     return $TrackedSendersTable(attachedDatabase, alias);
   }
+
+  static JsonTypeConverter2<Bank, String, String> $converterbank =
+      const EnumNameConverter<Bank>(Bank.values);
 }
 
 class TrackedSender extends DataClass implements Insertable<TrackedSender> {
   final int id;
   final String label;
   final String matchPattern;
-  final String bank;
+  final Bank bank;
   const TrackedSender({
     required this.id,
     required this.label,
@@ -146,7 +143,11 @@ class TrackedSender extends DataClass implements Insertable<TrackedSender> {
     map['id'] = Variable<int>(id);
     map['label'] = Variable<String>(label);
     map['match_pattern'] = Variable<String>(matchPattern);
-    map['bank'] = Variable<String>(bank);
+    {
+      map['bank'] = Variable<String>(
+        $TrackedSendersTable.$converterbank.toSql(bank),
+      );
+    }
     return map;
   }
 
@@ -168,7 +169,9 @@ class TrackedSender extends DataClass implements Insertable<TrackedSender> {
       id: serializer.fromJson<int>(json['id']),
       label: serializer.fromJson<String>(json['label']),
       matchPattern: serializer.fromJson<String>(json['matchPattern']),
-      bank: serializer.fromJson<String>(json['bank']),
+      bank: $TrackedSendersTable.$converterbank.fromJson(
+        serializer.fromJson<String>(json['bank']),
+      ),
     );
   }
   @override
@@ -178,7 +181,9 @@ class TrackedSender extends DataClass implements Insertable<TrackedSender> {
       'id': serializer.toJson<int>(id),
       'label': serializer.toJson<String>(label),
       'matchPattern': serializer.toJson<String>(matchPattern),
-      'bank': serializer.toJson<String>(bank),
+      'bank': serializer.toJson<String>(
+        $TrackedSendersTable.$converterbank.toJson(bank),
+      ),
     };
   }
 
@@ -186,7 +191,7 @@ class TrackedSender extends DataClass implements Insertable<TrackedSender> {
     int? id,
     String? label,
     String? matchPattern,
-    String? bank,
+    Bank? bank,
   }) => TrackedSender(
     id: id ?? this.id,
     label: label ?? this.label,
@@ -231,7 +236,7 @@ class TrackedSendersCompanion extends UpdateCompanion<TrackedSender> {
   final Value<int> id;
   final Value<String> label;
   final Value<String> matchPattern;
-  final Value<String> bank;
+  final Value<Bank> bank;
   const TrackedSendersCompanion({
     this.id = const Value.absent(),
     this.label = const Value.absent(),
@@ -242,7 +247,7 @@ class TrackedSendersCompanion extends UpdateCompanion<TrackedSender> {
     this.id = const Value.absent(),
     required String label,
     required String matchPattern,
-    required String bank,
+    required Bank bank,
   }) : label = Value(label),
        matchPattern = Value(matchPattern),
        bank = Value(bank);
@@ -264,7 +269,7 @@ class TrackedSendersCompanion extends UpdateCompanion<TrackedSender> {
     Value<int>? id,
     Value<String>? label,
     Value<String>? matchPattern,
-    Value<String>? bank,
+    Value<Bank>? bank,
   }) {
     return TrackedSendersCompanion(
       id: id ?? this.id,
@@ -287,7 +292,9 @@ class TrackedSendersCompanion extends UpdateCompanion<TrackedSender> {
       map['match_pattern'] = Variable<String>(matchPattern.value);
     }
     if (bank.present) {
-      map['bank'] = Variable<String>(bank.value);
+      map['bank'] = Variable<String>(
+        $TrackedSendersTable.$converterbank.toSql(bank.value),
+      );
     }
     return map;
   }
@@ -1333,15 +1340,15 @@ class $TransactionsTable extends Transactions
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
-  static const VerificationMeta _bankMeta = const VerificationMeta('bank');
   @override
-  late final GeneratedColumn<String> bank = GeneratedColumn<String>(
-    'bank',
-    aliasedName,
-    true,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-  );
+  late final GeneratedColumnWithTypeConverter<Bank?, String> bank =
+      GeneratedColumn<String>(
+        'bank',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      ).withConverter<Bank?>($TransactionsTable.$converterbankn);
   static const VerificationMeta _refNoMeta = const VerificationMeta('refNo');
   @override
   late final GeneratedColumn<String> refNo = GeneratedColumn<String>(
@@ -1487,12 +1494,6 @@ class $TransactionsTable extends Transactions
         ),
       );
     }
-    if (data.containsKey('bank')) {
-      context.handle(
-        _bankMeta,
-        bank.isAcceptableOrUnknown(data['bank']!, _bankMeta),
-      );
-    }
     if (data.containsKey('ref_no')) {
       context.handle(
         _refNoMeta,
@@ -1564,9 +1565,11 @@ class $TransactionsTable extends Transactions
         DriftSqlType.string,
         data['${effectivePrefix}account_last4'],
       ),
-      bank: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}bank'],
+      bank: $TransactionsTable.$converterbankn.fromSql(
+        attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}bank'],
+        ),
       ),
       refNo: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -1608,6 +1611,10 @@ class $TransactionsTable extends Transactions
 
   static JsonTypeConverter2<TransactionType, String, String> $convertertype =
       const EnumNameConverter<TransactionType>(TransactionType.values);
+  static JsonTypeConverter2<Bank, String, String> $converterbank =
+      const EnumNameConverter<Bank>(Bank.values);
+  static JsonTypeConverter2<Bank?, String?, String?> $converterbankn =
+      JsonTypeConverter2.asNullable($converterbank);
   static JsonTypeConverter2<TransactionSource, String, String>
   $convertersource = const EnumNameConverter<TransactionSource>(
     TransactionSource.values,
@@ -1621,7 +1628,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
   final DateTime occurredAt;
   final String? counterparty;
   final String? accountLast4;
-  final String? bank;
+  final Bank? bank;
   final String? refNo;
   final TransactionSource source;
   final int? categoryId;
@@ -1663,7 +1670,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       map['account_last4'] = Variable<String>(accountLast4);
     }
     if (!nullToAbsent || bank != null) {
-      map['bank'] = Variable<String>(bank);
+      map['bank'] = Variable<String>(
+        $TransactionsTable.$converterbankn.toSql(bank),
+      );
     }
     if (!nullToAbsent || refNo != null) {
       map['ref_no'] = Variable<String>(refNo);
@@ -1730,7 +1739,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       occurredAt: serializer.fromJson<DateTime>(json['occurredAt']),
       counterparty: serializer.fromJson<String?>(json['counterparty']),
       accountLast4: serializer.fromJson<String?>(json['accountLast4']),
-      bank: serializer.fromJson<String?>(json['bank']),
+      bank: $TransactionsTable.$converterbankn.fromJson(
+        serializer.fromJson<String?>(json['bank']),
+      ),
       refNo: serializer.fromJson<String?>(json['refNo']),
       source: $TransactionsTable.$convertersource.fromJson(
         serializer.fromJson<String>(json['source']),
@@ -1754,7 +1765,9 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
       'occurredAt': serializer.toJson<DateTime>(occurredAt),
       'counterparty': serializer.toJson<String?>(counterparty),
       'accountLast4': serializer.toJson<String?>(accountLast4),
-      'bank': serializer.toJson<String?>(bank),
+      'bank': serializer.toJson<String?>(
+        $TransactionsTable.$converterbankn.toJson(bank),
+      ),
       'refNo': serializer.toJson<String?>(refNo),
       'source': serializer.toJson<String>(
         $TransactionsTable.$convertersource.toJson(source),
@@ -1774,7 +1787,7 @@ class TransactionRow extends DataClass implements Insertable<TransactionRow> {
     DateTime? occurredAt,
     Value<String?> counterparty = const Value.absent(),
     Value<String?> accountLast4 = const Value.absent(),
-    Value<String?> bank = const Value.absent(),
+    Value<Bank?> bank = const Value.absent(),
     Value<String?> refNo = const Value.absent(),
     TransactionSource? source,
     Value<int?> categoryId = const Value.absent(),
@@ -1892,7 +1905,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
   final Value<DateTime> occurredAt;
   final Value<String?> counterparty;
   final Value<String?> accountLast4;
-  final Value<String?> bank;
+  final Value<Bank?> bank;
   final Value<String?> refNo;
   final Value<TransactionSource> source;
   final Value<int?> categoryId;
@@ -1976,7 +1989,7 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
     Value<DateTime>? occurredAt,
     Value<String?>? counterparty,
     Value<String?>? accountLast4,
-    Value<String?>? bank,
+    Value<Bank?>? bank,
     Value<String?>? refNo,
     Value<TransactionSource>? source,
     Value<int?>? categoryId,
@@ -2027,7 +2040,9 @@ class TransactionsCompanion extends UpdateCompanion<TransactionRow> {
       map['account_last4'] = Variable<String>(accountLast4.value);
     }
     if (bank.present) {
-      map['bank'] = Variable<String>(bank.value);
+      map['bank'] = Variable<String>(
+        $TransactionsTable.$converterbankn.toSql(bank.value),
+      );
     }
     if (refNo.present) {
       map['ref_no'] = Variable<String>(refNo.value);
@@ -2490,6 +2505,211 @@ class IngestLogCompanion extends UpdateCompanion<IngestLogRow> {
   }
 }
 
+class $SettingsTable extends Settings with TableInfo<$SettingsTable, Setting> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $SettingsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _keyMeta = const VerificationMeta('key');
+  @override
+  late final GeneratedColumn<String> key = GeneratedColumn<String>(
+    'key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<String> value = GeneratedColumn<String>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, value];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'settings';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Setting> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('key')) {
+      context.handle(
+        _keyMeta,
+        key.isAcceptableOrUnknown(data['key']!, _keyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {key};
+  @override
+  Setting map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Setting(
+      key: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}key'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}value'],
+      )!,
+    );
+  }
+
+  @override
+  $SettingsTable createAlias(String alias) {
+    return $SettingsTable(attachedDatabase, alias);
+  }
+}
+
+class Setting extends DataClass implements Insertable<Setting> {
+  final String key;
+  final String value;
+  const Setting({required this.key, required this.value});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['key'] = Variable<String>(key);
+    map['value'] = Variable<String>(value);
+    return map;
+  }
+
+  SettingsCompanion toCompanion(bool nullToAbsent) {
+    return SettingsCompanion(key: Value(key), value: Value(value));
+  }
+
+  factory Setting.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Setting(
+      key: serializer.fromJson<String>(json['key']),
+      value: serializer.fromJson<String>(json['value']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'key': serializer.toJson<String>(key),
+      'value': serializer.toJson<String>(value),
+    };
+  }
+
+  Setting copyWith({String? key, String? value}) =>
+      Setting(key: key ?? this.key, value: value ?? this.value);
+  Setting copyWithCompanion(SettingsCompanion data) {
+    return Setting(
+      key: data.key.present ? data.key.value : this.key,
+      value: data.value.present ? data.value.value : this.value,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Setting(')
+          ..write('key: $key, ')
+          ..write('value: $value')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(key, value);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Setting && other.key == this.key && other.value == this.value);
+}
+
+class SettingsCompanion extends UpdateCompanion<Setting> {
+  final Value<String> key;
+  final Value<String> value;
+  final Value<int> rowid;
+  const SettingsCompanion({
+    this.key = const Value.absent(),
+    this.value = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  SettingsCompanion.insert({
+    required String key,
+    required String value,
+    this.rowid = const Value.absent(),
+  }) : key = Value(key),
+       value = Value(value);
+  static Insertable<Setting> custom({
+    Expression<String>? key,
+    Expression<String>? value,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (key != null) 'key': key,
+      if (value != null) 'value': value,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  SettingsCompanion copyWith({
+    Value<String>? key,
+    Value<String>? value,
+    Value<int>? rowid,
+  }) {
+    return SettingsCompanion(
+      key: key ?? this.key,
+      value: value ?? this.value,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (key.present) {
+      map['key'] = Variable<String>(key.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<String>(value.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('SettingsCompanion(')
+          ..write('key: $key, ')
+          ..write('value: $value, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2499,6 +2719,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $SalaryTable salary = $SalaryTable(this);
   late final $TransactionsTable transactions = $TransactionsTable(this);
   late final $IngestLogTable ingestLog = $IngestLogTable(this);
+  late final $SettingsTable settings = $SettingsTable(this);
   late final Index budgetsCategoryMonth = Index(
     'budgets_category_month',
     'CREATE UNIQUE INDEX budgets_category_month ON budgets (category_id, COALESCE(month, \'\'))',
@@ -2518,6 +2739,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     salary,
     transactions,
     ingestLog,
+    settings,
     budgetsCategoryMonth,
     salaryMonth,
   ];
@@ -2528,14 +2750,14 @@ typedef $$TrackedSendersTableCreateCompanionBuilder =
       Value<int> id,
       required String label,
       required String matchPattern,
-      required String bank,
+      required Bank bank,
     });
 typedef $$TrackedSendersTableUpdateCompanionBuilder =
     TrackedSendersCompanion Function({
       Value<int> id,
       Value<String> label,
       Value<String> matchPattern,
-      Value<String> bank,
+      Value<Bank> bank,
     });
 
 class $$TrackedSendersTableFilterComposer
@@ -2562,10 +2784,11 @@ class $$TrackedSendersTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get bank => $composableBuilder(
-    column: $table.bank,
-    builder: (column) => ColumnFilters(column),
-  );
+  ColumnWithTypeConverterFilters<Bank, Bank, String> get bank =>
+      $composableBuilder(
+        column: $table.bank,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 }
 
 class $$TrackedSendersTableOrderingComposer
@@ -2618,7 +2841,7 @@ class $$TrackedSendersTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get bank =>
+  GeneratedColumnWithTypeConverter<Bank, String> get bank =>
       $composableBuilder(column: $table.bank, builder: (column) => column);
 }
 
@@ -2658,7 +2881,7 @@ class $$TrackedSendersTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> label = const Value.absent(),
                 Value<String> matchPattern = const Value.absent(),
-                Value<String> bank = const Value.absent(),
+                Value<Bank> bank = const Value.absent(),
               }) => TrackedSendersCompanion(
                 id: id,
                 label: label,
@@ -2670,7 +2893,7 @@ class $$TrackedSendersTableTableManager
                 Value<int> id = const Value.absent(),
                 required String label,
                 required String matchPattern,
-                required String bank,
+                required Bank bank,
               }) => TrackedSendersCompanion.insert(
                 id: id,
                 label: label,
@@ -3571,7 +3794,7 @@ typedef $$TransactionsTableCreateCompanionBuilder =
       required DateTime occurredAt,
       Value<String?> counterparty,
       Value<String?> accountLast4,
-      Value<String?> bank,
+      Value<Bank?> bank,
       Value<String?> refNo,
       required TransactionSource source,
       Value<int?> categoryId,
@@ -3588,7 +3811,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder =
       Value<DateTime> occurredAt,
       Value<String?> counterparty,
       Value<String?> accountLast4,
-      Value<String?> bank,
+      Value<Bank?> bank,
       Value<String?> refNo,
       Value<TransactionSource> source,
       Value<int?> categoryId,
@@ -3660,10 +3883,11 @@ class $$TransactionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
-  ColumnFilters<String> get bank => $composableBuilder(
-    column: $table.bank,
-    builder: (column) => ColumnFilters(column),
-  );
+  ColumnWithTypeConverterFilters<Bank?, Bank, String> get bank =>
+      $composableBuilder(
+        column: $table.bank,
+        builder: (column) => ColumnWithTypeConverterFilters(column),
+      );
 
   ColumnFilters<String> get refNo => $composableBuilder(
     column: $table.refNo,
@@ -3853,7 +4077,7 @@ class $$TransactionsTableAnnotationComposer
     builder: (column) => column,
   );
 
-  GeneratedColumn<String> get bank =>
+  GeneratedColumnWithTypeConverter<Bank?, String> get bank =>
       $composableBuilder(column: $table.bank, builder: (column) => column);
 
   GeneratedColumn<String> get refNo =>
@@ -3932,7 +4156,7 @@ class $$TransactionsTableTableManager
                 Value<DateTime> occurredAt = const Value.absent(),
                 Value<String?> counterparty = const Value.absent(),
                 Value<String?> accountLast4 = const Value.absent(),
-                Value<String?> bank = const Value.absent(),
+                Value<Bank?> bank = const Value.absent(),
                 Value<String?> refNo = const Value.absent(),
                 Value<TransactionSource> source = const Value.absent(),
                 Value<int?> categoryId = const Value.absent(),
@@ -3964,7 +4188,7 @@ class $$TransactionsTableTableManager
                 required DateTime occurredAt,
                 Value<String?> counterparty = const Value.absent(),
                 Value<String?> accountLast4 = const Value.absent(),
-                Value<String?> bank = const Value.absent(),
+                Value<Bank?> bank = const Value.absent(),
                 Value<String?> refNo = const Value.absent(),
                 required TransactionSource source,
                 Value<int?> categoryId = const Value.absent(),
@@ -4278,6 +4502,140 @@ typedef $$IngestLogTableProcessedTableManager =
       IngestLogRow,
       PrefetchHooks Function()
     >;
+typedef $$SettingsTableCreateCompanionBuilder = SettingsCompanion Function({
+  required String key,
+  required String value,
+  Value<int> rowid,
+});
+typedef $$SettingsTableUpdateCompanionBuilder = SettingsCompanion Function({
+  Value<String> key,
+  Value<String> value,
+  Value<int> rowid,
+});
+
+class $$SettingsTableFilterComposer
+    extends Composer<_$AppDatabase, $SettingsTable> {
+  $$SettingsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$SettingsTableOrderingComposer
+    extends Composer<_$AppDatabase, $SettingsTable> {
+  $$SettingsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get key => $composableBuilder(
+    column: $table.key,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$SettingsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $SettingsTable> {
+  $$SettingsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get key =>
+      $composableBuilder(column: $table.key, builder: (column) => column);
+
+  GeneratedColumn<String> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+}
+
+class $$SettingsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $SettingsTable,
+          Setting,
+          $$SettingsTableFilterComposer,
+          $$SettingsTableOrderingComposer,
+          $$SettingsTableAnnotationComposer,
+          $$SettingsTableCreateCompanionBuilder,
+          $$SettingsTableUpdateCompanionBuilder,
+          (Setting, BaseReferences<_$AppDatabase, $SettingsTable, Setting>),
+          Setting,
+          PrefetchHooks Function()
+        > {
+  $$SettingsTableTableManager(_$AppDatabase db, $SettingsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$SettingsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$SettingsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$SettingsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> key = const Value.absent(),
+            Value<String> value = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) => SettingsCompanion(key: key, value: value, rowid: rowid),
+          createCompanionCallback: ({
+            required String key,
+            required String value,
+            Value<int> rowid = const Value.absent(),
+          }) => SettingsCompanion.insert(key: key, value: value, rowid: rowid),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$SettingsTable, Setting>(table),
+                  BaseReferences<_$AppDatabase, $SettingsTable, Setting>(
+                    db,
+                    table,
+                    e,
+                  ),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$SettingsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $SettingsTable,
+      Setting,
+      $$SettingsTableFilterComposer,
+      $$SettingsTableOrderingComposer,
+      $$SettingsTableAnnotationComposer,
+      $$SettingsTableCreateCompanionBuilder,
+      $$SettingsTableUpdateCompanionBuilder,
+      (Setting, BaseReferences<_$AppDatabase, $SettingsTable, Setting>),
+      Setting,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4294,4 +4652,6 @@ class $AppDatabaseManager {
       $$TransactionsTableTableManager(_db, _db.transactions);
   $$IngestLogTableTableManager get ingestLog =>
       $$IngestLogTableTableManager(_db, _db.ingestLog);
+  $$SettingsTableTableManager get settings =>
+      $$SettingsTableTableManager(_db, _db.settings);
 }

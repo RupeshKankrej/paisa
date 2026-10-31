@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/budgets/categories_screen.dart';
+import '../features/settings/settings_screen.dart';
 
 final router = GoRouter(
   initialLocation: '/home',
@@ -13,7 +14,7 @@ final router = GoRouter(
         _tab('/expenses', const _ComingSoon('Expenses')),
         _tab('/categories', const CategoriesScreen()),
         _tab('/dashboards', const _ComingSoon('Dashboards')),
-        _tab('/settings', const _ComingSoon('Settings')),
+        _tab('/settings', const SettingsScreen()),
       ],
     ),
   ],

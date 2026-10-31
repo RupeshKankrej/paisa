@@ -9,9 +9,14 @@ void main() {
   testWidgets('five tabs switch, and Categories lists categories', (
     tester,
   ) async {
+    var drains = 0;
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          inboxDrainProvider.overrideWithValue(() async => drains++),
+          trackedSendersProvider.overrideWith((ref) => Stream.value(const [])),
+          importedCountProvider.overrideWith((ref) => Stream.value(0)),
+          failedMessagesProvider.overrideWith((ref) => Stream.value(const [])),
           categoriesProvider.overrideWith(
             (ref) => Stream.value(const [
               Category(
@@ -29,6 +34,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(drains, 1, reason: 'the inbox is read on launch');
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    expect(drains, 2, reason: 'and again on resume');
 
     final bar = find.byType(NavigationBar);
     Finder tab(String label) =>

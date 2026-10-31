@@ -9,7 +9,15 @@ class TrackedSenders extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get label => text()();
   TextColumn get matchPattern => text()();
-  TextColumn get bank => text()();
+  TextColumn get bank => textEnum<Bank>()();
+}
+
+class Settings extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
 }
 
 class Categories extends Table {
@@ -50,7 +58,7 @@ class Transactions extends Table {
   DateTimeColumn get occurredAt => dateTime()();
   TextColumn get counterparty => text().nullable()();
   TextColumn get accountLast4 => text().nullable()();
-  TextColumn get bank => text().nullable()();
+  TextColumn get bank => textEnum<Bank>().nullable()();
   TextColumn get refNo => text().nullable()();
   TextColumn get source => textEnum<TransactionSource>()();
   IntColumn get categoryId =>
@@ -80,6 +88,7 @@ class IngestLog extends Table {
     Salary,
     Transactions,
     IngestLog,
+    Settings,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -87,13 +96,20 @@ class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'paisa'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (m) async {
       await m.createAll();
       await batch((b) => b.insertAll(categories, _seedCategories));
+      await into(trackedSenders).insert(_seedSender);
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(settings);
+        await into(trackedSenders).insert(_seedSender);
+      }
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
   );
@@ -103,7 +119,29 @@ class AppDatabase extends _$AppDatabase {
             ..where((c) => c.isArchived.equals(false))
             ..orderBy([(c) => OrderingTerm(expression: c.sortOrder)]))
           .watch();
+
+  Stream<List<TrackedSender>> watchTrackedSenders() =>
+      select(trackedSenders).watch();
+
+  Stream<int> watchImportedCount() => ingestLog
+      .count(where: (l) => l.status.equalsValue(IngestStatus.parsed))
+      .watchSingle();
+
+  Stream<List<IngestLogRow>> watchFailedMessages() =>
+      (select(ingestLog)
+            ..where((l) => l.status.equalsValue(IngestStatus.failed))
+            ..orderBy([
+              (l) => OrderingTerm.desc(l.ingestedAt),
+              (l) => OrderingTerm.desc(l.id),
+            ]))
+          .watch();
 }
+
+final _seedSender = TrackedSendersCompanion.insert(
+  label: 'HDFC Bank',
+  matchPattern: 'HDFC Bank',
+  bank: Bank.hdfc,
+);
 
 final _seedCategories =
     [

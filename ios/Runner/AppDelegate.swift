@@ -16,9 +16,14 @@ import UIKit
     FlutterMethodChannel(
       name: "paisa/inbox", binaryMessenger: engineBridge.applicationRegistrar.messenger()
     ).setMethodCallHandler { call, result in
-      guard call.method == "read" else { return result(FlutterMethodNotImplemented) }
       do {
-        result(try Inbox.read())
+        switch call.method {
+        case "claim": result(try Inbox.claim(from: Inbox.url()))
+        case "ack":
+          try Inbox.ack(for: Inbox.url())
+          result(nil)
+        default: result(FlutterMethodNotImplemented)
+        }
       } catch {
         result(FlutterError(code: "inbox", message: "\(error)", details: nil))
       }

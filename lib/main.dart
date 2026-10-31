@@ -3,13 +3,42 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/router.dart';
 import 'app/theme.dart';
+import 'data/providers.dart';
 
 void main() {
   runApp(const ProviderScope(child: PaisaApp()));
 }
 
-class PaisaApp extends StatelessWidget {
+class PaisaApp extends ConsumerStatefulWidget {
   const PaisaApp({super.key});
+
+  @override
+  ConsumerState<PaisaApp> createState() => _PaisaAppState();
+}
+
+class _PaisaAppState extends ConsumerState<PaisaApp> {
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onResume: _drainInbox);
+    _drainInbox();
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  // Only the type is logged: database errors can quote bank messages. Unacked
+  // lines stay in the inbox and are retried on the next resume.
+  void _drainInbox() => ref
+      .read(inboxDrainProvider)()
+      .catchError(
+        (Object e) => debugPrint('Inbox ingest failed: ${e.runtimeType}'),
+      );
 
   @override
   Widget build(BuildContext context) {
