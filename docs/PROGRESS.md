@@ -1,5 +1,57 @@
 # Progress
 
+## Phase 11: Motion + Liquid Glass (2026-11-01)
+
+Status: built on branch `phase-11-motion-glass` (from `main`), not merged. Tests pass. The frame budget was measured on the iPhone 15. Rupesh has not yet viewed the glass, motion or widget on the phone, so the list below is open.
+
+### What was built
+- `lib/core/theme/motion.dart`: the Reduce Motion check, `FadeSlideIn`, and iOS page transitions that collapse under it.
+- `lib/app/glass.dart` and `shaders/glass.frag`: `GlassSurface` (blur about 20 px, saturation 1.3, inner highlight, edge refraction), `GlassChip`, and `showAppSheet`, which all 10 bottom sheets now use.
+- Glass on the nav, FAB, settings button, Activity and Summary chips, and sheets. Flat below iOS 26, on Android and under Reduce Transparency.
+- Motion: nav pill slide (200 ms), tab fade, `CountUpMoney` on the Activity, Budget and Summary hero numbers, rows and tiles fading in, month swipe following the finger with the next month entering from the side.
+- Haptics: FAB, Allocate Confirm, keypad arrow and Done, category Save and Add, quick add, both swipe-deletes, reorder.
+- `paisa/accessibility` channel in `AppDelegate.swift`, for Reduce Transparency. It is read at launch and on resume.
+- Widget: `containerBackground(.fill.tertiary)` in place of the opaque background.
+
+### Decisions
+- Flutter does not set `disableAnimations` for iOS Reduce Motion, and has no Reduce Transparency at all. So `reduceMotion` reads `accessibilityFeatures.reduceMotion` as well, and transparency has its own channel.
+- SPEC 5.15's table only asks for blur, but its acceptance asks for visible refraction, so a fragment shader bends the backdrop near each surface's edge. It gets full-screen pixel coordinates, so each surface passes its position at paint time. Sheets repaint with their route animation to keep the lens in place.
+- Chips only blur: they scroll without repainting, so a lens would be left behind.
+- Two stacked glass layers: a sheet opened over a sheet is flat.
+- The flat nav uses `surfaceRaised`, as plain `surface` matched the cards and the pill disappeared. SPEC 5.15 says `surface`.
+- A tab change fades the new tab in. The FAB is inside the fade, so its glass may look off for those 200 ms.
+- Activity rows are now separate list items styled to look like one day card. A whole day card built as it scrolled in, and that dropped frames.
+- `liquid_glass_native` not adopted, and not tried: the hand-built surface meets the frame budget without platform views. Native glass stays an option (see BACKLOG).
+- Swipe spring-back stays Flutter's `Dismissible` motion, as it has no spring option.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 208 passed.
+- iPhone 15, iOS 27.2, release build, temporary entry point with 500 rows in memory, scrolled top to bottom and back 3 times over 48 s, with glass code in place. The numbers come from `addTimingsCallback`, not DevTools, as attaching to the phone failed (connection reset).
+  - Before per-row items: 2,181 frames, 24 over 16 ms, build p99 17.2 ms.
+  - After: 2,867 frames, 0 over 16 ms, 2 over 8 ms. Build p99 3.3 ms, max 10.3 ms. Raster p99 3.7 ms, max 8.0 ms.
+- The iPhone 15 screen is 60 Hz, so SPEC's 120 Hz cannot be observed. The 8 ms budget was used as the measure, and 2 of 2,867 frames passed it.
+- Simulator (iPhone 18 Pro, iOS 27.2): Activity viewed in light and dark with glass and dark with glass forced flat; month sheet in light. Refraction, nav colour change and later tint change were not all viewed together, and the flat nav fix was not viewed again. Other sheets, Summary and Budget on glass were not viewed. The simulator still has a temporary debug build and is left in dark appearance.
+- Widget tests cover count-up, fade cap, pill slide, Reduce Motion, nested sheets, swipe follow, lazy rows, and the FAB haptic. Other haptics and the widget were not exercised.
+
+### What to verify on the device
+1. Force-quit and open: your rows, categories and limits are all there. Send a test SMS: it still imports.
+2. Scroll Activity with rows passing under the nav and FAB: blur, colour through the glass, and bent content at their edges. Judge whether the refraction is strong enough.
+3. Open the add sheet, month picker, Allocate and a keypad over Allocate: glass, then flat for the one on top. All text readable, in light and dark.
+4. Change tabs: the pill slides and the tab fades. Check the FAB during the fade.
+5. Swipe the Activity header, Summary donut, Budget ring and Analytics cards: content follows the finger, the next month slides in, numbers count. Vertical scrolling still works from a chart.
+6. Change filter chip or month: rows fade in, staggered.
+7. Feel haptics: FAB, keypad arrow, Allocate Confirm, category Add and Save, quick add, swipe-delete, reorder.
+8. Settings → Accessibility → Motion → Reduce Motion, on: sheets, tabs, numbers and swipes are instant. Off again.
+9. Settings → Accessibility → Display & Text Size → Reduce Transparency, on, then return to Paisa: every surface is flat and the nav is still visible. Off again.
+10. Home-screen widget, in default, then Clear or Tinted (long-press the home screen → Edit → Customize): compare its look with the app. Figures and links still work.
+
+### Open issues and setup notes
+- Under iOS Reduce Motion, swipe-back on pushed pages stops working as the transition is removed, and snackbars still animate. Back buttons work.
+- On the simulator, the list blurs under the status bar when scrolled, with glass on or off, and over Flutter's debug banner, so it is not `GlassSurface`. It looks like an iOS scroll-edge effect; not confirmed, and not checked on the iPhone.
+- `Documents/perf.txt` on the iPhone is left from the frame test: a few log lines with no personal data, in the app's container.
+- `Platform.environment['HOME']` is null in the iOS app, and profile builds were not shown to launch from `devicectl` (the blank screen had that null path as a cause). For later measurements use a release build and `path_provider`.
+- Free-team install expires about 2026-11-08, counted from today's install.
+
 ## Phase 10: UI Budget, Analytics, Settings (2026-11-01)
 
 Status: built on branch `phase-10-budget-analytics-settings` (from `main`), not merged. Tests pass and the screens were viewed on the simulator in both themes. On the iPhone 15, Rupesh reported things working correctly (2026-11-01), after the Analytics changes and the salary income change. The report did not go through the list below item by item.

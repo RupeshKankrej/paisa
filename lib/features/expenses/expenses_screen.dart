@@ -237,35 +237,52 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
             ],
           ),
         ),
-        GroupedCard(
-          children: [
-            for (final row in day)
-              FadeSlideIn(
-                key: ValueKey(row.id),
-                index: index++,
-                child: SwipeToDelete(
-                  key: ValueKey(row.id),
-                  onDismissed: () => _delete(row),
-                  child: TransactionTile(
-                    row: row,
-                    category: categories[row.categoryId],
-                    onTap: () => openTransactionSheet(
-                      context,
-                      ref,
-                      row,
-                      () => _delete(row),
-                    ),
-                    onLongPress: () => openTransactionSheet(
-                      context,
-                      ref,
-                      row,
-                      () => _delete(row),
+        // One list item per row, not per day: building a busy day's whole card
+        // as it scrolled in dropped frames on the iPhone 15.
+        for (final (i, row) in day.indexed)
+          Card(
+            key: ValueKey(row.id),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(
+                top: i == 0
+                    ? const Radius.circular(AppRadii.card)
+                    : Radius.zero,
+                bottom: i == day.length - 1
+                    ? const Radius.circular(AppRadii.card)
+                    : Radius.zero,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (i > 0) const Divider(),
+                FadeSlideIn(
+                  index: index++,
+                  child: SwipeToDelete(
+                    key: ValueKey(row.id),
+                    onDismissed: () => _delete(row),
+                    child: TransactionTile(
+                      row: row,
+                      category: categories[row.categoryId],
+                      onTap: () => openTransactionSheet(
+                        context,
+                        ref,
+                        row,
+                        () => _delete(row),
+                      ),
+                      onLongPress: () => openTransactionSheet(
+                        context,
+                        ref,
+                        row,
+                        () => _delete(row),
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
-        ),
+              ],
+            ),
+          ),
       ],
     ];
   }
