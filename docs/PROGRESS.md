@@ -1,5 +1,20 @@
 # Progress
 
+## Spec and design update, no phase (2026-10-31)
+
+Status: docs only, on branch `docs-spec-design-update`, not merged. No code changed, so nothing to verify on the device.
+
+### What changed
+- SPEC section 4: Phase 9 is now Categories, Phase 10 is Budget, Analytics and Settings, Phase 11 is Motion and Liquid Glass, Phase 12 is Polish and release.
+- SPEC 5.13 to 5.17 added or extended: month picker, categories, motion and Liquid Glass, per-category budgets, Analytics swipe and income-left toggle.
+- SPEC 5.5: the sum of category limits can no longer exceed the period's salary.
+- References 10 to 23 added and listed in `docs/design/reference/README.md`.
+- The swipe direction item is removed from BACKLOG, since SPEC 5.13 now states it.
+
+### Open issues
+- `docs/design/reference/README.md` still gives Phase 9 for references 05 to 09; SPEC now builds them in Phase 10.
+- SPEC 5.14 cites refs 11 and 15 for the grid and 14 and 16 for the Categories screen. The README and filenames say 11 and 14 are the grid, 15 and 16 the screen.
+
 ## Phase 8: UI Activity, Add, Summary (2026-10-31)
 
 Status: built on branch `phase-8-ui-activity-summary` (from `phase-7-design-system`, which is not merged), not merged. Tests pass and the three screens were viewed on the simulator. Rupesh confirmed swipe works on the iPhone; the other device checks below are waiting.
