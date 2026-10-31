@@ -9,6 +9,7 @@ import 'package:paisa/data/database.dart';
 import 'package:paisa/data/providers.dart';
 import 'package:paisa/domain/models.dart';
 import 'package:paisa/features/budgets/categories_screen.dart';
+import 'package:paisa/features/expenses/expenses_screen.dart';
 import 'package:paisa/features/home/home_screen.dart';
 import 'package:paisa/features/settings/settings_screen.dart';
 import 'package:paisa/main.dart';
@@ -213,10 +214,12 @@ void main() {
       ),
     );
     await settle(tester);
+    await tester.tap(find.text('Budget'));
+    await settle(tester);
     await tester.tap(find.text('1 uncategorised'));
     await settle(tester);
 
-    expect(find.widgetWithText(AppBar, 'Expenses'), findsOneWidget);
+    expect(find.byType(ExpensesScreen), findsOneWidget);
     expect(find.text('Loose'), findsOneWidget);
     expect(find.text('Sorted'), findsNothing);
     final chip = tester.widget<ChoiceChip>(

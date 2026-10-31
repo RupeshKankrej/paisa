@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paisa/core/month_key.dart';
+import 'package:paisa/core/theme/app_theme.dart';
 import 'package:paisa/data/database.dart';
 import 'package:paisa/data/providers.dart';
 import 'package:paisa/domain/models.dart';
@@ -65,7 +66,10 @@ void main() {
       ProviderScope(
         overrides: [databaseProvider.overrideWithValue(db)],
         // The outer Scaffold stands in for the tab shell.
-        child: const MaterialApp(home: Scaffold(body: ExpensesScreen())),
+        child: MaterialApp(
+          theme: appTheme(),
+          home: const Scaffold(body: ExpensesScreen()),
+        ),
       ),
     );
     await settle(tester);
@@ -232,8 +236,10 @@ void main() {
     expect(find.text('Undo'), findsOneWidget);
     await tester.pumpAndSettle(); // the timer starts once it has fully entered
     expect(
-      tester.getBottomLeft(find.byType(FloatingActionButton)).dy,
-      lessThanOrEqualTo(tester.getTopLeft(find.byType(SnackBar)).dy),
+      tester.getBottomLeft(find.byType(SnackBar)).dy,
+      lessThanOrEqualTo(
+        tester.getTopLeft(find.byType(FloatingActionButton)).dy,
+      ),
       reason: 'the snackbar must not cover the add button',
     );
     await tester.pump(const Duration(seconds: 4));
@@ -296,7 +302,13 @@ void main() {
     expect(row.categoryId, isNotNull);
     expect(DateUtils.isSameDay(row.occurredAt, now), isTrue);
     expect(find.text('Lunch'), findsOneWidget);
-    expect(find.text('₹1,250.50'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(TransactionTile),
+        matching: find.text('₹1,250.50'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a zero amount is rejected', (tester) async {
@@ -329,7 +341,13 @@ void main() {
     await settle(tester);
 
     expect((await rows()).single.type, TransactionType.credit);
-    expect(find.text('+₹50.00'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(TransactionTile),
+        matching: find.text('+₹50.00'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('long press edits an SMS row, showing its raw text', (
@@ -372,5 +390,21 @@ void main() {
     await settle(tester);
     expect(find.text('from SMS'), findsNothing);
     expect(find.text('Edit transaction'), findsOneWidget);
+  });
+
+  test('a day total is its spend, or its income when nothing was spent', () {
+    TransactionRow row(TransactionType type, int paise) => TransactionRow(
+      id: paise,
+      type: type,
+      amountPaise: paise,
+      occurredAt: DateTime(2026, 10, 30),
+      source: TransactionSource.manual,
+      createdAt: DateTime(2026, 10, 30),
+      updatedAt: DateTime(2026, 10, 30),
+    );
+    final debit = row(TransactionType.debit, 10000);
+    final credit = row(TransactionType.credit, 5000);
+    expect(dayTotal([debit, credit]), '₹100.00');
+    expect(dayTotal([credit]), '+₹50.00');
   });
 }

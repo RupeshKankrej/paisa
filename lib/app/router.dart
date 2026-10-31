@@ -5,16 +5,17 @@ import '../features/budgets/categories_screen.dart';
 import '../features/dashboards/dashboards_screen.dart';
 import '../features/expenses/expenses_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/settings/accounts_screen.dart';
 import '../features/settings/settings_screen.dart';
+import 'shell_widgets.dart';
 
 final router = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/expenses',
   redirect: (context, state) => widgetLink(state.uri),
   routes: [
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => _TabShell(shell: shell),
       branches: [
-        _tab('/home', const HomeScreen()),
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -25,9 +26,15 @@ final router = GoRouter(
           ],
         ),
         _tab('/categories', const CategoriesScreen()),
+        // Home stands in as the Budget tab until Phase 9 builds that screen.
+        _tab('/home', const HomeScreen()),
         _tab('/dashboards', const DashboardsScreen()),
-        _tab('/settings', const SettingsScreen()),
+        _tab('/accounts', const AccountsScreen()),
       ],
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => const SettingsScreen(),
     ),
   ],
 );
@@ -45,6 +52,14 @@ StatefulShellBranch _tab(String path, Widget screen) => StatefulShellBranch(
   routes: [GoRoute(path: path, builder: (context, state) => screen)],
 );
 
+const _navItems = <PillNavItem>[
+  (icon: Icons.receipt_long, label: 'Activity'),
+  (icon: Icons.pie_chart_outline, label: 'Summary'),
+  (icon: Icons.account_balance_wallet_outlined, label: 'Budget'),
+  (icon: Icons.bar_chart, label: 'Analytics'),
+  (icon: Icons.account_balance_outlined, label: 'Accounts'),
+];
+
 class _TabShell extends StatelessWidget {
   const _TabShell({required this.shell});
 
@@ -53,30 +68,13 @@ class _TabShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true, // lists scroll under the floating pill
       body: shell,
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: PillNavBar(
+        items: _navItems,
         selectedIndex: shell.currentIndex,
-        onDestinationSelected: (index) =>
+        onSelected: (index) =>
             shell.goBranch(index, initialLocation: index == shell.currentIndex),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            label: 'Expenses',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.category_outlined),
-            label: 'Categories',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            label: 'Dashboards',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            label: 'Settings',
-          ),
-        ],
       ),
     );
   }

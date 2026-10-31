@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../app/month_picker.dart';
+import '../../app/shell_widgets.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/models.dart';
@@ -18,10 +18,8 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final month = ref.watch(selectedMonthProvider);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
-        actions: const [MonthPicker(), SizedBox(width: 8)],
-      ),
+      appBar: tabAppBar(),
+      floatingActionButton: const AddFab(),
       body: ref
           .watch(transactionsProvider(month))
           .when(
@@ -40,6 +38,7 @@ class HomeScreen extends ConsumerWidget {
     };
     final uncategorised = rows.where((r) => r.categoryId == null).length;
     return ListView(
+      padding: listClearance(context),
       children: [
         MonthSummaryCard(rows: rows),
         if (uncategorised > 0)
@@ -61,12 +60,18 @@ class HomeScreen extends ConsumerWidget {
               textAlign: TextAlign.center,
             ),
           ),
-        for (final row in rows.take(5))
-          TransactionTile(
-            row: row,
-            category: categories[row.categoryId],
-            onTap: () => categoriseTransaction(context, ref, row),
-            onLongPress: () => showTransactionSheet(context, existing: row),
+        if (rows.isNotEmpty)
+          GroupedCard(
+            children: [
+              for (final row in rows.take(5))
+                TransactionTile(
+                  row: row,
+                  category: categories[row.categoryId],
+                  onTap: () => categoriseTransaction(context, ref, row),
+                  onLongPress: () =>
+                      showTransactionSheet(context, existing: row),
+                ),
+            ],
           ),
       ],
     );

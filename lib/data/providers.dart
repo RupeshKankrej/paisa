@@ -69,6 +69,9 @@ final expenseFilterProvider = StateProvider<ExpenseFilter>(
   (ref) => ExpenseFilter.all,
 );
 
+/// A second add link or FAB tap must not stack a sheet on one left open.
+final transactionSheetOpenProvider = StateProvider<bool>((ref) => false);
+
 final transactionBoundsProvider = StreamProvider<(DateTime?, DateTime?)>(
   (ref) => ref.watch(databaseProvider).watchTransactionBounds(),
 );

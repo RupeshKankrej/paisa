@@ -2,22 +2,24 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 
-// A map rather than a name lookup, because Flutter tree-shakes unused icons.
-const _icons = {
-  'restaurant': Icons.restaurant,
-  'directions_car': Icons.directions_car,
-  'home': Icons.home,
-  'receipt_long': Icons.receipt_long,
-  'shopping_bag': Icons.shopping_bag,
-  'favorite': Icons.favorite,
-  'movie': Icons.movie,
-  'category': Icons.category,
+// Categories store a Material icon name from Phase 1; SPEC 5.12 draws emoji.
+const _emoji = {
+  'restaurant': '🍽️',
+  'directions_car': '🚗',
+  'home': '🏠',
+  'receipt_long': '🧾',
+  'shopping_bag': '🛍️',
+  'favorite': '🩺',
+  'movie': '🎬',
+  'category': '📦',
 };
 
-/// The category's icon and colour, or a grey placeholder when there is none.
+/// Icon tile: an emoji on surface with a border in the category's colour, or a
+/// grey placeholder when there is no category.
 class CategoryAvatar extends StatelessWidget {
   const CategoryAvatar(this.category, {super.key});
 
@@ -26,17 +28,25 @@ class CategoryAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final category = this.category;
-    if (category == null) {
-      return const CircleAvatar(
-        backgroundColor: Colors.grey,
-        foregroundColor: Colors.white,
-        child: Icon(Icons.help_outline),
-      );
-    }
-    return CircleAvatar(
-      backgroundColor: Color(category.color),
-      foregroundColor: Colors.black87,
-      child: Icon(_icons[category.icon] ?? Icons.category),
+    return Container(
+      width: 44,
+      height: 44,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.round),
+        border: Border.all(
+          color: category == null ? Colors.grey : Color(category.color),
+          width: 2,
+        ),
+      ),
+      child: category == null
+          ? const Icon(Icons.help_outline, color: Colors.grey)
+          : Text(
+              _emoji[category.icon] ?? _emoji['category']!,
+              style: const TextStyle(fontSize: 20),
+              semanticsLabel: '',
+            ),
     );
   }
 }
@@ -60,7 +70,6 @@ Future<int?> showCategoryPicker(BuildContext context) =>
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
-      showDragHandle: true,
       builder: (_) => const _CategoryPicker(),
     );
 

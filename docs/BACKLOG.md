@@ -18,3 +18,5 @@
 - Widget tap opens Expenses on whichever month is picked in the app, which may differ from the month the widget shows.
 - Update SPEC 3.3 and 2.4: `home_widget` reloads the widget but cannot write `widget_summary.json`; our own channel does.
 - Lock-screen widget (`accessoryRectangular`, SPEC 6 nice-to-have).
+- Filter chips from SPEC 5.12 that have no behaviour yet: search, Monthly, All accounts, sort. Add each with its feature.
+- Update SPEC 5.12 or the reference: the radii table says icon tiles 999, the screenshots show rounded squares.
