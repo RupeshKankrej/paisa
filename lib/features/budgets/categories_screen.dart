@@ -377,7 +377,11 @@ class _CategoryTile extends StatelessWidget {
         children: [
           Text(
             Money.format(amount),
-            style: const TextStyle(fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
           ),
           _Pill(percentLabel(amount, total)),
         ],

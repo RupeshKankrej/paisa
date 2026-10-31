@@ -24,7 +24,7 @@ Status: built on branch `phase-8-ui-activity-summary` (from `phase-7-design-syst
 
 ### Checks
 - `flutter analyze`: no issues. `flutter test`: 143 passed. A new test taps the donut's month picker. The Activity picker tests caught it sitting under the transparent app bar, where it could not be tapped; fixed with `belowFloatingBar`.
-- Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point with in-memory data, since `simctl` cannot tap. Activity, the add sheet, and Summary in the normal and over-salary states were viewed. This found and fixed colliding day labels (fl_chart ignores `interval` on bar titles) and dim Summary amounts. The edit sheet was not viewed; gestures are covered by widget tests only. The simulator still has that temporary debug build installed.
+- Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point with in-memory data, since `simctl` cannot tap. Activity, the add sheet, and Summary in the normal and over-salary states were viewed. This found colliding day labels (fl_chart ignores `interval` on bar titles) and dim Summary amounts. Both are fixed; the label fix has a widget test, but neither fix was viewed again on the simulator. The edit sheet was not viewed; gestures are covered by widget tests only. The simulator still has that temporary debug build installed.
 
 ### What to verify on the device
 1. Side by side with `docs/design/reference/01` to `04`: Activity, add sheet, Summary.

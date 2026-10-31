@@ -487,6 +487,8 @@ void main() {
     expect(data.barGroups[now.day - 1].barRods.single.toY, 5000);
     expect(data.maxY, 5000, reason: 'the credit does not set the scale');
     expect(find.text('₹50'), findsOneWidget, reason: 'the top axis label');
+    expect(find.text('8'), findsOneWidget, reason: 'a label every 7 days');
+    expect(find.text('2'), findsNothing);
   });
 
   test('a day total is its spend, or its income when nothing was spent', () {

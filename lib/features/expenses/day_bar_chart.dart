@@ -60,10 +60,13 @@ class DayBarChart extends StatelessWidget {
                 sideTitles: SideTitles(
                   showTitles: true,
                   reservedSize: 24,
-                  interval: 7,
-                  maxIncluded: false, // would crowd the label a week before
-                  getTitlesWidget: (value, meta) =>
-                      Text('${days[value.toInt()].start.day}', style: caption),
+                  // Bar charts ask for every bar's title and ignore `interval`.
+                  getTitlesWidget: (value, meta) => Text(
+                    value.toInt() % 7 == 0
+                        ? '${days[value.toInt()].start.day}'
+                        : '',
+                    style: caption,
+                  ),
                 ),
               ),
             ),
