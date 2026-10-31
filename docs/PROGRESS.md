@@ -2,7 +2,7 @@
 
 ## Phase 2: Parser + ingest (2026-10-31)
 
-Status: built on branch `phase-2-parser-ingest` (from `phase-1-foundation`), not merged. Acceptance tests pass. On the iPhone, Rupesh confirmed a test SMS with different wording reached Unparsed messages. A message importing as a transaction on the iPhone is still open.
+Status: built on branch `phase-2-parser-ingest` (from `phase-1-foundation`), not merged. Acceptance tests pass. On the iPhone, Rupesh confirmed a test SMS in the debit format raised Imported messages, and one with different wording reached Unparsed messages. Real HDFC alerts are still unchecked.
 
 ### What was built
 - `lib/domain/parser/`: normaliser, SHA-256 fingerprint, date parsing and the first-match-wins parser, in pure Dart. Templates are in `templates/hdfc.dart`. The patterns run on normalised text, so a line break in the SMS is a single space. All three date formats work in both templates.
@@ -22,13 +22,12 @@ Status: built on branch `phase-2-parser-ingest` (from `phase-1-foundation`), not
 - `flutter analyze`: no issues. `flutter test`: 57 passed, including goldens for both 5.1 samples, duplicate delivery and the v1 to v2 migration.
 - Swift `RunnerTests` on the simulator (iOS 27.2): 2 passed, including claim, retry and ack.
 - Simulator, real app and method channel: a line appended to the App Group inbox became one transaction on resume; the same line delivered again added none, and the inbox file was gone after each drain.
-- Release build installed on the iPhone 15 with `devicectl`. A test SMS triggered the automation and appeared under Unparsed messages, as reported by Rupesh.
+- Release build installed on the iPhone 15 with `devicectl`. Test SMSes triggered the automation: the debit-format one raised Imported, and one with other wording appeared under Unparsed, as reported by Rupesh.
 
 ### What to verify on the device
-1. Open the app. The upgrade to schema v2 runs and any messages already in the inbox are imported. It should not crash.
-2. Settings: "HDFC Bank" is listed. Imported messages should count your real alerts. Open Unparsed messages: any real alert here means a template does not match the real wording.
-3. Send or wait for a real alert (a debit and a credit if possible), then reopen the app: Imported goes up by one each.
-4. Add a tracked sender: it appears in the list after a restart too.
+- A real HDFC debit alert and a real credit alert each raise Imported. If one lands in Unparsed, its template needs fixing.
+- Credit import has not been run on the device at all, only in tests.
+- Add a tracked sender and check it survives a force-quit. Rupesh has not reported this one.
 
 ### Open issues and setup notes
 - During testing the intent twice received text that was not the SMS: one run sent the literal words `Shortcut Input` (matched by fingerprint), and an earlier run's text is unknown. Both are `ignored` rows and do not appear in Settings. After the input pill was re-checked, a real SMS came through. The exact cause was not isolated.
