@@ -2,7 +2,7 @@
 
 ## Phase 6: Widget (2026-10-31)
 
-Status: built on branch `phase-6-widget`, not merged. Tests pass. Rupesh reported checks 1, 2, 3, 5 and 6 below passed on the iPhone 15 (2026-10-31). On check 4, "Add expense" opens the add sheet; the rest of the medium widget with no sheet open was not reported separately. The fix for stacked sheets is not yet confirmed on the device.
+Status: built on branch `phase-6-widget`, not merged. Tests pass. Rupesh reported all the device checks below passed on the iPhone 15 (2026-10-31), including the fix for stacked sheets.
 
 ### What was built
 - `lib/domain/widget_summary.dart`: builds the SPEC 3.3 JSON, in pure Dart.
@@ -26,6 +26,7 @@ Status: built on branch `phase-6-widget`, not merged. Tests pass. Rupesh reporte
 - Release build signed with the free team, including the extension and its App Group.
 
 ### What to verify on the device
+Nothing outstanding. Rupesh confirmed this list:
 1. Long-press the home screen, add the Paisa widget, small and medium. Spent and remaining match Home.
 2. Open the app, add an expense, go home: the widget figures change.
 3. Tap the small widget, from both a force-quit and a running app: Expenses opens.
