@@ -20,3 +20,4 @@
 - Lock-screen widget (`accessoryRectangular`, SPEC 6 nice-to-have).
 - Filter chips from SPEC 5.12 that have no behaviour yet: search, Monthly, All accounts, sort. Add each with its feature.
 - Update SPEC 5.12 or the reference: the radii table says icon tiles 999, the screenshots show rounded squares.
+- Liquid Glass feel for the bottom nav (Rupesh, Phase 7 device check). Phase 9 motion covers the pill animating between tabs; do this with it as a springy slide over the existing blur. SPEC does not ask for glass refraction, and Flutter has no system Liquid Glass, so true refraction would need a native tab bar or a custom shader.

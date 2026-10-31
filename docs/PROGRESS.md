@@ -2,7 +2,7 @@
 
 ## Phase 7: UI design system + shell (2026-10-31)
 
-Status: built on branch `phase-7-design-system`, not merged. Tests pass and the tabs were viewed on the simulator. Device checks below are waiting on Rupesh.
+Status: built on branch `phase-7-design-system`, not merged. Tests pass and the tabs were viewed on the simulator. Rupesh reported all the device checks below passed on the iPhone 15 (2026-10-31).
 
 ### What was built
 - `lib/core/theme/`: SPEC 5.12 tokens and a dark `ThemeData`. Cards, chips, FAB, sheets and dividers get their look from the theme.
@@ -29,7 +29,7 @@ Status: built on branch `phase-7-design-system`, not merged. Tests pass and the 
 - Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point cycling routes, since `simctl` cannot tap. Activity, Summary, Budget, Analytics, Accounts, Settings and the add sheet were viewed. This found and fixed the FAB under the pill, an unreadable selected chip and a white progress track. Gestures are covered by widget tests only. The simulator still has that temporary debug build installed.
 
 ### What to verify on the device
-Not yet confirmed:
+Nothing outstanding. Rupesh confirmed this list:
 1. Force-quit and open: opens on Activity, your data is there, categories show the new colours and emoji.
 2. Side by side with `docs/design/reference/01` and `03`: nav, chips, cards, FAB.
 3. Each tab switches, and the + opens the add sheet on all five. Save one from Summary.
