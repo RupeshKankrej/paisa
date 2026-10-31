@@ -104,6 +104,11 @@ void main() {
     expect(groups.last.barRods.map((r) => r.toY), [30000, 5000000]);
     expect(groups[10].barRods.map((r) => r.toY), [70000, 9000000]);
     expect(
+      groups.expand((g) => g.barRods).map((r) => r.backDrawRodData.color),
+      everyElement(Colors.transparent),
+      reason: 'only the red and green bars show',
+    );
+    expect(
       find.text('${MonthKey.label(month)}: spent ₹300.00, income ₹50,000.00'),
       findsOneWidget,
     );

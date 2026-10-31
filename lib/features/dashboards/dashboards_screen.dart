@@ -185,21 +185,19 @@ class _MonthWiseCardState extends ConsumerState<_MonthWiseCard> {
       orElse: () => totals.last,
     );
     final top = totals.map((t) => max(t.spent, t.income)).reduce(max) * 1.1;
-    final highlight = Theme.of(context).colorScheme.surfaceContainerHighest;
 
-    BarChartRodData rod(int paise, Color color, bool isSelected) =>
-        BarChartRodData(
-          toY: paise.toDouble(),
-          color: color,
-          width: 8,
-          borderRadius: BorderRadius.zero,
-          // Lets a tap anywhere above a short bar still select its month.
-          backDrawRodData: BackgroundBarChartRodData(
-            show: true,
-            toY: top,
-            color: isSelected ? highlight : Colors.transparent,
-          ),
-        );
+    BarChartRodData rod(int paise, Color color) => BarChartRodData(
+      toY: paise.toDouble(),
+      color: color,
+      width: 8,
+      borderRadius: BorderRadius.zero,
+      // Lets a tap anywhere above a short bar still select its month.
+      backDrawRodData: BackgroundBarChartRodData(
+        show: true,
+        toY: top,
+        color: Colors.transparent,
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -242,13 +240,10 @@ class _MonthWiseCardState extends ConsumerState<_MonthWiseCard> {
                         gridData: const FlGridData(drawVerticalLine: false),
                         titlesData: _titles(
                           right: _amountAxis(),
-                          bottom: _bottomAxis((i) {
-                            final key = totals[i].key;
-                            final name = MonthKey.label(key);
-                            return key.endsWith('-01')
-                                ? '${name.substring(0, 3)}\n${key.substring(0, 4)}'
-                                : name.substring(0, 3);
-                          }),
+                          bottom: _bottomAxis(
+                            (i) =>
+                                MonthKey.label(totals[i].key).substring(0, 3),
+                          ),
                         ),
                         barTouchData: BarTouchData(
                           handleBuiltInTouches: false,
@@ -266,16 +261,8 @@ class _MonthWiseCardState extends ConsumerState<_MonthWiseCard> {
                               x: i,
                               barsSpace: 2,
                               barRods: [
-                                rod(
-                                  t.spent,
-                                  _spentColor,
-                                  t.key == selected.key,
-                                ),
-                                rod(
-                                  t.income,
-                                  _incomeColor,
-                                  t.key == selected.key,
-                                ),
+                                rod(t.spent, _spentColor),
+                                rod(t.income, _incomeColor),
                               ],
                             ),
                         ],

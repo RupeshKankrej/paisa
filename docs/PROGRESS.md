@@ -2,7 +2,7 @@
 
 ## Phase 5: Dashboards (2026-10-31)
 
-Status: built on branch `phase-5-dashboards`, not merged. Tests pass and all four charts were viewed on the simulator. Release build installed on the iPhone 15; device checks below are not yet confirmed.
+Status: built on branch `phase-5-dashboards`, not merged. Tests pass and all four charts were viewed on the simulator. Release build installed on the iPhone 15; Rupesh confirmed the date and month pickers and the pie chart on the iPhone. Rupesh then reported a grey bar and spillover below the zero line on Expenses vs income; both changes below await confirmation.
 
 ### What was built
 - `lib/domain/dashboards.dart`: period totals, daily and weekly buckets, daily average and budget pie slices, in pure Dart.
@@ -13,11 +13,13 @@ Status: built on branch `phase-5-dashboards`, not merged. Tests pass and all fou
 - Over-salary pie: slice angles stay budget shares in both states. The outer edge stands for total spend and the thin ring for salary. The ring radius is the square root of salary / spend, so areas compare truly and the ring stays visible at large overspends. SPEC 5.8 does not say how angles behave here.
 - Slice shares follow SPEC literally: Unallocated is salary minus limits, and the uncategorised slice is added on top, so the slices can total more than the salary.
 - Spend in a category with no limit has no slice (SPEC: one slice per category with a limit). It gets a legend row and counts in the over-salary total.
-- Tapping a month-wise bar shows exact amounts in a line under the chart and highlights the month. fl_chart's tooltip disappears when the finger lifts and would show raw paise. Day-wise and date-range have no tap (see BACKLOG).
+- Tapping a month-wise bar shows exact amounts in a line under the chart. Rupesh asked for no grey highlight on the selected month, so the line alone names it. fl_chart's tooltip disappears when the finger lifts and would show raw paise. Day-wise and date-range have no tap (see BACKLOG).
 - The month-wise amount axis is on the right, beside the newest months, because the chart opens scrolled there.
 - Daily average divides by the days up to today in a period in progress; otherwise a month would look cheaper early on. Past periods use all their days.
 - A range of exactly 90 days is daily; 91 or more is by week. The average stays per day. The end date cannot be later than today.
 - All credits count as income, as SPEC 3.2 says. The open question in SPEC 8 about refunds and transfers still stands.
+
+- The year under January was removed from the month-wise axis. fl_chart clamps bars at zero, so that label was the only thing drawn lower than the rest and is the likely spillover; the cause is not confirmed.
 
 ### Checks
 - `flutter analyze`: no issues. `flutter test`: 124 passed.
