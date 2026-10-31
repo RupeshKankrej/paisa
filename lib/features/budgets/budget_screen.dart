@@ -20,20 +20,14 @@ import 'limit_sheet.dart';
 class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({super.key});
 
-  Future<void> _addCategory(
-    BuildContext context,
-    WidgetRef ref,
-    Set<int> limited,
-  ) async {
-    final category = await showCategoryPicker(
-      context,
-      CategoryType.expense,
-      hide: limited,
-    );
-    if (category != null && context.mounted) {
-      await editCategoryLimit(context, ref, category);
-    }
-  }
+  // The pencil and Add category both lead here (SPEC 5.16).
+  void _openAllocate(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    useRootNavigator: true,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (_) => const _AllocateSheet(),
+  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -52,13 +46,7 @@ class BudgetScreen extends ConsumerWidget {
                 ),
               ),
               icon: Icon(Icons.edit, color: context.palette.textPrimary),
-              onPressed: () => showModalBottomSheet<void>(
-                context: context,
-                useRootNavigator: true,
-                isScrollControlled: true,
-                useSafeArea: true,
-                builder: (_) => const _AllocateSheet(),
-              ),
+              onPressed: () => _openAllocate(context),
             ),
           ),
         ],
@@ -100,7 +88,7 @@ class BudgetScreen extends ConsumerWidget {
               height: 120,
               child: AddNewTile(
                 label: 'Add category',
-                onTap: () => _addCategory(context, ref, const {}),
+                onTap: () => _openAllocate(context),
               ),
             ),
           )
@@ -127,7 +115,7 @@ class BudgetScreen extends ConsumerWidget {
                   'Add category',
                   style: TextStyle(color: context.palette.textSecondary),
                 ),
-                onTap: () => _addCategory(context, ref, limits.keys.toSet()),
+                onTap: () => _openAllocate(context),
               ),
             ],
           ),

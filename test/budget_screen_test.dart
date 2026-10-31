@@ -91,11 +91,8 @@ void main() {
 
     await tester.tap(find.text('Add category'));
     await tester.pumpAndSettle();
-    expect(
-      find.text('Transportation'),
-      findsOneWidget,
-      reason: 'only the row behind the sheet, not a tile',
-    );
+    expect(find.text('Allocate your budget'), findsOneWidget);
+    expect(find.text('Add new'), findsNothing, reason: 'not the category grid');
     await tester.tap(find.text('Food'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Food monthly budget'), findsOneWidget);
@@ -119,6 +116,8 @@ void main() {
     await typeAmount(tester, '90000');
     expect(find.text('₹0.00 budget left'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+    await settle(tester);
+    await tester.tap(find.text('Confirm'));
     await settle(tester);
     expect(await stored(tester, food), {null: 9000000});
     expect(find.text('₹90,000.00 left'), findsOneWidget);
@@ -230,13 +229,14 @@ void main() {
     expect(find.text('₹40,000.00 left'), findsOneWidget);
   });
 
-  testWidgets('with no limits, Add category is the dashed tile', (
+  testWidgets('with no limits, the Add category tile opens Allocate', (
     tester,
   ) async {
     await pump(tester, const BudgetScreen());
     await tester.tap(find.text('Add category'));
     await tester.pumpAndSettle();
+    expect(find.text('Allocate your budget'), findsOneWidget);
     expect(find.text('Food'), findsOneWidget);
-    expect(find.text('Income'), findsNothing, reason: 'expense only');
+    expect(find.text('Salary'), findsNothing, reason: 'expense only');
   });
 }

@@ -2,7 +2,7 @@
 
 ## Phase 10: UI Budget, Analytics, Settings (2026-11-01)
 
-Status: built on branch `phase-10-budget-analytics-settings` (from `phase-9-categories`, which is not merged), not merged. Tests pass and the screens were viewed on the simulator in both themes. The device checks below are waiting for Rupesh.
+Status: built on branch `phase-10-budget-analytics-settings` (from `main`), not merged. Tests pass and the screens were viewed on the simulator in both themes. The device checks below are waiting for Rupesh.
 
 ### What was built
 - `budget_screen.dart`: salary ring, category cards with ring icons, Add category, Allocate sheet. It replaces Home on the Budget tab; `home_screen.dart` and `month_summary_card.dart` are gone.
@@ -37,7 +37,7 @@ Status: built on branch `phase-10-budget-analytics-settings` (from `phase-9-cate
 ### What to verify on the device
 1. Force-quit and open: your rows, categories and limits are all there. The app follows the phone's light or dark setting.
 2. Budget, side by side with references 05 and 18: ring, cards, Add category. Spend in a category and its ring icon fills. Swipe on the ring changes month.
-3. Add category: the grid shows only expense categories with no limit. Pick one, compare the keypad with reference 20.
+3. Add category, with and without limits set: the Allocate sheet opens, as Rupesh asked (SPEC 5.16 updated). Tap a row, compare the keypad with reference 20.
 4. Type past the salary, compare with reference 21: red "budget left", arrow and Done do nothing. Lower it and it saves.
 5. Pencil, compare with references 06 and 19: tap a row, change it, the header updates. Dismiss: nothing saved. Do it again and Confirm: saved.
 6. Tap "of ₹X" on the ring, set an override: the keypad's cap follows that month only. Clear it.

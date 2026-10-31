@@ -99,18 +99,13 @@ class CategoryTypeSegment extends StatelessWidget {
 }
 
 /// The category grid sheet (SPEC 5.14). Returns the choice, or null if dismissed.
-/// With [hide], only that type is offered, without those categories.
-Future<Category?> showCategoryPicker(
-  BuildContext context,
-  CategoryType type, {
-  Set<int>? hide,
-}) => showModalBottomSheet<Category>(
-  context: context,
-  useRootNavigator: true,
-  isScrollControlled: true,
-  builder: (_) =>
-      _CategoryGridSheet(type: type, multiSelect: false, hide: hide),
-);
+Future<Category?> showCategoryPicker(BuildContext context, CategoryType type) =>
+    showModalBottomSheet<Category>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      builder: (_) => _CategoryGridSheet(type: type, multiSelect: false),
+    );
 
 /// The same grid with multi-select. Each tap applies at once.
 Future<void> showCategoryFilter(BuildContext context, CategoryType type) =>
@@ -122,15 +117,10 @@ Future<void> showCategoryFilter(BuildContext context, CategoryType type) =>
     );
 
 class _CategoryGridSheet extends ConsumerStatefulWidget {
-  const _CategoryGridSheet({
-    required this.type,
-    required this.multiSelect,
-    this.hide,
-  });
+  const _CategoryGridSheet({required this.type, required this.multiSelect});
 
   final CategoryType type;
   final bool multiSelect;
-  final Set<int>? hide;
 
   @override
   ConsumerState<_CategoryGridSheet> createState() => _CategoryGridSheetState();
@@ -169,15 +159,13 @@ class _CategoryGridSheetState extends ConsumerState<_CategoryGridSheet> {
                 const SizedBox(width: 48), // balances the pencil
                 Expanded(
                   child: Center(
-                    child: widget.hide != null
-                        ? null
-                        : SizedBox(
-                            width: 220,
-                            child: CategoryTypeSegment(
-                              value: _type,
-                              onChanged: (type) => setState(() => _type = type),
-                            ),
-                          ),
+                    child: SizedBox(
+                      width: 220,
+                      child: CategoryTypeSegment(
+                        value: _type,
+                        onChanged: (type) => setState(() => _type = type),
+                      ),
+                    ),
                   ),
                 ),
                 IconButton(
@@ -220,26 +208,24 @@ class _CategoryGridSheetState extends ConsumerState<_CategoryGridSheet> {
                 childAspectRatio: 0.85,
                 children: [
                   for (final c in pickableCategories(all, _type))
-                    if (!(widget.hide?.contains(c.id) ?? false))
-                      _Tile(
-                        emoji: c.emoji,
-                        name: c.name,
-                        outline:
-                            widget.multiSelect && filterMatches(filter, c.id)
-                            ? Color(c.color)
-                            : null,
-                        selected: widget.multiSelect
-                            ? filterMatches(filter, c.id)
-                            : null,
-                        onTap: widget.multiSelect
-                            ? () => db.setCategoryFilter(
-                                toggleFilter(filter, c.id, [
-                                  for (final a in all)
-                                    if (!a.isArchived) a.id,
-                                ]),
-                              )
-                            : () => Navigator.of(context).pop(c),
-                      ),
+                    _Tile(
+                      emoji: c.emoji,
+                      name: c.name,
+                      outline: widget.multiSelect && filterMatches(filter, c.id)
+                          ? Color(c.color)
+                          : null,
+                      selected: widget.multiSelect
+                          ? filterMatches(filter, c.id)
+                          : null,
+                      onTap: widget.multiSelect
+                          ? () => db.setCategoryFilter(
+                              toggleFilter(filter, c.id, [
+                                for (final a in all)
+                                  if (!a.isArchived) a.id,
+                              ]),
+                            )
+                          : () => Navigator.of(context).pop(c),
+                    ),
                   AddNewTile(onTap: () => _addNew(filter)),
                 ],
               ),

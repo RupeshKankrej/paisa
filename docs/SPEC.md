@@ -320,7 +320,7 @@ Reduce Transparency turns every glass surface into the flat `surface` colour. Fr
 
 References `18-budget-with-category.png` to `21-budget-keypad-over.png`. Refines 5.5 and 5.7 for the new look.
 
-**Budget screen (ref 18).** Ring shows `remaining / salary` for the selected period. Below it, one card listing every category that has a limit: ring-style icon tile (the ring fills with the category colour as its budget is used), name, "₹left left" over "of ₹limit"; a final **Add category** row with a "+" tile. Tapping a category row opens its keypad sheet (below). Tapping Add category opens the **category grid sheet from 5.14** (expense categories only, showing only those without a limit); picking one opens its keypad sheet. The pencil opens the Allocate sheet.
+**Budget screen (ref 18).** Ring shows `remaining / salary` for the selected period. Below it, one card listing every category that has a limit: ring-style icon tile (the ring fills with the category colour as its budget is used), name, "₹left left" over "of ₹limit"; a final **Add category** row with a "+" tile. Tapping a category row opens its keypad sheet (below). Tapping Add category or the pencil opens the Allocate sheet.
 
 **Allocate sheet (ref 06, 19).** Header card: "N% set", "₹allocated / ₹salary", thin progress bar in `income` green, "₹unallocated left to allocate". Every expense category is listed with its limit and share of salary; tapping a row opens that category's keypad sheet, and the header updates live when the sheet returns. Confirm saves all limits for the period.
 
