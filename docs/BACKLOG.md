@@ -24,3 +24,4 @@
 - Decide whether to replace the 8 older categories on an existing install with the new SPEC 5.14 expense seed. The migration only adds the 2 income seeds.
 - The SPEC 5.14 filter has no Uncategorised tile: any subset hides uncategorised rows. The Activity Uncategorised chip needs the filter on All.
 - Emoji input on Android: the `paisa/emoji` channel exists on iOS only.
+- SPEC 5.9 still lists archive for categories, but 5.14 and reference 26 dropped it. The Archive button is gone; `is_archived`, the Archived section and Unarchive stay only for categories archived before that. Decide whether to remove them.

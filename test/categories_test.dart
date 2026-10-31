@@ -39,6 +39,18 @@ void main() {
     expect(filterMatches(const {}, 1), isFalse);
   });
 
+  test('delete copy counts the transactions that move', () {
+    expect(deleteCategoryMessage(0), startsWith('No transactions use it.'));
+    expect(
+      deleteCategoryMessage(1),
+      startsWith('Its 1 transaction will be moved to Uncategorised.'),
+    );
+    expect(
+      deleteCategoryMessage(12),
+      startsWith('Its 12 transactions will be moved to Uncategorised.'),
+    );
+  });
+
   test('filter label and storage', () {
     expect(filterLabel(null), 'All categories');
     expect(filterLabel({1}), '1 category');

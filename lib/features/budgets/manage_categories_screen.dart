@@ -26,9 +26,15 @@ class _ManageCategoriesScreenState
   late var _type = widget.type;
   // Holds a dropped row in place until the database stream catches up.
   List<int>? _order;
+  // A dismissed row must leave the tree at once, before the database stream
+  // catches up, or Dismissible throws.
+  final _dismissed = <int>{};
 
   void _edit(Category category) =>
       showCategoryEditSheet(context, type: _type, existing: category);
+
+  Future<bool> confirmDismissCategory(Category category) =>
+      confirmDeleteCategory(context, ref.read(databaseProvider), category);
 
   void _reorder(List<Category> rows, int from, int to) {
     final ids = [for (final c in rows) c.id];
@@ -51,7 +57,10 @@ class _ManageCategoriesScreenState
   Widget build(BuildContext context) {
     final all = ref.watch(categoriesProvider).value ?? const <Category>[];
     final order = _order;
-    final rows = pickableCategories(all, _type);
+    final rows = pickableCategories(
+      all,
+      _type,
+    ).where((c) => !_dismissed.contains(c.id)).toList();
     if (order != null) {
       int rank(Category c) {
         final i = order.indexOf(c.id);
@@ -120,25 +129,43 @@ class _ManageCategoriesScreenState
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (i > 0) const Divider(),
-                        ListTile(
-                          leading: CategoryAvatar(c),
-                          title: Text(
-                            c.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          trailing: ReorderableDragStartListener(
-                            index: i,
-                            child: Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Icon(
-                                Icons.drag_handle,
-                                color: AppColors.textSecondary,
-                                semanticLabel: 'Reorder ${c.name}',
-                              ),
+                        Dismissible(
+                          key: ValueKey('dismiss-${c.id}'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            color: AppColors.delete,
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 24),
+                            child: const Icon(
+                              Icons.delete_outline,
+                              color: AppColors.textPrimary,
                             ),
                           ),
-                          onTap: () => _edit(c),
+                          confirmDismiss: (_) => confirmDismissCategory(c),
+                          onDismissed: (_) {
+                            setState(() => _dismissed.add(c.id));
+                            ref.read(databaseProvider).deleteCategory(c.id);
+                          },
+                          child: ListTile(
+                            leading: CategoryAvatar(c),
+                            title: Text(
+                              c.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: ReorderableDragStartListener(
+                              index: i,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(
+                                  Icons.drag_handle,
+                                  color: AppColors.textSecondary,
+                                  semanticLabel: 'Reorder ${c.name}',
+                                ),
+                              ),
+                            ),
+                            onTap: () => _edit(c),
+                          ),
                         ),
                       ],
                     ),
@@ -179,8 +206,8 @@ class _ManageCategoriesScreenState
               ],
             ),
           ],
-          // Without this an archived category could never come back, and its
-          // name would stay taken with nothing on screen to explain why.
+          // Only for categories archived before SPEC 5.14 dropped archiving: they
+          // could not come back otherwise, and their names would stay taken.
           if (archived.isNotEmpty) ...[
             heading('Archived'),
             GroupedCard(

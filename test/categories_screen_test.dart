@@ -109,15 +109,17 @@ void main() {
     );
   });
 
-  testWidgets('editing renames; delete confirms and uncategorises', (
+  testWidgets('tap edits; Delete confirms, with the count, and uncategorises', (
     tester,
   ) async {
     await add('Lunch', 100, food);
+    await add('Dinner', 200, food);
+    await db.setBudget(food, null, 500);
     await pump(tester, const ManageCategoriesScreen());
 
     await tester.tap(find.text('Food'));
     await tester.pumpAndSettle();
-    expect(find.text('Edit expense category'), findsOneWidget);
+    expect(find.text('Expense category'), findsOneWidget);
     await tester.enterText(find.byKey(const Key('category-name')), 'Meals');
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);
@@ -125,29 +127,75 @@ void main() {
 
     await tester.tap(find.text('Meals'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Delete'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
-    await tester.pumpAndSettle();
-    expect((await db.select(db.transactions).getSingle()).categoryId, food);
-
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Delete'));
-    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
     await settle(tester);
+    expect(
+      find.textContaining('Its 2 transactions will be moved to Uncategorised'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect((await db.select(db.transactions).get()).first.categoryId, food);
+    expect(find.text('Expense category'), findsOneWidget, reason: 'still open');
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete category'));
+    await settle(tester);
     expect(find.text('Meals'), findsNothing);
+    expect(find.text('Expense category'), findsNothing);
+    final rows = await db.select(db.transactions).get();
+    expect(rows.map((r) => r.categoryId), [null, null]);
+    expect(rows.map((r) => r.amountPaise), [100, 200], reason: 'never deleted');
+    expect(await db.select(db.budgets).get(), isEmpty);
+  });
+
+  testWidgets('swipe left asks first; Cancel keeps the row, confirm deletes', (
+    tester,
+  ) async {
+    await add('Lunch', 10000, food);
+    await pump(tester, const ManageCategoriesScreen());
+
+    await tester.drag(find.text('Food'), const Offset(-500, 0));
+    await settle(tester);
+    expect(find.text('Delete category'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Cancel'));
+    await settle(tester);
+    expect(find.text('Food'), findsOneWidget);
+    expect(await names(CategoryType.expense), contains('Food'));
+
+    await tester.drag(find.text('Food'), const Offset(-500, 0));
+    await settle(tester);
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete category'));
+    await settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.text('Food'), findsNothing);
+    expect(await names(CategoryType.expense), isNot(contains('Food')));
     expect((await db.select(db.transactions).getSingle()).categoryId, isNull);
   });
 
-  testWidgets('archive moves a row to Archived, and unarchive brings it back', (
+  testWidgets('deleted category spend stays on Summary as Uncategorised', (
     tester,
   ) async {
+    await add('Lunch', 10000, food);
+    await db.deleteCategory(food);
+    await pump(tester, const Scaffold(body: CategoriesScreen()));
+    expect(find.text('Uncategorised'), findsOneWidget);
+    expect(find.text('₹100.00'), findsWidgets);
+  });
+
+  testWidgets('no Archive button; an already archived category can come back', (
+    tester,
+  ) async {
+    await db.setCategoryArchived(food, true);
     await pump(tester, const ManageCategoriesScreen());
-    await tester.tap(find.text('Food'));
+    await tester.tap(find.text('Housing'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Archive'));
-    await settle(tester);
-    expect(await names(CategoryType.expense), isNot(contains('Food')));
+    expect(find.text('Archive'), findsNothing);
+    expect(find.text('Unarchive'), findsNothing);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
     await tester.scrollUntilVisible(
       find.text('Archived'),
       200,
@@ -155,7 +203,7 @@ void main() {
     );
     await tester.tap(find.text('Food'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Unarchive'));
+    await tester.tap(find.widgetWithText(TextButton, 'Unarchive'));
     await settle(tester);
     expect(await names(CategoryType.expense), contains('Food'));
   });

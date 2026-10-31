@@ -116,6 +116,16 @@ String? lastEmoji(String text) {
   return _isEmoji(last) ? last : null;
 }
 
+/// The delete confirmation's copy (SPEC 5.14): nothing is lost but the label.
+String deleteCategoryMessage(int transactions) {
+  final moved = switch (transactions) {
+    0 => 'No transactions use it.',
+    1 => 'Its 1 transaction will be moved to Uncategorised.',
+    final n => 'Its $n transactions will be moved to Uncategorised.',
+  };
+  return '$moved Its budget limits will be removed. This cannot be undone.';
+}
+
 /// Null means every category, uncategorised rows included. A set narrows to
 /// exactly those categories (SPEC 5.14).
 bool filterMatches(Set<int>? filter, int? categoryId) =>

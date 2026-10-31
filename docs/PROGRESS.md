@@ -15,7 +15,6 @@ Status: built on branch `phase-9-categories` (from `main`), not merged. Tests pa
 
 ### Decisions
 - An existing install keeps its 8 categories and gains Salary and Investments (income). Only new installs get the full 5.14 seed. Renaming someone's categories was not safe to assume (see BACKLOG). Existing credits stay tagged as they are.
-- Added beyond the spec: an Archived section on the Categories screen. Without it an archived category could not come back, and its name would stay taken.
 - Archived categories still give old rows their name and colour, and their spend still gets a Summary row. This closes two BACKLOG items. Their limits no longer count toward limit totals or the budget pie.
 - Over salary on Summary always compares all spend with salary. With a filter on, the donut's outline and ring are hidden, as they would describe a subset.
 - Tiles start all ticked under All. Unticking one makes a subset, ticking the last returns to All. All and None apply across both types. Tile taps apply at once, with no Confirm.
@@ -23,27 +22,29 @@ Status: built on branch `phase-9-categories` (from `main`), not merged. Tests pa
 - The Activity filter chip comes first in the row: placed after Uncategorised it was off-screen, so the total looked wrong with no visible reason.
 - The Summary pencil sits outside the scrolling chips, and a "N categories" chip shows when a filter is on.
 - From the iPhone check, Rupesh asked for two changes. The emoji tile now opens the emoji keyboard through a hidden native field (`paisa/emoji` in `AppDelegate.swift`). Tapping a categorised row opens the edit sheet (SPEC 5.2 updated); an uncategorised row still opens the grid, as its hint and SPEC 5.14 say, and long-press edits any row.
+- SPEC 5.14 update (references 24 to 26): the edit sheet is titled "Expense category" or "Income category" with Delete and Save; swipe left on a row deletes; both go through a confirmation sheet with the transaction count. Transactions are never deleted, only moved to Uncategorised. The Archive button is gone, as 5.14 dropped it; the Archived section remains for categories already archived (see BACKLOG).
 - The picker's search is gone: SPEC 5.14 and the references have none, though SPEC 5.2 still mentions it.
 - Quick-add colours cycle the 5.12 palette. Palette swatches are read by eye from reference 13. Emoji for Education, Kids, Donations, Refunds and Interest are my picks, as no reference shows them.
 - References: where SPEC 5.14 and the filenames disagree (see the entry below), the filenames were followed.
 
 ### Checks
-- `flutter analyze`: no issues. `flutter test`: 165 passed. The emoji keyboard opening was viewed on the simulator; picking an emoji through the native field is covered by a test with a simulated channel only.
+- `flutter analyze`: no issues. `flutter test`: 168 passed. The emoji keyboard opening was viewed on the simulator; picking an emoji through the native field is covered by a test with a simulated channel only.
 - The upgrade test builds a real v1 file and checks ids, emoji, types and colours after migrating to v4.
-- Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point with in-memory data, deleted afterwards. Viewed: Categories (income), grid, new sheet, palette, filter, Activity and Summary with a filter. This found the off-screen chip, invisible All/None chips and an underlined name field; the fixes were not viewed again on the simulator. Reorder, delete and archive are covered by widget tests only. The simulator still has that temporary build installed.
+- Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point with in-memory data, deleted afterwards. Viewed: Categories (income), grid, new sheet, palette, filter, Activity and Summary with a filter. This found the off-screen chip, invisible All/None chips and an underlined name field; the fixes were not viewed again on the simulator. Later, the swipe action, edit sheet and delete confirmation were viewed and match references 24 to 26. Reorder and completing a delete are covered by widget tests only. The simulator still has that temporary build installed.
 
 ### What to verify on the device
 1. Force-quit and open: your rows, categories and limits are all there, with the same emoji and colours.
 2. Settings → Categories: Expense and Income lists, side by side with references 15 and 16. Drag a handle and long-press a row to reorder; force-quit; the order stays and drives the grid and add sheet strip.
 3. Quick add: + adds it and removes it from the list.
 4. New category: tap the emoji tile and the emoji keyboard opens; pick one; pick a colour; Add. It appears in the add sheet strip, Summary donut (after spending in it) and the filter. A duplicate name, any case, is refused.
-5. Activity and Budget: tap a categorised row and the edit sheet opens; tap an uncategorised row and the grid opens. On the Categories screen, tap a row: edit it, archive it, unarchive it from Archived. Delete one with transactions: confirm, rows become uncategorised and dimmed.
+5. Activity and Budget: tap a categorised row and the edit sheet opens; tap an uncategorised row and the grid opens. On the Categories screen, compare with references 24 to 26: tap a row, edit and Save. Swipe a row left: the confirmation shows the transaction count; Cancel keeps it. Delete one with transactions from the sheet and one by swipe: rows become uncategorised and dimmed, and totals do not change.
 6. Tap an uncategorised row and the add sheet's grid button: compare with references 11 and 14. The pencil opens Categories and back returns to the sheet.
 7. Filter chip on Activity and pencil on Summary: None, tick two, chip reads "2 categories"; list, hero, chart, donut and rows narrow. Force-quit; the filter stays. All clears it.
 8. Add sheet: Income shows income categories. Save a row outside the filter: the filter clears.
 9. Widget figures are unchanged by a filter.
 
 ### Open issues and setup notes
+- Rupesh's uncommitted SPEC edits were not committed in this phase. They undo the SPEC 5.2 tap-to-edit wording, and 5.17 now says swipe left goes to previous, the opposite of the app's month swipe. The code keeps tap-to-edit and the current month swipe until Rupesh decides.
 - If the emoji keyboard is removed in iOS Settings, the tile falls back to the normal keyboard and letters are ignored.
 - A tagged category of the other type stays on old rows and shows first in the strip when editing.
 - Free-team install expires about 2026-11-07.

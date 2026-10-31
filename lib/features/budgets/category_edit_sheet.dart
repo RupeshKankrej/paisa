@@ -19,6 +19,76 @@ Future<void> _emojiCall(String method) async {
   }
 }
 
+/// The delete confirmation (reference 25, SPEC 5.14). True means delete.
+Future<bool> confirmDeleteCategory(
+  BuildContext context,
+  AppDatabase db,
+  Category category,
+) async {
+  final count = await db.countCategoryTransactions(category.id);
+  if (!context.mounted) return false;
+  final confirmed = await showModalBottomSheet<bool>(
+    context: context,
+    useRootNavigator: true,
+    builder: (sheet) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 12,
+          children: [
+            const Icon(Icons.delete_outline, size: 40),
+            const Text(
+              'Are you sure you want to delete this category?',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+            ),
+            Text(
+              deleteCategoryMessage(count),
+              textAlign: TextAlign.center,
+              style: Theme.of(sheet).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 4),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.delete,
+                foregroundColor: AppColors.textPrimary,
+                minimumSize: const Size.fromHeight(52),
+              ),
+              onPressed: () => Navigator.of(sheet).pop(true),
+              child: const Text('Delete category'),
+            ),
+            _SecondaryButton(
+              label: 'Cancel',
+              onPressed: () => Navigator.of(sheet).pop(false),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  return confirmed ?? false;
+}
+
+class _SecondaryButton extends StatelessWidget {
+  const _SecondaryButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => FilledButton(
+    style: FilledButton.styleFrom(
+      backgroundColor: AppColors.surfaceRaised,
+      foregroundColor: AppColors.textPrimary,
+      minimumSize: const Size.fromHeight(52),
+    ),
+    onPressed: onPressed,
+    child: Text(label),
+  );
+}
+
 /// New category, or edit when [existing] is set (SPEC 5.14). Returns the
 /// category when one was added.
 Future<Category?> showCategoryEditSheet(
@@ -105,35 +175,18 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
     if (mounted) Navigator.of(context).pop(added);
   }
 
-  Future<void> _setArchived(Category category) async {
-    await ref
-        .read(databaseProvider)
-        .setCategoryArchived(category.id, !category.isArchived);
+  // Archiving is out of SPEC 5.14, but a category archived earlier needs a way back.
+  Future<void> _unarchive(Category category) async {
+    await ref.read(databaseProvider).setCategoryArchived(category.id, false);
     if (mounted) Navigator.of(context).pop();
   }
 
   Future<void> _delete(Category category) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialog) => AlertDialog(
-        title: Text('Delete ${category.name}?'),
-        content: const Text(
-          'Its transactions become uncategorised and its budget is removed.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialog).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialog).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await ref.read(databaseProvider).deleteCategory(category.id);
+    FocusScope.of(context).unfocus();
+    _emojiCall('close');
+    final db = ref.read(databaseProvider);
+    if (!await confirmDeleteCategory(context, db, category)) return;
+    await db.deleteCategory(category.id);
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -164,7 +217,9 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
               Text(
                 existing == null
                     ? 'New $typeName category'
-                    : 'Edit $typeName category',
+                    : widget.type == CategoryType.expense
+                    ? 'Expense category'
+                    : 'Income category',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 17,
@@ -249,12 +304,26 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
                   ),
                 ],
               ),
-              FilledButton(
-                onPressed: canSave ? _save : null,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                ),
-                child: Text(existing == null ? 'Add' : 'Save'),
+              Row(
+                spacing: 8,
+                children: [
+                  if (existing != null)
+                    Expanded(
+                      child: _SecondaryButton(
+                        label: 'Delete',
+                        onPressed: () => _delete(existing),
+                      ),
+                    ),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: canSave ? _save : null,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(52),
+                      ),
+                      child: Text(existing == null ? 'Add' : 'Save'),
+                    ),
+                  ),
+                ],
               ),
               if (_showPalette)
                 GridView.count(
@@ -289,28 +358,10 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
                       ),
                   ],
                 ),
-              if (existing != null)
-                Row(
-                  spacing: 8,
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => _setArchived(existing),
-                        child: Text(
-                          existing.isArchived ? 'Unarchive' : 'Archive',
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.debit,
-                        ),
-                        onPressed: () => _delete(existing),
-                        child: const Text('Delete'),
-                      ),
-                    ),
-                  ],
+              if (existing != null && existing.isArchived)
+                TextButton(
+                  onPressed: () => _unarchive(existing),
+                  child: const Text('Unarchive'),
                 ),
             ],
           ),

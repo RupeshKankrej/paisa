@@ -326,6 +326,9 @@ class AppDatabase extends _$AppDatabase {
         if (archived) await _dropFromFilter(id);
       });
 
+  Future<int> countCategoryTransactions(int id) =>
+      transactions.count(where: (t) => t.categoryId.equals(id)).getSingle();
+
   /// Its transactions become uncategorised; its budgets go with it.
   Future<void> deleteCategory(int id) => transaction(() async {
     await (update(transactions)..where((t) => t.categoryId.equals(id))).write(
