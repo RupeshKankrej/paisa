@@ -2,7 +2,7 @@
 
 ## Phase 4: Budgets + Home (2026-10-31)
 
-Status: built on branch `phase-4-budgets-home`, not merged. Tests pass and the release build is installed on the iPhone 15. Device checks below are not yet confirmed by Rupesh, so acceptance is still open.
+Status: built on branch `phase-4-budgets-home`, not merged. Tests pass. Rupesh reported that all the device checks below passed on the iPhone 15 (2026-10-31).
 
 ### What was built
 - `lib/core/period.dart`: `Period.forMonthKey` and `Period.containing` (SPEC 5.11). The transaction query, month picker and Expenses screen all use it. This removes the calendar-only shortcut noted in Phase 3.
@@ -31,6 +31,7 @@ Status: built on branch `phase-4-budgets-home`, not merged. Tests pass and the r
 - Simulator: Home viewed with seeded messages and a salary of 1,00,000 set directly in the database. Spent 4,800.50 and remaining 95,199.50 match by hand. Only Home was viewed; `simctl` cannot tap, so Categories, dialogs and Settings are covered by widget tests only.
 
 ### What to verify on the device
+Nothing outstanding. Rupesh confirmed this list:
 1. Settings: set a salary. Home shows spent, salary and remaining, and the sums match your own for the month.
 2. Home: tap the salary and set an override. Only that month changes; blank restores the default.
 3. Home: the uncategorised row opens Expenses filtered to those rows. Last 5 are newest first.
