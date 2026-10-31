@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/router.dart';
-import 'app/theme.dart';
+import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
 
 void main() {
@@ -57,8 +57,7 @@ class _PaisaAppState extends ConsumerState<PaisaApp> {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Paisa',
-      theme: appTheme(Brightness.light),
-      darkTheme: appTheme(Brightness.dark),
+      theme: appTheme(),
       routerConfig: router,
     );
   }

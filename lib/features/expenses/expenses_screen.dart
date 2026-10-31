@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/month_picker.dart';
+import '../../app/shell_widgets.dart';
 import '../../core/money.dart';
 import '../../core/period.dart';
+import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
+import '../../domain/budget.dart';
 import '../../domain/models.dart';
 import '../budgets/category_picker.dart';
+import '../budgets/month_summary_card.dart';
 import 'transaction_sheet.dart';
 
 const _filters = [
@@ -36,8 +39,6 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   // show the snackbar over this Scaffold's FAB instead of lifting it.
   final _messenger = GlobalKey<ScaffoldMessengerState>();
 
-  bool _sheetOpen = false;
-
   @override
   void initState() {
     super.initState();
@@ -54,8 +55,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   void _openSheetAfterFrame() =>
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        // A second widget tap must not stack a sheet on one left open.
-        if (mounted && !_sheetOpen) _openSheet();
+        if (mounted) openTransactionSheet(context, ref);
       });
 
   Future<void> _delete(TransactionRow row) async {
@@ -81,25 +81,6 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       );
   }
 
-  // Shows the saved row, which may be in another month or filtered out.
-  Future<void> _openSheet([TransactionRow? row]) async {
-    _sheetOpen = true;
-    final saved = await showTransactionSheet(
-      context,
-      existing: row,
-    ).whenComplete(() => _sheetOpen = false);
-    if (saved == null || !mounted) return;
-    ref.read(pickedMonthProvider.notifier).state = Period.containing(
-      saved.occurredAt,
-      ref.read(salaryDayProvider).value,
-    ).key;
-    if (!ref
-        .read(expenseFilterProvider)
-        .matches(saved.type, saved.categoryId)) {
-      ref.read(expenseFilterProvider.notifier).state = ExpenseFilter.all;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final categories = {
@@ -107,24 +88,25 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         c.id: c,
     };
     final selected = ref.watch(expenseFilterProvider);
+    final transactions = ref.watch(
+      transactionsProvider(ref.watch(selectedMonthProvider)),
+    );
     return ScaffoldMessenger(
       key: _messenger,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Expenses'),
-          actions: const [MonthPicker(), SizedBox(width: 8)],
-        ),
-        floatingActionButton: FloatingActionButton(
-          tooltip: 'Add transaction',
-          onPressed: _openSheet,
-          child: const Icon(Icons.add),
-        ),
+        appBar: tabAppBar(),
+        floatingActionButton: const AddFab(),
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Padding(
+            HeroAmount(
+              sumPaise(spendOf(transactions.value ?? const []).values),
+            ),
+            const SizedBox(height: 16),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Wrap(
+              child: Row(
                 spacing: 8,
                 children: [
                   for (final (label, filter) in _filters)
@@ -139,16 +121,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               ),
             ),
             Expanded(
-              child: ref
-                  .watch(transactionsProvider(ref.watch(selectedMonthProvider)))
-                  .when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (error, _) => Center(
-                      child: Text('Could not load transactions: $error'),
-                    ),
-                    data: (rows) => _list(rows, categories, selected),
-                  ),
+              child: transactions.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (error, _) =>
+                    Center(child: Text('Could not load transactions: $error')),
+                data: (rows) => _list(rows, categories, selected),
+              ),
             ),
           ],
         ),
@@ -167,41 +145,78 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     if (visible.isEmpty) {
       return const Center(child: Text('Nothing here for this month'));
     }
-    final localizations = MaterialLocalizations.of(context);
-    DateTime? day;
+    final days = <List<TransactionRow>>[];
+    for (final row in visible) {
+      if (days.isEmpty ||
+          !DateUtils.isSameDay(days.last.first.occurredAt, row.occurredAt)) {
+        days.add([]);
+      }
+      days.last.add(row);
+    }
+    final caption = Theme.of(context).textTheme.bodySmall;
     return ListView(
-      padding: const EdgeInsets.only(bottom: 88), // clears the FAB
+      padding: listClearance(context),
       children: [
-        for (final row in visible) ...[
-          if (!DateUtils.isSameDay(day, row.occurredAt))
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: Text(
-                localizations.formatFullDate(day = row.occurredAt),
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+        for (final day in days) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              spacing: 8,
+              children: [
+                Expanded(
+                  child: Text(_dayLabel(day.first.occurredAt), style: caption),
+                ),
+                Text(dayTotal(day), style: caption),
+              ],
             ),
-          Dismissible(
-            key: ValueKey(row.id),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              color: Colors.red,
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 24),
-              child: const Icon(Icons.delete, color: Colors.white),
-            ),
-            onDismissed: (_) => _delete(row),
-            child: TransactionTile(
-              row: row,
-              category: categories[row.categoryId],
-              onTap: () => categoriseTransaction(context, ref, row),
-              onLongPress: () => _openSheet(row),
-            ),
+          ),
+          GroupedCard(
+            children: [
+              for (final row in day)
+                Dismissible(
+                  key: ValueKey(row.id),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    color: Colors.red,
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 24),
+                    child: const Icon(Icons.delete, color: Colors.white),
+                  ),
+                  onDismissed: (_) => _delete(row),
+                  child: TransactionTile(
+                    row: row,
+                    category: categories[row.categoryId],
+                    onTap: () => categoriseTransaction(context, ref, row),
+                    onLongPress: () => openTransactionSheet(context, ref, row),
+                  ),
+                ),
+            ],
           ),
         ],
       ],
     );
   }
+}
+
+const _weekdays = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
+
+/// 'Monday, 28 Sep'.
+String _dayLabel(DateTime day) =>
+    '${_weekdays[day.weekday - 1]}, ${Period.shortDate(day)}';
+
+/// A day's spend, or its income with a plus when nothing was spent.
+String dayTotal(List<TransactionRow> rows) {
+  final spent = sumPaise(spendOf(rows).values);
+  if (spent > 0) return Money.format(spent);
+  return '+${Money.format(sumPaise(rows.map((r) => r.amountPaise)))}';
 }
 
 class TransactionTile extends StatelessWidget {
@@ -243,7 +258,7 @@ class TransactionTile extends StatelessWidget {
       trailing: Text(
         '${credit ? '+' : ''}${Money.format(row.amountPaise)}',
         style: TextStyle(
-          color: credit ? Colors.green.shade600 : Colors.red.shade400,
+          color: credit ? AppColors.income : AppColors.debit,
           fontWeight: FontWeight.w600,
         ),
       ),

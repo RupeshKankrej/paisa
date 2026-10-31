@@ -33,7 +33,7 @@ class SettingsScreen extends ConsumerWidget {
         (
           label: 'Default',
           initial: salary,
-          helper: 'Tap the salary on Home to change a single month.',
+          helper: 'Tap the salary on the Budget tab to change a single month.',
         ),
       ],
     );

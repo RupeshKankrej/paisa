@@ -4,7 +4,8 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/month_picker.dart';
+import '../../app/shell_widgets.dart';
+import '../../core/theme/tokens.dart';
 import '../../core/money.dart';
 import '../../core/month_key.dart';
 import '../../core/period.dart';
@@ -15,8 +16,8 @@ import '../../domain/dashboards.dart';
 import '../../domain/models.dart';
 import '../budgets/month_summary_card.dart';
 
-final _spentColor = Colors.red.shade400;
-final _incomeColor = Colors.green.shade600;
+const _spentColor = AppColors.expense;
+const _incomeColor = AppColors.income;
 
 const _chartHeight = 200.0;
 const _axisWidth = 44.0;
@@ -65,12 +66,10 @@ class DashboardsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboards'),
-        actions: const [MonthPicker(), SizedBox(width: 8)],
-      ),
+      appBar: tabAppBar(),
+      floatingActionButton: const AddFab(),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: listClearance(context),
         children: const [
           _MonthWiseCard(),
           _DayWiseCard(),

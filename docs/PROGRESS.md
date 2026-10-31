@@ -1,5 +1,48 @@
 # Progress
 
+## Phase 7: UI design system + shell (2026-10-31)
+
+Status: built on branch `phase-7-design-system`, not merged. Tests pass and the tabs were viewed on the simulator. Rupesh reported all the device checks below passed on the iPhone 15 (2026-10-31).
+
+### What was built
+- `lib/core/theme/`: SPEC 5.12 tokens and a dark `ThemeData`. Cards, chips, FAB, sheets and dividers get their look from the theme.
+- `lib/app/shell_widgets.dart`: pill nav, round settings button, `AddFab`, `HeroAmount`, `GroupedCard`, `tabAppBar`.
+- Tabs: Activity (Expenses), Summary (Categories), Budget (Home), Analytics (Dashboards), Accounts (placeholder). Settings is a pushed route behind the top-left button.
+- Activity: hero spend, horizontally scrolling chips, day-grouped cards with a day total. `CategoryAvatar` is now an emoji tile with a 2 px category-colour border. The month dropdown is a small caption with a chevron.
+- Schema v3: existing categories move to the 5.12 colours, matched by old colour. No other data changes.
+
+### Decisions
+- The app now opens on Activity, the first tab, not Home. This and the FAB and hero below are the only additions to "no behaviour change".
+- Home stands in as the Budget tab until Phase 9, so its summary, salary override and uncategorised shortcut stay reachable.
+- The FAB is on every tab as SPEC asks and opens the same add sheet. After a save it moves to the row's month, as Expenses already did. The open-sheet guard moved to a provider, so a widget link cannot stack on a sheet opened from any tab.
+- Not added: search, Monthly, All accounts and sort chips. They have no behaviour behind them yet (see BACKLOG). The existing four filters stay.
+- Debit amounts stay red-ish per SPEC 5.2 (`AppColors.debit`), though the reference shows white. Credits use `income`.
+- Icon tiles are round, per the SPEC radii table (`AppRadii.round`). The reference shows rounded squares; it is a one-line change in `CategoryAvatar`.
+- Dark only until Phase 9, so the app ignores the system light setting for now.
+- A day total is the day's spend, or its income with a plus if nothing was spent.
+- The undo snackbar now floats above the FAB rather than lifting it, as both sit above the pill.
+- Emoji come from the stored Material icon names, so no icon column changed. New categories still get the generic one.
+- Left for Phase 8 and 9: Activity gradient and day-bar chart, donut, custom keypad, chart restyle, nav animation. The form inside the add sheet is only restyled.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 130 passed, including the FAB clearing the pill with a home-indicator inset, FAB on each tab, Settings push and back, the colour migration (a colour outside the old palette is untouched) and day totals.
+- Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point cycling routes, since `simctl` cannot tap. Activity, Summary, Budget, Analytics, Accounts, Settings and the add sheet were viewed. This found and fixed the FAB under the pill, an unreadable selected chip and a white progress track. Gestures are covered by widget tests only. The simulator still has that temporary debug build installed.
+
+### What to verify on the device
+Nothing outstanding. Rupesh confirmed this list:
+1. Force-quit and open: opens on Activity, your data is there, categories show the new colours and emoji.
+2. Side by side with `docs/design/reference/01` and `03`: nav, chips, cards, FAB.
+3. Each tab switches, and the + opens the add sheet on all five. Save one from Summary.
+4. Top-left button opens Settings, back returns. Salary day and senders still work.
+5. Activity: tap to categorise, long-press to edit, swipe to delete, Undo above the +, chips filter, month dropdown switches, uncategorised rows dimmed.
+6. Budget: salary override, uncategorised shortcut. Summary: limits, bar colours, yellow note. Analytics: all four charts, including an override below spend for the over-salary ring. Clear it.
+7. Widget: spent and remaining still match, links open Expenses and the add sheet. Categories on the medium widget use the new colours.
+
+### Open issues and setup notes
+- A failing widget test that skips its teardown leaves `flutter test` idle rather than exiting: a drift stream stays open. Look at the log before assuming a real hang.
+- The add sheet at full height reaches the status bar, so its drag handle sits beside the clock. Phase 8 replaces this sheet.
+- The month dropdown is as wide as its longest month, so the current month sits slightly off-centre.
+
 ## Phase 6: Widget (2026-10-31)
 
 Status: built on branch `phase-6-widget`, not merged. Tests pass. Rupesh reported all the device checks below passed on the iPhone 15 (2026-10-31), including the fix for stacked sheets.

@@ -163,12 +163,24 @@ void main() {
       await v1.select(v1.categories).get();
       await v1.customStatement('DROP TABLE settings');
       await v1.delete(v1.trackedSenders).go();
+      // Colours as Phase 1 seeded them, plus one the palette never had.
+      await v1.customStatement(
+        "UPDATE categories SET color = 0xFFE57373 WHERE name = 'Food'",
+      );
+      await v1.customStatement(
+        "UPDATE categories SET color = 0xFF123456 WHERE name = 'Other'",
+      );
       await v1.customStatement('PRAGMA user_version = 1');
       await v1.close();
 
       final upgraded = AppDatabase(NativeDatabase(file));
       addTearDown(upgraded.close);
-      expect(await upgraded.select(upgraded.categories).get(), hasLength(8));
+      final categories = await upgraded.select(upgraded.categories).get();
+      expect(categories, hasLength(8));
+      int colorOf(String name) =>
+          categories.firstWhere((c) => c.name == name).color;
+      expect(colorOf('Food'), 0xFF5AA9F5);
+      expect(colorOf('Other'), 0xFF123456);
       final sender = await upgraded.select(upgraded.trackedSenders).getSingle();
       expect(sender.matchPattern, 'HDFC Bank');
       await ingestInbox(upgraded, line(debitSample));

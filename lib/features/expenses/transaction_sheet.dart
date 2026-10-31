@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/money.dart';
+import '../../core/period.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/models.dart';
@@ -23,9 +24,32 @@ Future<SavedTransaction?> showTransactionSheet(
   context: context,
   useRootNavigator: true,
   isScrollControlled: true,
-  showDragHandle: true,
   builder: (_) => _TransactionSheet(existing),
 );
+
+/// Opens the sheet unless one is already up, then shows the saved row, which may
+/// be in another month or filtered out.
+Future<void> openTransactionSheet(
+  BuildContext context,
+  WidgetRef ref, [
+  TransactionRow? row,
+]) async {
+  final open = ref.read(transactionSheetOpenProvider.notifier);
+  if (open.state) return;
+  open.state = true;
+  final saved = await showTransactionSheet(
+    context,
+    existing: row,
+  ).whenComplete(() => open.state = false);
+  if (saved == null || !context.mounted) return;
+  ref.read(pickedMonthProvider.notifier).state = Period.containing(
+    saved.occurredAt,
+    ref.read(salaryDayProvider).value,
+  ).key;
+  if (!ref.read(expenseFilterProvider).matches(saved.type, saved.categoryId)) {
+    ref.read(expenseFilterProvider.notifier).state = ExpenseFilter.all;
+  }
+}
 
 class _TransactionSheet extends ConsumerStatefulWidget {
   const _TransactionSheet(this.existing);

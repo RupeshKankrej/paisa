@@ -97,7 +97,7 @@ class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'paisa'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -110,6 +110,14 @@ class AppDatabase extends _$AppDatabase {
       if (from < 2) {
         await m.createTable(settings);
         await into(trackedSenders).insert(_seedSender);
+      }
+      if (from < 3) {
+        // Matches on colour, so categories added by the user move with the seed.
+        for (final (i, old) in _phase1Colors.indexed) {
+          await (update(categories)..where((c) => c.color.equals(old))).write(
+            CategoriesCompanion(color: Value(_seedCategories[i].color.value)),
+          );
+        }
       }
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
@@ -263,16 +271,27 @@ final _seedSender = TrackedSendersCompanion.insert(
   bank: Bank.hdfc,
 );
 
+const _phase1Colors = [
+  0xFFE57373,
+  0xFF64B5F6,
+  0xFF8D6E63,
+  0xFFFFB74D,
+  0xFFBA68C8,
+  0xFF81C784,
+  0xFF4DB6AC,
+  0xFF90A4AE,
+];
+
 final _seedCategories =
     [
-          ('Food', 0xFFE57373, 'restaurant'),
-          ('Travel', 0xFF64B5F6, 'directions_car'),
-          ('Rent', 0xFF8D6E63, 'home'),
-          ('Bills', 0xFFFFB74D, 'receipt_long'),
-          ('Shopping', 0xFFBA68C8, 'shopping_bag'),
-          ('Health', 0xFF81C784, 'favorite'),
-          ('Entertainment', 0xFF4DB6AC, 'movie'),
-          ('Other', 0xFF90A4AE, 'category'),
+          ('Food', 0xFF5AA9F5, 'restaurant'),
+          ('Travel', 0xFFE8737A, 'directions_car'),
+          ('Rent', 0xFF7B6CF6, 'home'),
+          ('Bills', 0xFFF2A65A, 'receipt_long'),
+          ('Shopping', 0xFFF0C36A, 'shopping_bag'),
+          ('Health', 0xFFB36CF6, 'favorite'),
+          ('Entertainment', 0xFFF07AC8, 'movie'),
+          ('Other', 0xFF4CC38A, 'category'),
         ].indexed
         .map(
           (e) => CategoriesCompanion.insert(

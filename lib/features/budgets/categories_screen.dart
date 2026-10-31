@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/amount_dialog.dart';
-import '../../app/month_picker.dart';
+import '../../app/shell_widgets.dart';
 import '../../core/money.dart';
 import '../../core/month_key.dart';
 import '../../data/database.dart';
@@ -55,10 +55,8 @@ class CategoriesScreen extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
     final transactions = ref.watch(transactionsProvider(month));
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Categories'),
-        actions: const [MonthPicker(), SizedBox(width: 8)],
-      ),
+      appBar: tabAppBar(),
+      floatingActionButton: const AddFab(),
       body: switch ((categories, transactions)) {
         (AsyncError(:final error), _) || (_, AsyncError(:final error)) =>
           Center(child: Text('Could not load categories: $error')),
@@ -89,6 +87,7 @@ class CategoriesScreen extends ConsumerWidget {
       ),
     );
     return ListView(
+      padding: listClearance(context),
       children: [
         MonthSummaryCard(rows: rows),
         if (salary != null && limits > salary)
@@ -105,25 +104,29 @@ class CategoriesScreen extends ConsumerWidget {
               style: const TextStyle(color: Colors.black87),
             ),
           ),
-        if (uncategorised > 0)
-          ListTile(
-            leading: const CategoryAvatar(null),
-            title: const Text('Uncategorised'),
-            subtitle: Text(Money.format(uncategorised)),
-          ),
-        for (final category in categories)
-          _CategoryTile(
-            category: category,
-            spent: spend[category.id] ?? 0,
-            limit: resolveAmount(budgets[category.id] ?? const {}, month),
-            onTap: () => _editLimit(
-              context,
-              ref,
-              category,
-              month,
-              budgets[category.id] ?? const {},
-            ),
-          ),
+        GroupedCard(
+          children: [
+            if (uncategorised > 0)
+              ListTile(
+                leading: const CategoryAvatar(null),
+                title: const Text('Uncategorised'),
+                subtitle: Text(Money.format(uncategorised)),
+              ),
+            for (final category in categories)
+              _CategoryTile(
+                category: category,
+                spent: spend[category.id] ?? 0,
+                limit: resolveAmount(budgets[category.id] ?? const {}, month),
+                onTap: () => _editLimit(
+                  context,
+                  ref,
+                  category,
+                  month,
+                  budgets[category.id] ?? const {},
+                ),
+              ),
+          ],
+        ),
       ],
     );
   }
