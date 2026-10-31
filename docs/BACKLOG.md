@@ -13,3 +13,5 @@
 - Show a trace when a message is skipped as an already-seen fingerprint. It leaves no new log row today, so a Shortcut resending the same wrong text looks exactly like the automation not firing.
 - Show archived categories' spend on the Categories screen when archiving is built (SPEC 5.9); today it would count in the total but have no row.
 - Remember the salary day when the month boundary switch is turned off.
+- Tap a day-wise bar or a date-range point to see its exact amount (SPEC 5.8 asks for this only on the month-wise chart).
+- Keep the month-wise amount axis visible while scrolling back; it sits at the newest end and scrolls away.

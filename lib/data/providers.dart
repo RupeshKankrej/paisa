@@ -37,6 +37,10 @@ final transactionsProvider = StreamProvider.autoDispose
           ),
     );
 
+final allTransactionsProvider = StreamProvider<List<TransactionRow>>(
+  (ref) => ref.watch(databaseProvider).watchAllTransactions(),
+);
+
 final salaryDayProvider = StreamProvider<int?>(
   (ref) => ref.watch(databaseProvider).watchSalaryDay(),
 );
