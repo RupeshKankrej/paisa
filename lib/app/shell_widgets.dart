@@ -17,6 +17,14 @@ const _navGap = 8.0;
 AppBar tabAppBar({Widget title = const MonthPicker()}) =>
     AppBar(leading: const _SettingsButton(), leadingWidth: 64, title: title);
 
+/// App bar for a tab whose page scrolls under it, month dropdown in the page.
+AppBar floatingTabAppBar() => tabAppBar(title: const SizedBox.shrink());
+
+/// Where a page under [floatingTabAppBar] starts, measured from a context above
+/// its Scaffold, which has not yet added the bar to the insets.
+double belowFloatingBar(BuildContext context) =>
+    MediaQuery.paddingOf(context).top + kToolbarHeight;
+
 /// List bottom padding that clears the pill nav and the FAB above it.
 EdgeInsets listClearance(BuildContext context) =>
     EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + 88);

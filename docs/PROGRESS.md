@@ -1,5 +1,44 @@
 # Progress
 
+## Phase 8: UI Activity, Add, Summary (2026-10-31)
+
+Status: built on branch `phase-8-ui-activity-summary` (from `phase-7-design-system`, which is not merged), not merged. Tests pass and the three screens were viewed on the simulator. Device checks below are waiting on Rupesh.
+
+### What was built
+- Activity: one scrolling page with the gradient header, month caption, hero total and `DayBarChart` (`lib/features/expenses/day_bar_chart.dart`), then chips and day cards. The settings button stays put while the page scrolls under it.
+- Add/Edit (`transaction_sheet.dart`, rewritten): near-full-height sheet, hero amount, backspace, reset, delete, chips, category strip with grid button, 3x4 keypad with a light arrow key. This also fixes the drag handle sitting beside the clock.
+- Summary (`categories_screen.dart`, rewritten): donut with the month and total in the centre, Expenses/Income chips, rows with count, amount, % pill and budget bar.
+- Pure helpers with tests: `Money.keypadPress`, `keypadText`, `keypadDisplay`; `totalsByCategory` and `percentLabel` in `lib/domain/budget.dart`. No schema change.
+
+### Decisions
+- The donut shows spend share, as reference 03 does, so slices match the % pills. SPEC 5.12 says the budget pie becomes this donut; the budget pie stays on Analytics so nothing is lost (see BACKLOG).
+- Over salary on the donut: a red outline, "Over salary by", and a thin inner ring whose sweep is salary / spend.
+- Summary lost the spent/salary/remaining card to match the reference. One line under the donut keeps the picture from SPEC 5.7 ("₹X left of ₹Y"). Editing the salary override is on the Budget tab only.
+- Uncategorised stays the top row per SPEC 5.7, then categories by amount. Zero-spend categories stay listed so a limit can be set. The Income chip lists only categories with income, without bars or limit editing.
+- Row amount and % pill are stacked, not in one line as in the reference, because paise leave a name too little room.
+- Sheet icons: refresh resets the sheet to its opening values, as the reference's meaning is unknown. Delete shows only when editing from Activity and uses the same 5-second undo. The clear button deletes one digit on tap and clears all on long press.
+- Chips: the reference's Personal slot is the Expense/Income toggle (SPEC 5.3). A read-only account chip shows only when a row has an account number. Note and "from SMS" are chips, since SPEC 5.3 and 5.4 keep them.
+- A category picked from the grid moves to the front of the strip. A tap in the strip does not move it, so rows do not jump.
+- The first validation error shows under the amount: "Enter an amount", then "Pick a category".
+- Not added: search, Monthly, All accounts and sort chips (already in BACKLOG), and the sheet's overflow menu.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 143 passed. A new test taps the donut's month picker. The Activity picker tests caught it sitting under the transparent app bar, where it could not be tapped; fixed with `belowFloatingBar`.
+- Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point with in-memory data, since `simctl` cannot tap. Activity, the add sheet, and Summary in the normal and over-salary states were viewed. This found and fixed colliding day labels (fl_chart ignores `interval` on bar titles) and dim Summary amounts. The edit sheet was not viewed; gestures are covered by widget tests only. The simulator still has that temporary debug build installed.
+
+### What to verify on the device
+1. Side by side with `docs/design/reference/01` to `04`: Activity, add sheet, Summary.
+2. Activity: month dropdown switches and the bars follow. Tap to categorise, swipe to delete with Undo, chips filter, uncategorised rows dimmed.
+3. +: type an amount with paise on the keypad, backspace, long-press backspace to clear. Pick a date, toggle Income, add a name and note, pick from the strip and from the grid including New category. The arrow saves.
+4. Long-press an SMS row: amount and date editable, "from SMS" shows the raw text, reset restores, delete offers Undo.
+5. Summary: slices and % add up, month dropdown works, tap a row to set a limit, bar colours, yellow note, Income chip.
+6. Over salary: set an override below spend on the Budget tab, see the outline, ring and red line on Summary. Clear it.
+7. Widget still updates after adding from the new sheet, and `paisa://add` opens it.
+
+### Open issues and setup notes
+- The sheet's keypad has fixed-height keys. Fits on the iPhone 15; a larger accessibility text size has not been tried.
+- Small slices have barely rounded corners, as the corner radius is limited by slice width.
+
 ## Phase 7: UI design system + shell (2026-10-31)
 
 Status: built on branch `phase-7-design-system`, not merged. Tests pass and the tabs were viewed on the simulator. Rupesh reported all the device checks below passed on the iPhone 15 (2026-10-31).

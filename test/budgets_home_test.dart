@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show DatabaseConnection, Value;
 import 'package:drift/native.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -240,10 +241,23 @@ void main() {
     await db.setBudget(3, null, 50000); // Rent, nothing spent
     await pump(tester, const CategoriesScreen());
 
-    expect(find.text('₹8,400.00'), findsOneWidget, reason: 'the same top card');
+    expect(find.text('₹8,400.00 left of ₹10,000.00'), findsOneWidget);
+    expect(find.text('₹1,600.00'), findsOneWidget, reason: 'donut centre');
     expect(barOf(tester, 'Food').color, Colors.red);
     expect(barOf(tester, 'Food').value, 1);
-    expect(inTile('Food', '₹1,200.50 / ₹1,000.00'), findsOneWidget);
+    expect(inTile('Food', '₹1,200.50'), findsOneWidget);
+    expect(inTile('Food', 'of ₹1,000.00'), findsOneWidget);
+    expect(inTile('Food', '75.03%'), findsOneWidget); // 1,200.50 of 1,600.00
+    expect(
+      tester
+          .widgetList<PieChart>(find.byType(PieChart))
+          .single
+          .data
+          .sections
+          .map((s) => s.value),
+      [9925, 120050, 30025],
+      reason: 'uncategorised first, then by spend; the credit is left out',
+    );
     expect(barOf(tester, 'Travel').color, Colors.amber);
     expect(barOf(tester, 'Rent').color, Colors.green);
     expect(
@@ -256,11 +270,54 @@ void main() {
     expect(inTile('Bills', '₹0.00'), findsOneWidget);
 
     expect(inTile('Uncategorised', '₹99.25'), findsOneWidget);
+    expect(inTile('Uncategorised', '1'), findsOneWidget);
+    expect(find.byKey(const Key('salary-ring')), findsNothing);
     expect(
       tester.getTopLeft(find.text('Uncategorised')).dy,
       lessThan(tester.getTopLeft(find.text('Food')).dy),
     );
     expect(find.textContaining('more than the salary'), findsNothing);
+  });
+
+  testWidgets('the month picker in the donut can be tapped', (tester) async {
+    await pump(tester, const CategoriesScreen());
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    expect(find.text(MonthKey.label(MonthKey.shift(month, -1))), findsWidgets);
+  });
+
+  testWidgets('Summary marks spend past the salary on the donut', (
+    tester,
+  ) async {
+    await db.setSalary(null, 10000);
+    await add(15000, category: food);
+    await pump(tester, const CategoriesScreen());
+    expect(find.text('Over salary by ₹50.00'), findsOneWidget);
+    expect(find.byKey(const Key('over-salary-outline')), findsOneWidget);
+    final ring = tester.widget<CircularProgressIndicator>(
+      find.descendant(
+        of: find.byKey(const Key('salary-ring')),
+        matching: find.byType(CircularProgressIndicator),
+      ),
+    );
+    expect(ring.value, closeTo(2 / 3, 0.001));
+  });
+
+  testWidgets('the Income chip shows only categories with income', (
+    tester,
+  ) async {
+    await db.setBudget(food, null, 100000);
+    await add(5000, category: food);
+    await add(70000, category: travel, type: TransactionType.credit);
+    await pump(tester, const CategoriesScreen());
+    expect(find.text('Food'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Income'));
+    await tester.pumpAndSettle();
+    expect(find.text('₹700.00'), findsNWidgets(2), reason: 'centre and row');
+    expect(inTile('Travel', '100.00%'), findsOneWidget);
+    expect(find.text('Food'), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
   testWidgets('no uncategorised row when nothing is uncategorised', (
@@ -309,7 +366,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await settle(tester);
 
-    expect(inTile('Food', '₹0.00 / ₹250.00'), findsOneWidget);
+    expect(inTile('Food', 'of ₹250.00'), findsOneWidget);
     expect((await first(tester, db.watchBudgetAmounts()))[food], {
       null: 100000,
       month: 25000,

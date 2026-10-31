@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' show DatabaseConnection, Value;
 import 'package:drift/native.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -79,7 +80,31 @@ void main() {
     });
   }
 
-  Finder sheetField(String label) => find.widgetWithText(TextFormField, label);
+  Future<void> press(WidgetTester tester, String keys) async {
+    for (final key in keys.split('')) {
+      await tester.tap(find.byKey(Key('key-$key')));
+      await tester.pump();
+    }
+  }
+
+  Future<void> save(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('key-save')));
+    await settle(tester);
+  }
+
+  String sheetAmount(WidgetTester tester) =>
+      tester.widget<Text>(find.byKey(const Key('sheet-amount'))).data!;
+
+  Future<void> pickInStrip(WidgetTester tester, String name) async {
+    final item = find.descendant(
+      of: find.byType(BottomSheet),
+      matching: find.textContaining(name),
+    );
+    await tester.ensureVisible(item);
+    await tester.pumpAndSettle();
+    await tester.tap(item);
+    await tester.pump();
+  }
 
   testWidgets('groups by day newest first; uncategorised rows are dimmed', (
     tester,
@@ -191,12 +216,15 @@ void main() {
     await settle(tester);
     await tester.tap(find.text('New category'));
     await tester.pumpAndSettle();
-    await tester.enterText(sheetField('Name'), ' food ');
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Name'),
+      ' food ',
+    );
     await tester.tap(find.widgetWithText(FilledButton, 'Add'));
     await tester.pumpAndSettle();
     expect(find.text('Already exists'), findsOneWidget);
 
-    await tester.enterText(sheetField('Name'), 'Pets');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Name'), 'Pets');
     await tester.tap(find.widgetWithText(FilledButton, 'Add'));
     await settle(tester);
 
@@ -275,23 +303,25 @@ void main() {
 
     await tester.tap(find.byType(FloatingActionButton));
     await settle(tester);
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await tester.pumpAndSettle();
+    expect(sheetAmount(tester), '₹0');
+    await save(tester);
     expect(find.text('Enter an amount'), findsOneWidget);
-    expect(find.text('Required'), findsOneWidget);
+    await press(tester, '1250.509');
+    expect(sheetAmount(tester), '₹1,250.50', reason: 'no third decimal');
+    await save(tester);
+    expect(find.text('Pick a category'), findsOneWidget);
     expect(await rows(), isEmpty);
 
-    await tester.enterText(sheetField('Amount'), '1,250.5');
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.tap(find.byTooltip('Backspace'));
+    await tester.pump();
+    expect(sheetAmount(tester), '₹1,250.5');
+    await pickInStrip(tester, 'Food');
+    await tester.tap(find.byTooltip('Name'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Food').last);
+    await tester.enterText(find.byType(TextField), ' Lunch ');
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      sheetField('Counterparty or title (optional)'),
-      ' Lunch ',
-    );
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await settle(tester);
+    await save(tester);
 
     final row = (await rows()).single;
     expect(row.amountPaise, 125050);
@@ -315,10 +345,30 @@ void main() {
     await pumpScreen(tester);
     await tester.tap(find.byType(FloatingActionButton));
     await settle(tester);
-    await tester.enterText(sheetField('Amount'), '0');
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await tester.pumpAndSettle();
+    await press(tester, '0');
+    await save(tester);
     expect(find.text('Enter an amount'), findsOneWidget);
+  });
+
+  testWidgets('the sheet fits a phone and the grid picks any category', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    expect(tester.takeException(), isNull, reason: 'no overflow');
+
+    await tester.tap(find.byTooltip('All categories'));
+    await settle(tester);
+    await tester.tap(find.text('Other').last);
+    await settle(tester);
+    await press(tester, '5');
+    await save(tester);
+
+    final other = await (db.select(
+      db.categories,
+    )..where((c) => c.name.equals('Other'))).getSingle();
+    expect((await rows()).single.categoryId, other.id);
   });
 
   testWidgets('adding income with the Expenses filter on still shows it', (
@@ -330,15 +380,11 @@ void main() {
 
     await tester.tap(find.byType(FloatingActionButton));
     await settle(tester);
-    await tester.enterText(sheetField('Amount'), '50');
-    await tester.tap(find.text('Income').last);
+    await press(tester, '50');
+    await tester.tap(find.text('Expense'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(DropdownButtonFormField<int>));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Other').last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await settle(tester);
+    await pickInStrip(tester, 'Food');
+    await save(tester);
 
     expect((await rows()).single.type, TransactionType.credit);
     expect(
@@ -366,14 +412,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(raw), findsOneWidget);
 
-    expect(
-      tester.widget<TextFormField>(sheetField('Amount')).controller!.text,
-      '120.00',
-    );
-    await tester.enterText(sheetField('Amount'), '150');
+    expect(sheetAmount(tester), '₹120');
+    await tester.tap(find.byTooltip('Backspace'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Backspace'));
+    await tester.pump();
+    await press(tester, '50');
+    expect(sheetAmount(tester), '₹150');
+    await tester.tap(find.byTooltip('Reset'));
+    await tester.pump();
+    expect(sheetAmount(tester), '₹120');
+    await tester.tap(find.byTooltip('Backspace'));
+    await tester.pump();
+    await tester.tap(find.byTooltip('Backspace'));
+    await tester.pump();
+    await press(tester, '50');
     // Uncategorised is allowed on an SMS row.
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await settle(tester);
+    await save(tester);
 
     final after = (await rows()).single;
     expect(after.amountPaise, 15000);
@@ -389,7 +444,49 @@ void main() {
     await tester.longPress(find.text('Lunch'));
     await settle(tester);
     expect(find.text('from SMS'), findsNothing);
-    expect(find.text('Edit transaction'), findsOneWidget);
+    expect(find.bySemanticsLabel('Edit transaction'), findsOneWidget);
+  });
+
+  testWidgets('delete in the edit sheet removes the row with an undo', (
+    tester,
+  ) async {
+    await add('Lunch', categoryId: 1);
+    await pumpScreen(tester);
+    final before = (await rows()).single;
+
+    await tester.longPress(find.text('Lunch'));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Delete'));
+    await settle(tester);
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(await rows(), isEmpty);
+
+    await tester.tap(find.text('Undo'));
+    await settle(tester);
+    expect((await rows()).single, before);
+    expect(find.text('Lunch'), findsOneWidget);
+  });
+
+  testWidgets('the add sheet has no delete button', (tester) async {
+    await pumpScreen(tester);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    expect(find.byTooltip('Delete'), findsNothing);
+  });
+
+  testWidgets('the day bars cover the period and leave out credits', (
+    tester,
+  ) async {
+    await add('Shop', paise: 5000);
+    await add('Pay', paise: 900000, type: TransactionType.credit);
+    await pumpScreen(tester);
+
+    final data = tester.widget<BarChart>(find.byType(BarChart)).data;
+    final last = DateTime(now.year, now.month + 1, 0).day;
+    expect(data.barGroups, hasLength(last));
+    expect(data.barGroups[now.day - 1].barRods.single.toY, 5000);
+    expect(data.maxY, 5000, reason: 'the credit does not set the scale');
+    expect(find.text('₹50'), findsOneWidget, reason: 'the top axis label');
   });
 
   test('a day total is its spend, or its income when nothing was spent', () {

@@ -3,6 +3,9 @@ import 'dart:ui';
 /// Design tokens from SPEC 5.12. Category colours live in the database seed.
 abstract final class AppColors {
   static const bg = Color(0xFF121619);
+
+  /// Top of the Activity header, fading down to [bg].
+  static const heroTop = Color(0xFF1E3A4C);
   static const surface = Color(0xFF1C2227);
   static const surfaceRaised = Color(0xFF262D33);
   static const textPrimary = Color(0xFFFFFFFF);

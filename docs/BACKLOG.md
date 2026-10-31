@@ -5,7 +5,7 @@
 - Show `ignored` stale lines somewhere, so a message skipped after a clock change can be recovered.
 - Update SPEC 3.3: `inbox.jsonl` is now claimed by rename and deleted, not truncated.
 - Show the ignored count in Settings. Ignored messages are invisible today, which hid a misconfigured Shortcut during Phase 2 testing.
-- The manual sheet's category dropdown asserts if a row's category is archived. Handle this when archiving is built (SPEC 5.9); such rows also show the grey placeholder in the list.
+- A row whose category is archived shows the grey placeholder in the list, and no category is selected in the add/edit sheet. Handle this when archiving is built (SPEC 5.9).
 - Colour and icon choice for new categories (Phase 3 asks only for a name).
 - Clear a row's category back to uncategorised.
 - Refresh the selected month when the app resumes in a new month.
@@ -21,3 +21,6 @@
 - Filter chips from SPEC 5.12 that have no behaviour yet: search, Monthly, All accounts, sort. Add each with its feature.
 - Update SPEC 5.12 or the reference: the radii table says icon tiles 999, the screenshots show rounded squares.
 - Liquid Glass feel for the bottom nav (Rupesh, Phase 7 device check). Phase 9 motion covers the pill animating between tabs; do this with it as a springy slide over the existing blur. SPEC does not ask for glass refraction, and Flutter has no system Liquid Glass, so true refraction would need a native tab bar or a custom shader.
+- Reconcile SPEC 5.12 "the budget pie becomes the Summary donut" with reference 03: the donut shows spend share, so slices match the % pills, and the 5.8 budget pie stays on Analytics. Decide its home in Phase 9.
+- Account chip in the add sheet for manual rows, and the sheet's overflow menu from reference 02. Both need multiple accounts.
+- Whole-rupee amounts on Activity and Summary, as the references show. SPEC 4.1 keeps `₹1,55,453.00` for now.

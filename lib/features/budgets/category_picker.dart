@@ -18,6 +18,9 @@ const _emoji = {
   'category': '📦',
 };
 
+String categoryEmoji(Category category) =>
+    _emoji[category.icon] ?? _emoji['category']!;
+
 /// Icon tile: an emoji on surface with a border in the category's colour, or a
 /// grey placeholder when there is no category.
 class CategoryAvatar extends StatelessWidget {
@@ -43,7 +46,7 @@ class CategoryAvatar extends StatelessWidget {
       child: category == null
           ? const Icon(Icons.help_outline, color: Colors.grey)
           : Text(
-              _emoji[category.icon] ?? _emoji['category']!,
+              categoryEmoji(category),
               style: const TextStyle(fontSize: 20),
               semanticsLabel: '',
             ),

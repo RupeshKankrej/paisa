@@ -1,13 +1,14 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/money.dart';
 import '../../core/period.dart';
+import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/models.dart';
+import '../budgets/category_picker.dart';
 
 typedef SavedTransaction = ({
   DateTime occurredAt,
@@ -20,19 +21,23 @@ typedef SavedTransaction = ({
 Future<SavedTransaction?> showTransactionSheet(
   BuildContext context, {
   TransactionRow? existing,
+  VoidCallback? onDelete,
 }) => showModalBottomSheet<SavedTransaction>(
   context: context,
   useRootNavigator: true,
   isScrollControlled: true,
-  builder: (_) => _TransactionSheet(existing),
+  useSafeArea: true,
+  backgroundColor: AppColors.bg, // so the keys and chips stand out on it
+  builder: (_) => _TransactionSheet(existing, onDelete),
 );
 
 /// Opens the sheet unless one is already up, then shows the saved row, which may
-/// be in another month or filtered out.
+/// be in another month or filtered out. [onDelete] adds a delete button.
 Future<void> openTransactionSheet(
   BuildContext context,
   WidgetRef ref, [
   TransactionRow? row,
+  VoidCallback? onDelete,
 ]) async {
   final open = ref.read(transactionSheetOpenProvider.notifier);
   if (open.state) return;
@@ -40,6 +45,7 @@ Future<void> openTransactionSheet(
   final saved = await showTransactionSheet(
     context,
     existing: row,
+    onDelete: onDelete,
   ).whenComplete(() => open.state = false);
   if (saved == null || !context.mounted) return;
   ref.read(pickedMonthProvider.notifier).state = Period.containing(
@@ -52,46 +58,65 @@ Future<void> openTransactionSheet(
 }
 
 class _TransactionSheet extends ConsumerStatefulWidget {
-  const _TransactionSheet(this.existing);
+  const _TransactionSheet(this.existing, this.onDelete);
 
   final TransactionRow? existing;
+  final VoidCallback? onDelete;
 
   @override
   ConsumerState<_TransactionSheet> createState() => _TransactionSheetState();
 }
 
 class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
-  final _form = GlobalKey<FormState>();
-  late final _amount = TextEditingController(
-    text: widget.existing == null
-        ? ''
-        : Money.format(widget.existing!.amountPaise).replaceFirst('₹', ''),
-  );
-  late final _title = TextEditingController(
-    text: widget.existing?.counterparty,
-  );
-  late final _note = TextEditingController(text: widget.existing?.note);
-  late var _type = widget.existing?.type ?? TransactionType.debit;
-  late var _categoryId = widget.existing?.categoryId;
+  final _strip = ScrollController();
+  late String _amount;
+  late String _title;
+  late String _note;
+  late TransactionType _type;
+  late int? _categoryId;
+  // Shown first in the strip. Not moved by a tap on the strip, so rows don't jump.
+  late int? _stripFirst;
   // Holds the time of day too: kept on edit, and "now" for a new row.
-  late var _date = widget.existing?.occurredAt ?? DateTime.now();
+  late DateTime _date;
+  var _showRawText = false;
+  String? _error;
 
   // An SMS row can stay uncategorised; SPEC 5.3 requires a category for manual.
   bool get _categoryRequired =>
       widget.existing?.source != TransactionSource.sms;
 
   @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    final existing = widget.existing;
+    _amount = existing == null ? '' : Money.keypadText(existing.amountPaise);
+    _title = existing?.counterparty ?? '';
+    _note = existing?.note ?? '';
+    _type = existing?.type ?? TransactionType.debit;
+    _categoryId = _stripFirst = existing?.categoryId;
+    _date = existing?.occurredAt ?? DateTime.now();
+    _error = null;
+  }
+
+  @override
   void dispose() {
-    _amount.dispose();
-    _title.dispose();
-    _note.dispose();
+    _strip.dispose();
     super.dispose();
   }
 
-  String? _validateAmount(String? text) {
-    final paise = Money.tryParse(text ?? '');
-    return paise == null || paise == 0 ? 'Enter an amount' : null;
-  }
+  void _setAmount(String amount) => setState(() {
+    _amount = amount;
+    _error = null;
+  });
+
+  void _setCategory(int id) => setState(() {
+    _categoryId = id;
+    _error = null;
+  });
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -111,18 +136,49 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
     }
   }
 
+  Future<void> _pickFromGrid() async {
+    final id = await showCategoryPicker(context);
+    if (id == null || !mounted) return;
+    _stripFirst = id;
+    _setCategory(id);
+    if (_strip.hasClients) _strip.jumpTo(0);
+  }
+
+  Future<void> _editText(
+    String label,
+    String value,
+    ValueChanged<String> onSaved,
+  ) async {
+    final text = await showDialog<String>(
+      context: context,
+      builder: (_) => _TextDialog(label, value),
+    );
+    if (text != null) setState(() => onSaved(text));
+  }
+
+  void _delete() {
+    Navigator.of(context).pop();
+    widget.onDelete!();
+  }
+
   Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
+    final paise = Money.tryParse(_amount);
+    if (paise == null || paise == 0) {
+      setState(() => _error = 'Enter an amount');
+      return;
+    }
+    if (_categoryId == null && _categoryRequired) {
+      setState(() => _error = 'Pick a category');
+      return;
+    }
     final db = ref.read(databaseProvider);
-    final title = _title.text.trim();
-    final note = _note.text.trim();
     final row = TransactionsCompanion(
       type: Value(_type),
-      amountPaise: Value(Money.tryParse(_amount.text)!),
+      amountPaise: Value(paise),
       occurredAt: Value(_date),
-      counterparty: Value(title.isEmpty ? null : title),
+      counterparty: Value(_title.isEmpty ? null : _title),
       categoryId: Value(_categoryId),
-      note: Value(note.isEmpty ? null : note),
+      note: Value(_note.isEmpty ? null : _note),
     );
     final existing = widget.existing;
     if (existing == null) {
@@ -140,107 +196,378 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final categories = ref.watch(categoriesProvider).value ?? const [];
     final existing = widget.existing;
     final rawText = existing?.source == TransactionSource.sms
         ? existing?.rawText
         : null;
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Form(
-            key: _form,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              spacing: 12,
-              children: [
-                Text(
-                  existing == null ? 'Add transaction' : 'Edit transaction',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                TextFormField(
-                  controller: _amount,
-                  autofocus: existing == null,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
+    final last4 = existing?.accountLast4;
+    final date = Period.shortDate(_date);
+    return FractionallySizedBox(
+      heightFactor: 0.97, // leaves a sliver of scrim to tap away on
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 8,
+            children: [
+              Semantics(
+                label: existing == null
+                    ? 'Add transaction'
+                    : 'Edit transaction',
+                container: true,
+                child: Row(
+                  spacing: 8,
+                  children: [
+                    _RoundIcon(Icons.refresh, 'Reset', () => setState(_load)),
+                    const Spacer(),
+                    if (widget.onDelete != null)
+                      _RoundIcon(Icons.delete_outline, 'Delete', _delete),
                   ],
-                  decoration: const InputDecoration(
-                    labelText: 'Amount',
-                    prefixText: '₹',
-                  ),
-                  validator: _validateAmount,
                 ),
-                SegmentedButton<TransactionType>(
-                  segments: const [
-                    ButtonSegment(
-                      value: TransactionType.debit,
-                      label: Text('Expense'),
+              ),
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: 8,
+                      children: [
+                        Row(
+                          children: [
+                            const SizedBox(width: 48), // balances the backspace
+                            Expanded(
+                              child: Center(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    Money.keypadDisplay(_amount),
+                                    key: const Key('sheet-amount'),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .displayLarge,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            GestureDetector(
+                              onLongPress: () => _setAmount(''),
+                              child: IconButton(
+                                tooltip: 'Backspace',
+                                icon: const Icon(Icons.backspace_outlined),
+                                color: AppColors.textSecondary,
+                                onPressed: _amount.isEmpty
+                                    ? null
+                                    : () => _setAmount(
+                                        _amount.substring(
+                                          0,
+                                          _amount.length - 1,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (_error case final error?)
+                          Text(
+                            error,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.debit),
+                          ),
+                        if (_showRawText && rawText != null)
+                          SelectableText(
+                            rawText,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                      ],
                     ),
-                    ButtonSegment(
-                      value: TransactionType.credit,
-                      label: Text('Income'),
+                  ),
+                ),
+              ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  ActionChip(
+                    avatar: const Icon(Icons.calendar_today_outlined, size: 18),
+                    label: Text(
+                      _date.year == DateTime.now().year
+                          ? date
+                          : '$date ${_date.year}',
                     ),
-                  ],
-                  selected: {_type},
-                  onSelectionChanged: (types) =>
-                      setState(() => _type = types.single),
-                ),
-                DropdownButtonFormField<int>(
-                  initialValue: _categoryId,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  items: [
-                    for (final category in categories)
-                      DropdownMenuItem(
-                        value: category.id,
-                        child: Text(category.name),
-                      ),
-                  ],
-                  onChanged: (id) => setState(() => _categoryId = id),
-                  validator: (id) =>
-                      id == null && _categoryRequired ? 'Required' : null,
-                ),
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.calendar_today_outlined),
-                  title: Text(
-                    MaterialLocalizations.of(context).formatMediumDate(_date),
+                    onPressed: _pickDate,
                   ),
-                  onTap: _pickDate,
-                ),
-                TextFormField(
-                  controller: _title,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Counterparty or title (optional)',
+                  ActionChip(
+                    avatar: const Icon(Icons.swap_vert, size: 18),
+                    label: Text(
+                      _type == TransactionType.debit ? 'Expense' : 'Income',
+                    ),
+                    onPressed: () => setState(
+                      () => _type = _type == TransactionType.debit
+                          ? TransactionType.credit
+                          : TransactionType.debit,
+                    ),
                   ),
-                ),
-                TextFormField(
-                  controller: _note,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Note (optional)',
+                  if (last4 != null)
+                    Chip(
+                      avatar: const Icon(Icons.account_balance, size: 18),
+                      label: Text('A/c $last4'),
+                    ),
+                  _TextChip(
+                    Icons.edit_note,
+                    'Name',
+                    _title,
+                    () => _editText('Name', _title, (t) => _title = t),
                   ),
-                ),
-                if (rawText != null)
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    title: const Text('from SMS'),
-                    children: [SelectableText(rawText)],
+                  _TextChip(
+                    Icons.notes,
+                    'Note',
+                    _note,
+                    () => _editText('Note', _note, (t) => _note = t),
                   ),
-                FilledButton(onPressed: _save, child: const Text('Save')),
-              ],
-            ),
+                  if (rawText != null)
+                    ActionChip(
+                      avatar: const Icon(Icons.sms_outlined, size: 18),
+                      label: const Text('from SMS'),
+                      onPressed: () =>
+                          setState(() => _showRawText = !_showRawText),
+                    ),
+                ],
+              ),
+              _categoryStrip(),
+              _keypad(),
+            ],
           ),
         ),
       ),
     );
   }
+
+  Widget _categoryStrip() {
+    final categories =
+        ref.watch(categoriesProvider).value ?? const <Category>[];
+    return Row(
+      spacing: 8,
+      children: [
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.surfaceRaised),
+              borderRadius: BorderRadius.circular(AppRadii.round),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadii.round),
+              child: SingleChildScrollView(
+                controller: _strip,
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (final c in [
+                      ...categories.where((c) => c.id == _stripFirst),
+                      ...categories.where((c) => c.id != _stripFirst),
+                    ])
+                      _StripItem(
+                        category: c,
+                        selected: c.id == _categoryId,
+                        onTap: () => _setCategory(c.id),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        _RoundIcon(Icons.grid_view, 'All categories', _pickFromGrid),
+      ],
+    );
+  }
+
+  Widget _keypad() {
+    Widget digit(String key) => _Key(
+      key: Key('key-$key'),
+      onTap: () => _setAmount(Money.keypadPress(_amount, key)),
+      child: Text(
+        key,
+        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
+      ),
+    );
+    return Column(
+      spacing: 8,
+      children: [
+        for (final row in const ['123', '456', '789'])
+          Row(
+            spacing: 8,
+            children: [
+              for (final key in row.split('')) Expanded(child: digit(key)),
+            ],
+          ),
+        Row(
+          spacing: 8,
+          children: [
+            Expanded(child: digit('.')),
+            Expanded(child: digit('0')),
+            Expanded(
+              child: _Key(
+                key: const Key('key-save'),
+                color: AppColors.accent,
+                onTap: _save,
+                child: const Icon(
+                  Icons.arrow_forward,
+                  color: AppColors.bg,
+                  semanticLabel: 'Save',
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _Key extends StatelessWidget {
+  const _Key({
+    super.key,
+    required this.onTap,
+    required this.child,
+    this.color = AppColors.surface,
+  });
+
+  final VoidCallback onTap;
+  final Widget child;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: color,
+    borderRadius: BorderRadius.circular(AppRadii.chip),
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: SizedBox(height: 60, child: Center(child: child)),
+    ),
+  );
+}
+
+class _RoundIcon extends StatelessWidget {
+  const _RoundIcon(this.icon, this.tooltip, this.onPressed);
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: tooltip,
+    style: IconButton.styleFrom(backgroundColor: AppColors.surface),
+    icon: Icon(icon, color: AppColors.textSecondary),
+    onPressed: onPressed,
+  );
+}
+
+class _StripItem extends StatelessWidget {
+  const _StripItem({
+    required this.category,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Category category;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    selected: selected,
+    child: Material(
+      color: selected ? AppColors.surfaceRaised : Colors.transparent,
+      borderRadius: BorderRadius.circular(AppRadii.round),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Text(
+            '${categoryEmoji(category)}  ${category.name}',
+            style: TextStyle(
+              color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Shows [value], or [label] when empty; long values are cut to keep it a chip.
+class _TextChip extends StatelessWidget {
+  const _TextChip(this.icon, this.label, this.value, this.onPressed);
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => ActionChip(
+    avatar: Icon(icon, size: 18),
+    tooltip: label,
+    label: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 140),
+      child: Text(
+        value.isEmpty ? label : value,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: value.isEmpty
+            ? const TextStyle(color: AppColors.textSecondary)
+            : null,
+      ),
+    ),
+    onPressed: onPressed,
+  );
+}
+
+class _TextDialog extends StatefulWidget {
+  const _TextDialog(this.label, this.initial);
+
+  final String label;
+  final String initial;
+
+  @override
+  State<_TextDialog> createState() => _TextDialogState();
+}
+
+class _TextDialogState extends State<_TextDialog> {
+  late final _text = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _text.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.label),
+    content: TextField(
+      controller: _text,
+      autofocus: true,
+      textCapitalization: TextCapitalization.sentences,
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(context).pop(),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.of(context).pop(_text.text.trim()),
+        child: const Text('Done'),
+      ),
+    ],
+  );
 }

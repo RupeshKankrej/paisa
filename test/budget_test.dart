@@ -31,4 +31,19 @@ void main() {
     expect(spentFraction(0, 0), 0);
     expect(spentFraction(1, 0), 1);
   });
+
+  test('totals count entries per category, including uncategorised', () {
+    expect(totalsByCategory(const [(1, 100), (null, 50), (1, 25)]), {
+      1: (count: 2, paise: 125),
+      null: (count: 1, paise: 50),
+    });
+  });
+
+  test('percent labels round to two decimals in integers', () {
+    expect(percentLabel(5272200, 13512200), '39.02%');
+    expect(percentLabel(1, 3), '33.33%');
+    expect(percentLabel(2, 3), '66.67%');
+    expect(percentLabel(5, 5), '100.00%');
+    expect(percentLabel(0, 0), '0.00%');
+  });
 }

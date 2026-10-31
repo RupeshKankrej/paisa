@@ -6,10 +6,37 @@ abstract final class Money {
   /// 15545300 -> ₹1,55,453.00 (Indian grouping).
   static String format(int paise) {
     final abs = paise.abs();
-    final rupees = (abs ~/ 100).toString();
-    final grouped = rupees.replaceAllMapped(_lakhGroups, (m) => '${m[1]},');
+    final grouped = _group((abs ~/ 100).toString());
     final fraction = (abs % 100).toString().padLeft(2, '0');
     return '${paise < 0 ? '-' : ''}₹$grouped.$fraction';
+  }
+
+  static String _group(String rupees) =>
+      rupees.replaceAllMapped(_lakhGroups, (m) => '${m[1]},');
+
+  /// Keypad input for an amount: 12050 -> '120.50', 12000 -> '120'.
+  static String keypadText(int paise) =>
+      format(paise)
+          .replaceAll(RegExp(r'[₹,]'), '')
+          .replaceFirst(RegExp(r'\.00$'), '');
+
+  /// Keypad input after pressing a digit or '.'; a press that would make it
+  /// invalid (third decimal, second point, too long) leaves it unchanged.
+  static String keypadPress(String text, String key) {
+    final next = key == '.' && text.isEmpty
+        ? '0.'
+        : text == '0' && key != '.'
+        ? key
+        : text + key;
+    return tryParse(next) == null ? text : next;
+  }
+
+  /// Keypad input for display, as typed: '1250.5' -> ₹1,250.5.
+  static String keypadDisplay(String text) {
+    final point = text.indexOf('.');
+    final rupees = point < 0 ? text : text.substring(0, point);
+    final rest = point < 0 ? '' : text.substring(point);
+    return '₹${_group(rupees.isEmpty ? '0' : rupees)}$rest';
   }
 
   /// A short form for chart axes: ₹500, ₹1.5k, ₹1.5L, ₹1.5Cr.
