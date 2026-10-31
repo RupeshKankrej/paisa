@@ -25,6 +25,15 @@ final failedMessagesProvider = StreamProvider<List<IngestLogRow>>(
   (ref) => ref.watch(databaseProvider).watchFailedMessages(),
 );
 
+final transactionsProvider = StreamProvider.autoDispose
+    .family<List<TransactionRow>, String>(
+      (ref, month) => ref.watch(databaseProvider).watchTransactions(month),
+    );
+
+final transactionBoundsProvider = StreamProvider<(DateTime?, DateTime?)>(
+  (ref) => ref.watch(databaseProvider).watchTransactionBounds(),
+);
+
 /// Launch and resume can overlap, and two drains must not share one claimed file.
 final inboxDrainProvider = Provider<Future<void> Function()>((ref) {
   Future<void>? running;

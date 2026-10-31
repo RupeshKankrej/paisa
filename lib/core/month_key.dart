@@ -31,6 +31,17 @@ abstract final class MonthKey {
     return '${_names[month - 1]} $year';
   }
 
+  /// First instant of the calendar month, local time.
+  static DateTime start(String key) {
+    final (year, month) = _parse(key);
+    return DateTime(year, month);
+  }
+
+  /// Every key from [from] to [to], inclusive and oldest first.
+  static List<String> range(String from, String to) => [
+    for (var key = from; key.compareTo(to) <= 0; key = shift(key, 1)) key,
+  ];
+
   static (int, int) _parse(String key) {
     final match = _key.firstMatch(key);
     if (match == null) throw FormatException('Bad month key', key);

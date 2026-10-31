@@ -25,4 +25,17 @@ void main() {
       expect(() => MonthKey.label(key), throwsFormatException, reason: key);
     }
   });
+
+  test('start is the first local instant of the month', () {
+    expect(MonthKey.start('2026-02'), DateTime(2026, 2));
+  });
+
+  test('range is inclusive and crosses years', () {
+    expect(MonthKey.range('2026-11', '2027-01'), [
+      '2026-11',
+      '2026-12',
+      '2027-01',
+    ]);
+    expect(MonthKey.range('2026-10', '2026-10'), ['2026-10']);
+  });
 }

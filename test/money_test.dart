@@ -39,5 +39,10 @@ void main() {
     ]) {
       test('"$text"', () => expect(Money.tryParse(text), expected));
     }
+
+    test('an amount too large for int paise is rejected, not thrown', () {
+      expect(Money.tryParse('9' * 30), isNull);
+      expect(Money.tryParse('9' * 15), 99999999999999900);
+    });
   });
 }
