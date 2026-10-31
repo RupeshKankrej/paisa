@@ -151,6 +151,11 @@ class AppDatabase extends _$AppDatabase {
             ]))
           .watch();
 
+  // shortcut: charts total every row in Dart, fine for one person's messages;
+  // move to SQL aggregates if the Dashboards tab ever feels slow.
+  Stream<List<TransactionRow>> watchAllTransactions() =>
+      select(transactions).watch();
+
   /// Oldest and newest transaction dates; both null when there are none.
   Stream<(DateTime?, DateTime?)> watchTransactionBounds() {
     final first = transactions.occurredAt.min();
