@@ -36,6 +36,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   // show the snackbar over this Scaffold's FAB instead of lifting it.
   final _messenger = GlobalKey<ScaffoldMessengerState>();
 
+  bool _sheetOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -52,7 +54,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   void _openSheetAfterFrame() =>
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _openSheet();
+        // A second widget tap must not stack a sheet on one left open.
+        if (mounted && !_sheetOpen) _openSheet();
       });
 
   Future<void> _delete(TransactionRow row) async {
@@ -80,7 +83,11 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   // Shows the saved row, which may be in another month or filtered out.
   Future<void> _openSheet([TransactionRow? row]) async {
-    final saved = await showTransactionSheet(context, existing: row);
+    _sheetOpen = true;
+    final saved = await showTransactionSheet(
+      context,
+      existing: row,
+    ).whenComplete(() => _sheetOpen = false);
     if (saved == null || !mounted) return;
     ref.read(pickedMonthProvider.notifier).state = Period.containing(
       saved.occurredAt,

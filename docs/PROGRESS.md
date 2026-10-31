@@ -2,7 +2,7 @@
 
 ## Phase 6: Widget (2026-10-31)
 
-Status: built on branch `phase-6-widget`, not merged. Tests pass. The widget has not yet been seen on a home screen; the device checks below are waiting on Rupesh.
+Status: built on branch `phase-6-widget`, not merged. Tests pass. Rupesh reported checks 1, 2, 3, 5 and 6 below passed on the iPhone 15 (2026-10-31). On check 4, "Add expense" opens the add sheet; the rest of the medium widget with no sheet open was not reported separately. The fix for stacked sheets is not yet confirmed on the device.
 
 ### What was built
 - `lib/domain/widget_summary.dart`: builds the SPEC 3.3 JSON, in pure Dart.
@@ -17,10 +17,11 @@ Status: built on branch `phase-6-widget`, not merged. Tests pass. The widget has
 - Swift cannot call the Dart Money helper, so the widget has its own `money()`. `₹1,55,453.00`, `-₹2,000.00` and `₹0.05` were checked by running it.
 - Medium shows the top 3 categories by spend and an add link. Small shows spent, remaining and the bar only.
 - With no salary set, the widget shows a dash for remaining and no bar, as on Home.
+- A widget link leaves an open add or edit sheet in place. Rupesh saw this when tapping the widget with the add sheet left open: Expenses is behind the sheet. Closing it would lose typed input. A second add link no longer stacks another sheet; a test reproduced that bug before the fix.
 - Budget limits are not in the summary, so a limit change does not rewrite the file. SPEC 6 lists budget changes, but nothing in the JSON depends on them.
 
 ### Checks
-- `flutter analyze`: no issues. `flutter test`: 129 passed, including the summary following the database and both links through the platform navigation message.
+- `flutter analyze`: no issues. `flutter test`: 129 passed (the shell test gained the open-sheet cases), including the summary following the database and both links through the platform navigation message.
 - Simulator (iPhone 18 Pro, iOS 27.2): the app wrote `widget_summary.json` with spent 4,800.50 and salary 1,00,000, matching the seeded data. `simctl openurl` stops at an "Open in Paisa?" prompt that cannot be tapped, so real URL delivery from iOS is untested. The widget UI has not been rendered anywhere yet.
 - Release build signed with the free team, including the extension and its App Group.
 
@@ -28,7 +29,7 @@ Status: built on branch `phase-6-widget`, not merged. Tests pass. The widget has
 1. Long-press the home screen, add the Paisa widget, small and medium. Spent and remaining match Home.
 2. Open the app, add an expense, go home: the widget figures change.
 3. Tap the small widget, from both a force-quit and a running app: Expenses opens.
-4. Tap "Add expense" on the medium widget, from both states: the add sheet opens. Tap the rest of the medium widget: Expenses opens.
+4. Tap "Add expense" on the medium widget, from both states: the add sheet opens. Tap the rest of the medium widget: Expenses opens. With the add sheet left open, tap "Add expense" again: closing the sheet once returns to Expenses.
 5. Set a salary override below spend: remaining turns red and the bar is full. Clear it.
 6. Turn on salary day: the widget month follows the period label. Turn it off.
 

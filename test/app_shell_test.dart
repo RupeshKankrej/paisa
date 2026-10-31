@@ -89,6 +89,14 @@ void main() {
     await openLink('paisa://add');
     expect(find.byType(BottomSheet), findsOneWidget);
 
+    // Left open and tapped again from the widget: no second sheet on top.
+    await openLink('paisa://add');
+    expect(find.byType(BottomSheet), findsOneWidget);
+
+    // The Expenses link leaves it open too, so typed input is not lost.
+    await openLink('paisa://expenses');
+    expect(find.byType(BottomSheet), findsOneWidget);
+
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
