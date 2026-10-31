@@ -26,6 +26,7 @@ class BudgetScreen extends ConsumerWidget {
     useRootNavigator: true,
     isScrollControlled: true,
     useSafeArea: true,
+    backgroundColor: context.palette.bg, // so the cards stand out on it
     builder: (_) => const _AllocateSheet(),
   );
 
@@ -403,7 +404,7 @@ class _AllocateSheetState extends ConsumerState<_AllocateSheet> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: palette.surfaceRaised,
+              color: palette.surface,
               borderRadius: BorderRadius.circular(AppRadii.card),
             ),
             child: Column(
@@ -433,7 +434,7 @@ class _AllocateSheetState extends ConsumerState<_AllocateSheet> {
                 LinearProgressIndicator(
                   value: spentFraction(allocated, total),
                   color: AppColors.income,
-                  backgroundColor: palette.surface,
+                  backgroundColor: palette.surfaceRaised,
                 ),
                 Text(
                   salary == null
