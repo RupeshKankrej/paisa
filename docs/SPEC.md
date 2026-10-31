@@ -161,8 +161,8 @@ Date formats to support: `DD/MM/YY`, `DD-MMM-YY`, `DD-MM-YY`. Two-digit years ma
 - Month selector in the app bar (dropdown; default current month; same component as Home).
 - List grouped by day, newest first. Each row: category icon/colour (or a grey placeholder), counterparty, amount (debits red-ish, credits green-ish), time.
 - **Uncategorised rows are rendered at 50% opacity** with a "Tap to categorise" hint. They still count in all totals.
-- Tap a row → category picker bottom sheet (grid of categories, search, "New category" at the end). Choosing one saves immediately.
-- Long-press or an edit icon → edit sheet (5.4).
+- Tap an uncategorised row → category grid sheet (5.14). Choosing one saves immediately.
+- Tap a categorised row, or long-press any row → edit sheet (5.4).
 - **Swipe left** → red delete background → on release, delete with a 5-second undo snackbar. Deleting an SMS-sourced expense keeps its `ingest_log` fingerprint so it is not re-imported.
 - FAB at bottom-right with a plus icon → manual add sheet (5.3).
 - Credits (income) appear in the same list with a filter chip to show All / Expenses / Income.
@@ -293,7 +293,7 @@ References `11-category-grid.png` to `16-categories-income.png`. Categories are 
 
 **Category grid sheet (ref 11, 15).** Opened from the Add/Edit sheet's "more" grid button and from the uncategorised row's tap-to-categorise. Expense/Income segmented control at the top; 4-column grid of tiles (emoji + name, truncated with an ellipsis); dashed "Add new" tile at the end; pencil button top-right opens the Categories screen.
 
-**New category sheet (ref 12, 13).** Title "New expense category" / "New income category". Name field (auto-focused); emoji button opening the system emoji keyboard (default emoji 🎯); colour button that expands a 42-swatch palette below the Add button, selected swatch ringed. Add is disabled until a name is entered. Names are unique per type, case-insensitive.
+**New category sheet (ref 12, 13).** Title "New expense category" / "New income category". Name field (auto-focused); emoji button opening the system emoji keyboard through a hidden native field (default emoji 🎯); colour button that expands a 42-swatch palette below the Add button, selected swatch ringed. Add is disabled until a name is entered. Names are unique per type, case-insensitive.
 
 **Categories screen (ref 14, 16).** Back button, title "Categories", Expense/Income segment, then the user's categories as a reorderable card list (drag handle on the right, long-press to reorder; order drives every grid and list). Tap a row to edit (same sheet, with Archive and Delete; deleting moves its transactions to uncategorised after confirmation). Below: **Quick adds**, a fixed suggestion list per type with a "+" that adds it in one tap and removes it from the suggestions. Expense suggestions: Miscellaneous, Loan, Bills, Healthcare, Taxi, Public transport, Pets, Gifts, Travel, Education, Kids, Donations. Income suggestions: Part-time, Savings, Emergency fund, Tips, Retirement fund, Refunds, Interest. Sticky "New category" button at the bottom. Reachable from the pencil buttons and from Settings → Categories.
 

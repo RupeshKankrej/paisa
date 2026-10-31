@@ -67,7 +67,9 @@ class HomeScreen extends ConsumerWidget {
                 TransactionTile(
                   row: row,
                   category: categories[row.categoryId],
-                  onTap: () => categoriseTransaction(context, ref, row),
+                  onTap: () => row.categoryId == null
+                      ? categoriseTransaction(context, ref, row)
+                      : showTransactionSheet(context, existing: row),
                   onLongPress: () =>
                       showTransactionSheet(context, existing: row),
                 ),

@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show DatabaseConnection, Value;
 import 'package:drift/native.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paisa/app/month_picker.dart';
@@ -257,6 +258,20 @@ void main() {
     await add('Shop');
     await pumpScreen(tester);
 
+    final emojiCalls = <String>[];
+    final messenger = tester.binding.defaultBinaryMessenger;
+    const channel = MethodChannel('paisa/emoji');
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      emojiCalls.add(call.method);
+      return null;
+    });
+    addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+    Future<void> emojiFromIos(String text) => messenger.handlePlatformMessage(
+      channel.name,
+      channel.codec.encodeMethodCall(MethodCall('typed', text)),
+      (_) {},
+    );
+
     await tester.tap(find.text('Shop'));
     await settle(tester);
     await tester.tap(find.text('Add new'));
@@ -270,7 +285,15 @@ void main() {
     expect(enabled(), isFalse);
 
     await tester.enterText(find.byKey(const Key('category-name')), 'Pets');
-    await tester.enterText(find.byKey(const Key('category-emoji')), '🎯🐶');
+    await tester.tap(find.byKey(const Key('category-emoji')));
+    await tester.pump();
+    expect(emojiCalls, ['open']);
+    // Letters are refused; an emoji replaces the default on the tile.
+    await emojiFromIos('a');
+    expect(find.text('🎯'), findsOneWidget);
+    await emojiFromIos('🐶');
+    await tester.pump();
+    expect(find.text('🐶'), findsOneWidget);
     await tester.tap(find.byKey(const Key('category-colour')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('swatch-41')));
@@ -284,6 +307,15 @@ void main() {
     expect(pets.emoji, '🐶');
     expect(pets.color, 0xFFFFFFFF);
     expect((await rows()).single.categoryId, pets.id);
+  });
+
+  testWidgets('tapping a categorised row opens the edit sheet', (tester) async {
+    await add('Lunch', categoryId: 1);
+    await pumpScreen(tester);
+    await tester.tap(find.text('Lunch'));
+    await settle(tester);
+    expect(find.byKey(const Key('sheet-amount')), findsOneWidget);
+    expect(find.text('Add new'), findsNothing);
   });
 
   testWidgets('swipe deletes, undo restores the same row', (tester) async {

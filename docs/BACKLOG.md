@@ -21,6 +21,6 @@
 - Reconcile SPEC 5.12 "the budget pie becomes the Summary donut" with reference 03: the donut shows spend share, so slices match the % pills, and the 5.8 budget pie stays on Analytics. Decide its home in Phase 10.
 - Account chip in the add sheet for manual rows, and the sheet's overflow menu from reference 02. Both need multiple accounts.
 - Whole-rupee amounts on Activity and Summary, as the references show. SPEC 4.1 keeps `₹1,55,453.00` for now.
-- Open the emoji keyboard directly from the new-category sheet (SPEC 5.14). Flutter's text input cannot request it, so today the normal keyboard opens and the user taps its emoji key. Needs a native text field.
 - Decide whether to replace the 8 older categories on an existing install with the new SPEC 5.14 expense seed. The migration only adds the 2 income seeds.
 - The SPEC 5.14 filter has no Uncategorised tile: any subset hides uncategorised rows. The Activity Uncategorised chip needs the filter on All.
+- Emoji input on Android: the `paisa/emoji` channel exists on iOS only.

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/tokens.dart';
@@ -6,6 +7,17 @@ import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/categories.dart';
 import '../../domain/models.dart';
+
+// shortcut: iOS only, until Android needs its own emoji input (SPEC section 7).
+const _emojiInput = MethodChannel('paisa/emoji');
+
+Future<void> _emojiCall(String method) async {
+  try {
+    await _emojiInput.invokeMethod<void>(method);
+  } on MissingPluginException {
+    // No native side on this platform: the default emoji stays.
+  }
+}
 
 /// New category, or edit when [existing] is set (SPEC 5.14). Returns the
 /// category when one was added.
@@ -32,25 +44,34 @@ class _CategoryEditSheet extends ConsumerStatefulWidget {
 
 class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
   late final _name = TextEditingController(text: widget.existing?.name);
-  late final _emojiField = TextEditingController(text: _emoji);
   late var _emoji = widget.existing?.emoji ?? defaultCategoryEmoji;
   late var _color = widget.existing?.color ?? defaultCategoryColor;
   var _showPalette = false;
   var _saving = false; // a second tap during the pop would close the page below
 
   @override
+  void initState() {
+    super.initState();
+    _emojiInput.setMethodCallHandler((call) async {
+      final emoji = lastEmoji(call.arguments as String);
+      if (call.method == 'typed' && emoji != null && mounted) {
+        setState(() => _emoji = emoji);
+      }
+    });
+  }
+
+  @override
   void dispose() {
+    _emojiInput.setMethodCallHandler(null);
+    _emojiCall('close');
     _name.dispose();
-    _emojiField.dispose();
     super.dispose();
   }
 
-  void _emojiChanged(String text) {
-    _emoji = lastEmoji(text) ?? _emoji;
-    _emojiField.value = TextEditingValue(
-      text: _emoji,
-      selection: TextSelection.collapsed(offset: _emoji.length),
-    );
+  void _openEmojiKeyboard() {
+    FocusScope.of(context).unfocus();
+    setState(() => _showPalette = false);
+    _emojiCall('open');
   }
 
   bool get _taken {
@@ -176,33 +197,31 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
                         ),
                         errorText: taken ? 'Already exists' : null,
                       ),
-                      onTap: () => setState(() => _showPalette = false),
+                      onTap: () {
+                        _emojiCall('close');
+                        setState(() => _showPalette = false);
+                      },
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
-                  // shortcut: Flutter cannot ask iOS for the emoji keyboard, so
-                  // this opens the normal one with its emoji key; a native
-                  // field would be needed to open emoji directly.
-                  Container(
-                    width: 56,
-                    height: 56,
-                    alignment: Alignment.center,
-                    decoration: fieldShape,
-                    child: TextField(
+                  Semantics(
+                    button: true,
+                    label: 'Emoji',
+                    child: InkWell(
                       key: const Key('category-emoji'),
-                      controller: _emojiField,
-                      textAlign: TextAlign.center,
-                      showCursor: false,
-                      enableInteractiveSelection: false,
-                      style: const TextStyle(fontSize: 24),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        isCollapsed: true,
+                      borderRadius: BorderRadius.circular(AppRadii.chip),
+                      onTap: _openEmojiKeyboard,
+                      child: Container(
+                        width: 56,
+                        height: 56,
+                        alignment: Alignment.center,
+                        decoration: fieldShape,
+                        child: Text(
+                          _emoji,
+                          semanticsLabel: '',
+                          style: const TextStyle(fontSize: 24),
+                        ),
                       ),
-                      onTap: () => setState(() => _showPalette = false),
-                      onChanged: _emojiChanged,
                     ),
                   ),
                   Semantics(
@@ -213,6 +232,7 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
                       borderRadius: BorderRadius.circular(AppRadii.chip),
                       onTap: () {
                         FocusScope.of(context).unfocus();
+                        _emojiCall('close');
                         setState(() => _showPalette = !_showPalette);
                       },
                       child: Container(
