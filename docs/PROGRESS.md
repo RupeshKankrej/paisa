@@ -1,5 +1,49 @@
 # Progress
 
+## Phase 4: Budgets + Home (2026-10-31)
+
+Status: built on branch `phase-4-budgets-home`, not merged. Tests pass and the release build is installed on the iPhone 15. Device checks below are not yet confirmed by Rupesh, so acceptance is still open.
+
+### What was built
+- `lib/core/period.dart`: `Period.forMonthKey` and `Period.containing` (SPEC 5.11). The transaction query, month picker and Expenses screen all use it. This removes the calendar-only shortcut noted in Phase 3.
+- `lib/domain/budget.dart`: override-or-default, spend per category, bar level and fill, in pure Dart.
+- `lib/features/home/home_screen.dart`: summary card, uncategorised count with shortcut, last 5 transactions.
+- `lib/features/budgets/month_summary_card.dart`: the card shared by Home and Categories. Tapping the salary sets that month's override.
+- `lib/features/budgets/categories_screen.dart`: progress bars, grey Uncategorised row, yellow note when limits exceed salary, tap to set limits.
+- `lib/app/amount_dialog.dart`: one dialog for salary and limits. Blank removes the amount.
+- Settings: default salary, month boundary switch, salary day. No schema change: the day is the `salary_day` row in `settings`.
+
+### Decisions
+- The selected month is now shared by Home, Expenses and Categories, in `selectedMonthProvider`. The Expenses filter is also a provider, so the Home shortcut can set it.
+- Expenses gained a fourth chip, Uncategorised, so the shortcut's filter is visible and can be cleared.
+- Salary day defaults to 28 when the switch is turned on (SPEC 8 open question). Turning it off forgets the day.
+- Salary day 1 behaves as calendar months. By the "labelled by the month it ends in" rule, 1 Oct to 31 Oct is October.
+- Changing the boundary returns the picker to the current period, because a picked month means different dates under the new rule.
+- With no salary set, the card shows "Set salary", a dash for remaining and no bar, not a false negative.
+- The uncategorised count includes credits, matching what the filter shows. A salary credit counts until it is categorised.
+- An override or limit of zero is allowed and is different from blank.
+- The card's salary tap also works on Categories, as it is the same card.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 97 passed.
+- `period_test` walks every day of 4 years for every salary day from 1 to 31: each date falls in its period, the label is the month the period ends in, and periods have no gaps or overlaps.
+- `budgets_home_test` checks Home against a month worked by hand.
+- Simulator: Home viewed with seeded messages and a salary of 1,00,000 set directly in the database. Spent 4,800.50 and remaining 95,199.50 match by hand. Only Home was viewed; `simctl` cannot tap, so Categories, dialogs and Settings are covered by widget tests only.
+
+### What to verify on the device
+1. Settings: set a salary. Home shows spent, salary and remaining, and the sums match your own for the month.
+2. Home: tap the salary and set an override. Only that month changes; blank restores the default.
+3. Home: the uncategorised row opens Expenses filtered to those rows. Last 5 are newest first.
+4. Set a low override so spent exceeds salary: remaining turns red, the bar is full, "Over salary by" shows.
+5. Categories: tap a category and set a limit. Check green below 70%, amber from 70% to 100%, red above. Without a limit, spend only and no bar.
+6. Limits adding up to more than the salary show the yellow note.
+7. Settings: turn on salary day. On every tab, October 31 now falls in "November 2026", with "28 Oct – 27 Nov" under it. Turn it off and the totals return.
+
+### Open issues and setup notes
+- Free-team install expires about 2026-11-06.
+- Spend in an archived category would not appear in a category row, though it still counts in the total. Archiving is not built yet (see BACKLOG).
+- The selected month still does not refresh if the app stays open across a month end (see BACKLOG).
+
 ## Phase 3: Expenses screen (2026-10-31)
 
 Status: built on branch `phase-3-expenses`, not merged. Tests pass and the list was checked on the simulator. On the iPhone, Rupesh reported that the app is working correctly and that the issues raised are resolved: the undo snackbar covering the add button, the month list, and an edited test message not importing. The cause of the missed import was not isolated. Credit messages were not tried.

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/budgets/categories_screen.dart';
 import '../features/expenses/expenses_screen.dart';
+import '../features/home/home_screen.dart';
 import '../features/settings/settings_screen.dart';
 
 final router = GoRouter(
@@ -11,7 +12,7 @@ final router = GoRouter(
     StatefulShellRoute.indexedStack(
       builder: (context, state, shell) => _TabShell(shell: shell),
       branches: [
-        _tab('/home', const _ComingSoon('Home')),
+        _tab('/home', const HomeScreen()),
         _tab('/expenses', const ExpensesScreen()),
         _tab('/categories', const CategoriesScreen()),
         _tab('/dashboards', const _ComingSoon('Dashboards')),

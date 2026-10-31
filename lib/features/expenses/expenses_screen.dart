@@ -1,10 +1,9 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/month_picker.dart';
 import '../../core/money.dart';
-import '../../core/month_key.dart';
+import '../../core/period.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/models.dart';
@@ -12,9 +11,10 @@ import '../budgets/category_picker.dart';
 import 'transaction_sheet.dart';
 
 const _filters = [
-  ('All', null),
-  ('Expenses', TransactionType.debit),
-  ('Income', TransactionType.credit),
+  ('All', ExpenseFilter.all),
+  ('Expenses', ExpenseFilter.expenses),
+  ('Income', ExpenseFilter.income),
+  ('Uncategorised', ExpenseFilter.uncategorised),
 ];
 
 class ExpensesScreen extends ConsumerStatefulWidget {
@@ -25,9 +25,6 @@ class ExpensesScreen extends ConsumerStatefulWidget {
 }
 
 class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
-  String _month = MonthKey.of(DateTime.now());
-  TransactionType? _filter;
-
   // A dismissed row must leave the tree at once, before the database stream
   // catches up, or Dismissible throws.
   final _dismissed = <int>{};
@@ -59,25 +56,19 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       );
   }
 
-  Future<void> _categorise(TransactionRow row) async {
-    final id = await showCategoryPicker(context);
-    if (id == null) return;
-    await ref
-        .read(databaseProvider)
-        .updateTransaction(
-          row.id,
-          TransactionsCompanion(categoryId: Value(id)),
-        );
-  }
-
   // Shows the saved row, which may be in another month or filtered out.
   Future<void> _openSheet([TransactionRow? row]) async {
     final saved = await showTransactionSheet(context, existing: row);
     if (saved == null || !mounted) return;
-    setState(() {
-      _month = MonthKey.of(saved.occurredAt);
-      if (_filter != saved.type) _filter = null;
-    });
+    ref.read(pickedMonthProvider.notifier).state = Period.containing(
+      saved.occurredAt,
+      ref.read(salaryDayProvider).value,
+    ).key;
+    if (!ref
+        .read(expenseFilterProvider)
+        .matches(saved.type, saved.categoryId)) {
+      ref.read(expenseFilterProvider.notifier).state = ExpenseFilter.all;
+    }
   }
 
   @override
@@ -86,18 +77,13 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       for (final c in ref.watch(categoriesProvider).value ?? const <Category>[])
         c.id: c,
     };
+    final selected = ref.watch(expenseFilterProvider);
     return ScaffoldMessenger(
       key: _messenger,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Expenses'),
-          actions: [
-            MonthPicker(
-              value: _month,
-              onChanged: (month) => setState(() => _month = month),
-            ),
-            const SizedBox(width: 8),
-          ],
+          actions: const [MonthPicker(), SizedBox(width: 8)],
         ),
         floatingActionButton: FloatingActionButton(
           tooltip: 'Add transaction',
@@ -112,25 +98,27 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               child: Wrap(
                 spacing: 8,
                 children: [
-                  for (final (label, type) in _filters)
+                  for (final (label, filter) in _filters)
                     ChoiceChip(
                       label: Text(label),
-                      selected: _filter == type,
-                      onSelected: (_) => setState(() => _filter = type),
+                      selected: selected == filter,
+                      onSelected: (_) =>
+                          ref.read(expenseFilterProvider.notifier).state =
+                              filter,
                     ),
                 ],
               ),
             ),
             Expanded(
               child: ref
-                  .watch(transactionsProvider(_month))
+                  .watch(transactionsProvider(ref.watch(selectedMonthProvider)))
                   .when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (error, _) => Center(
                       child: Text('Could not load transactions: $error'),
                     ),
-                    data: (rows) => _list(rows, categories),
+                    data: (rows) => _list(rows, categories, selected),
                   ),
             ),
           ],
@@ -139,10 +127,13 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     );
   }
 
-  Widget _list(List<TransactionRow> rows, Map<int, Category> categories) {
+  Widget _list(
+    List<TransactionRow> rows,
+    Map<int, Category> categories,
+    ExpenseFilter filter,
+  ) {
     final visible = rows.where(
-      (r) =>
-          !_dismissed.contains(r.id) && (_filter == null || r.type == _filter),
+      (r) => !_dismissed.contains(r.id) && filter.matches(r.type, r.categoryId),
     );
     if (visible.isEmpty) {
       return const Center(child: Text('Nothing here for this month'));
@@ -171,10 +162,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
               child: const Icon(Icons.delete, color: Colors.white),
             ),
             onDismissed: (_) => _delete(row),
-            child: _TransactionTile(
+            child: TransactionTile(
               row: row,
               category: categories[row.categoryId],
-              onTap: () => _categorise(row),
+              onTap: () => categoriseTransaction(context, ref, row),
               onLongPress: () => _openSheet(row),
             ),
           ),
@@ -184,8 +175,9 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   }
 }
 
-class _TransactionTile extends StatelessWidget {
-  const _TransactionTile({
+class TransactionTile extends StatelessWidget {
+  const TransactionTile({
+    super.key,
     required this.row,
     required this.category,
     required this.onTap,
