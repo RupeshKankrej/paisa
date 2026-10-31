@@ -116,6 +116,7 @@ class _GlassFilter extends SingleChildRenderObjectWidget {
     required this.radius,
     required this.pixelRatio,
     required this.moves,
+    this.clear = 0,
     required super.child,
   });
 
@@ -124,6 +125,7 @@ class _GlassFilter extends SingleChildRenderObjectWidget {
   final double radius;
   final double pixelRatio;
   final Listenable? moves;
+  final double clear;
 
   @override
   RenderObject createRenderObject(BuildContext context) => _RenderGlass()
@@ -131,7 +133,8 @@ class _GlassFilter extends SingleChildRenderObjectWidget {
     ..refract = refract
     ..radius = radius
     ..pixelRatio = pixelRatio
-    ..moves = moves;
+    ..moves = moves
+    ..clear = clear;
 
   @override
   void updateRenderObject(BuildContext context, _RenderGlass renderObject) =>
@@ -140,7 +143,8 @@ class _GlassFilter extends SingleChildRenderObjectWidget {
         ..refract = refract
         ..radius = radius
         ..pixelRatio = pixelRatio
-        ..moves = moves;
+        ..moves = moves
+        ..clear = clear;
 }
 
 class _RenderGlass extends RenderProxyBox {
@@ -165,6 +169,14 @@ class _RenderGlass extends RenderProxyBox {
   double radius = 0;
   double pixelRatio = 1;
   Listenable? _moves;
+  double _clear = 0;
+
+  /// Above 0 this is the nav's clear lens, at that strength.
+  set clear(double value) {
+    if (value == _clear) return;
+    _clear = value;
+    markNeedsPaint();
+  }
 
   set style(GlassStyle? value) {
     if (identical(value, _style)) return;
@@ -217,16 +229,22 @@ class _RenderGlass extends RenderProxyBox {
       ..setFloat(3, origin.dy)
       ..setFloat(4, size.width * pixelRatio)
       ..setFloat(5, size.height * pixelRatio)
-      ..setFloat(6, radius * pixelRatio);
-    return ImageFilter.compose(
-      outer: ImageFilter.shader(shader),
-      inner: _frost,
-    );
+      ..setFloat(6, radius * pixelRatio)
+      ..setFloat(7, 1 + 0.12 * _clear)
+      ..setFloat(8, _clear > 0 ? 0.3 : 0.06)
+      ..setFloat(9, _clear > 0 ? _clear : 1)
+      // A thin rim on the clear lens, so what it covers stays readable.
+      ..setFloat(10, _clear > 0 ? 16 * pixelRatio : 90);
+    // A clear lens shows the content sharp, so it has no frost.
+    return _clear > 0
+        ? ImageFilter.shader(shader)
+        : ImageFilter.compose(outer: ImageFilter.shader(shader), inner: _frost);
   }
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    if (_style == null) {
+    final noLens = _style?.lens == null || !ImageFilter.isShaderFilterSupported;
+    if (_style == null || (_clear > 0 && noLens)) {
       super.paint(context, offset);
       return;
     }
@@ -234,6 +252,40 @@ class _RenderGlass extends RenderProxyBox {
       BackdropFilterLayer(filter: _filter()),
       super.paint,
       offset,
+    );
+  }
+}
+
+/// The clear lens the nav selector lifts into: no frost, magnifies what is under
+/// it and bends it at the rim. [strength] runs from 0, no effect, to 1.
+class GlassLens extends ConsumerWidget {
+  const GlassLens({super.key, required this.strength});
+
+  final double strength;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final radius = BorderRadius.circular(AppRadii.round);
+    return ClipRRect(
+      borderRadius: radius,
+      child: _GlassFilter(
+        style: ref.watch(glassProvider).value,
+        refract: true,
+        radius: AppRadii.round,
+        pixelRatio: MediaQuery.devicePixelRatioOf(context),
+        moves: null,
+        clear: strength,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            color: Colors.white.withValues(alpha: 0.05 * strength),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.45 * strength),
+            ),
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
     );
   }
 }

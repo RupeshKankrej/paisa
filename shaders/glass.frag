@@ -5,6 +5,10 @@
 uniform vec2 uSize; // set by the engine
 uniform vec4 uRect; // x, y, width, height
 uniform float uRadius;
+uniform float uMagnify; // 1 leaves the middle as it is
+uniform float uFringe; // colour split at the bent edge
+uniform float uBend; // 0 no bending, 1 full
+uniform float uBand; // how far in from the edge the bending reaches
 uniform sampler2D uTexture;
 
 out vec4 fragColor;
@@ -21,7 +25,7 @@ void main() {
   float r = min(uRadius, min(half_.x, half_.y));
   float d = edgeDistance(p, half_, r);
 
-  float band = min(min(half_.x, half_.y) * 0.9, 90.0);
+  float band = min(min(half_.x, half_.y) * 0.9, uBand);
   float t = clamp(1.0 + d / band, 0.0, 1.0);
   vec2 slope = vec2(
     edgeDistance(p + vec2(1.0, 0.0), half_, r) -
@@ -29,14 +33,15 @@ void main() {
     edgeDistance(p + vec2(0.0, 1.0), half_, r) -
       edgeDistance(p - vec2(0.0, 1.0), half_, r)
   );
-  vec2 bend = normalize(slope + 0.0001) * t * t * t * band * 0.8;
+  vec2 bend = normalize(slope + 0.0001) * t * t * t * band * 0.8 * uBend;
 
   // Each channel bends a little differently, the fringe real glass shows.
-  vec4 g = texture(uTexture, (frag - bend) / uSize);
+  vec2 source = uRect.xy + half_ + p / uMagnify;
+  vec4 g = texture(uTexture, (source - bend) / uSize);
   fragColor = vec4(
-    texture(uTexture, (frag - bend * 1.06) / uSize).r,
+    texture(uTexture, (source - bend * (1.0 + uFringe)) / uSize).r,
     g.g,
-    texture(uTexture, (frag - bend * 0.94) / uSize).b,
+    texture(uTexture, (source - bend * (1.0 - uFringe)) / uSize).b,
     g.a
   );
 }

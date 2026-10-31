@@ -302,7 +302,7 @@ References `11-category-grid.png` to `16-categories-income.png`. Categories are 
 
 ### 5.15 Motion and Liquid Glass
 
-**Motion.** Sheets slide up with a drag handle and dim the page behind; bottom-nav selection animates the pill (200 ms, ease-out); hero numbers count up on period change (200 ms); category tiles and list rows fade-and-slide in on first appearance (staggered 20 ms, capped at 10 items); swipe-delete reveals a red background and the card springs back on cancel; haptics on FAB, Confirm, Add, swipe-delete and reorder. All motion checks `MediaQuery.disableAnimations` / iOS Reduce Motion and collapses to instant transitions when set.
+**Motion.** Sheets slide up with a drag handle and dim the page behind; the bottom-nav selector is a clear glass lens: it lifts out of the bar and overhangs it while travelling, magnifies what is under it and bends it at the rim with a colour fringe, follows a drag along the bar, springs to a tab on tap or release, and settles into the resting pill (Rupesh, Phase 11, from a reference screenshot); hero numbers count up on period change (200 ms); category tiles and list rows fade-and-slide in on first appearance (staggered 20 ms, capped at 10 items); swipe-delete reveals a red background and the card springs back on cancel; haptics on FAB, Confirm, Add, swipe-delete and reorder. All motion checks `MediaQuery.disableAnimations` / iOS Reduce Motion and collapses to instant transitions when set.
 
 **Liquid Glass.** iOS 26 introduces Liquid Glass; Flutter's own Cupertino widgets do not yet render it (tracking issue flutter/flutter#170310), so the app ships a hand-built glass surface and swaps to native where it pays off:
 

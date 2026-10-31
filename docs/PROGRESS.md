@@ -8,7 +8,8 @@ Status: built on branch `phase-11-motion-glass` (from `main`), not merged. Tests
 - `lib/core/theme/motion.dart`: the Reduce Motion check, `FadeSlideIn`, and iOS page transitions that collapse under it.
 - `lib/app/glass.dart` and `shaders/glass.frag`: `GlassSurface` (blur about 20 px, saturation 1.3, inner highlight, edge refraction), `GlassChip`, and `showAppSheet`, which all 10 bottom sheets now use.
 - Glass on the nav, FAB, settings button, Activity and Summary chips, and sheets. Flat below iOS 26, on Android and under Reduce Transparency.
-- Motion: nav pill slide (200 ms), tab fade, `CountUpMoney` on the Activity, Budget and Summary hero numbers, rows and tiles fading in, month swipe following the finger with the next month entering from the side.
+- Motion: tab fade, `CountUpMoney` on the Activity, Budget and Summary hero numbers, rows and tiles fading in, month swipe following the finger with the next month entering from the side.
+- Nav selector as a clear lens, as Rupesh asked with a reference screenshot (SPEC 5.15 updated): `GlassLens` over the bar, driven by a spring in `PillNavBar`. Dragging along the bar moves it, and the tab changes on release. A flick carries on to where it would land. It stretches with speed. At rest it is the plain pill, so there is no extra glass layer while scrolling.
 - Haptics: FAB, Allocate Confirm, keypad arrow and Done, category Save and Add, quick add, both swipe-deletes, reorder.
 - `paisa/accessibility` channel in `AppDelegate.swift`, for Reduce Transparency. It is read at launch and on resume.
 - Widget: `containerBackground(.fill.tertiary)` in place of the opaque background.
@@ -25,7 +26,8 @@ Status: built on branch `phase-11-motion-glass` (from `main`), not merged. Tests
 - Swipe spring-back stays Flutter's `Dismissible` motion, as it has no spring option.
 
 ### Checks
-- `flutter analyze`: no issues. `flutter test`: 208 passed.
+- `flutter analyze`: no issues. `flutter test`: 210 passed.
+- Lens viewed held mid-drag on the simulator in dark. Its frame time was not measured, nor its look in light. The 500-row numbers below predate the lens, which is absent while scrolling.
 - iPhone 15, iOS 27.2, release build, temporary entry point with 500 rows in memory, scrolled top to bottom and back 3 times over 48 s, with glass code in place. The numbers come from `addTimingsCallback`, not DevTools, as attaching to the phone failed (connection reset).
   - Before per-row items: 2,181 frames, 24 over 16 ms, build p99 17.2 ms.
   - After: 2,867 frames, 0 over 16 ms, 2 over 8 ms. Build p99 3.3 ms, max 10.3 ms. Raster p99 3.7 ms, max 8.0 ms.
@@ -37,7 +39,7 @@ Status: built on branch `phase-11-motion-glass` (from `main`), not merged. Tests
 1. Force-quit and open: your rows, categories and limits are all there. Send a test SMS: it still imports.
 2. Scroll Activity with rows passing under the nav and FAB: blur, colour through the glass, and bent content at their edges. Judge whether the refraction is strong enough.
 3. Open the add sheet, month picker, Allocate and a keypad over Allocate: glass, then flat for the one on top. All text readable, in light and dark.
-4. Change tabs: the pill slides and the tab fades. Check the FAB during the fade.
+4. Tap tabs, then drag along the nav and flick it: the lens lifts, bends icons and labels at its rim, follows your finger, springs to a tab and settles. Compare with Rupesh's reference. The tab fades in; check the FAB during the fade.
 5. Swipe the Activity header, Summary donut, Budget ring and Analytics cards: content follows the finger, the next month slides in, numbers count. Vertical scrolling still works from a chart.
 6. Change filter chip or month: rows fade in, staggered.
 7. Feel haptics: FAB, keypad arrow, Allocate Confirm, category Add and Save, quick add, swipe-delete, reorder.

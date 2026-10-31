@@ -1,6 +1,8 @@
 import 'dart:math';
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -191,8 +193,10 @@ class GroupedCard extends StatelessWidget {
 
 typedef PillNavItem = ({IconData icon, String label});
 
-/// The floating bottom nav (SPEC 5.12).
-class PillNavBar extends StatelessWidget {
+/// The floating bottom nav (SPEC 5.12). Its selector is a lens that lifts out of
+/// the bar while it travels, follows a drag along the bar and springs to a tab
+/// (SPEC 5.15).
+class PillNavBar extends StatefulWidget {
   const PillNavBar({
     super.key,
     required this.items,
@@ -205,79 +209,227 @@ class PillNavBar extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    minimum: const EdgeInsets.fromLTRB(16, 0, 16, _navGap),
-    child: GlassSurface(
-      borderRadius: BorderRadius.circular(AppRadii.round),
-      // Flat, plain surface would match the cards and the pill would vanish.
-      color: context.palette.surfaceRaised,
-      child: Container(
+  State<PillNavBar> createState() => _PillNavBarState();
+}
+
+class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
+  static const _padding = 4.0;
+  static const _spring = SpringDescription(
+    mass: 1,
+    stiffness: 320,
+    damping: 26,
+  );
+
+  /// The selector's position in tabs, so 1.5 is halfway from the second to the third.
+  late final _position = AnimationController.unbounded(
+    vsync: this,
+    value: widget.selectedIndex.toDouble(),
+  );
+  late final _lift = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 160),
+  );
+  late int _target;
+  var _dragging = false;
+  var _slot = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _target = widget.selectedIndex;
+  }
+
+  @override
+  void didUpdateWidget(PillNavBar old) {
+    super.didUpdateWidget(old);
+    if (widget.selectedIndex != _target && !_dragging) {
+      _glideTo(widget.selectedIndex);
+    }
+  }
+
+  @override
+  void dispose() {
+    _position.dispose();
+    _lift.dispose();
+    super.dispose();
+  }
+
+  void _glideTo(int index, {double velocity = 0}) {
+    _target = index;
+    if (context.reduceMotion) {
+      _position.value = index.toDouble();
+      _lift.value = 0;
+      return;
+    }
+    _lift.forward();
+    _position
+        .animateWith(
+          SpringSimulation(
+            _spring,
+            _position.value,
+            index.toDouble(),
+            velocity,
+          ),
+        )
+        .then((_) {
+          if (mounted && !_dragging) _lift.reverse();
+        });
+  }
+
+  void _dragStart(DragStartDetails _) {
+    _dragging = true;
+    _position.stop();
+    _lift.forward();
+  }
+
+  void _dragUpdate(DragUpdateDetails details) {
+    _position.value = (_position.value + details.delta.dx / _slot).clamp(
+      -0.25,
+      widget.items.length - 0.75,
+    );
+  }
+
+  void _dragEnd(DragEndDetails details) {
+    _dragging = false;
+    final velocity = details.velocity.pixelsPerSecond.dx / _slot;
+    // A flick carries on to where it would land, as a scroll does.
+    final index = (_position.value + velocity * 0.12).round().clamp(
+      0,
+      widget.items.length - 1,
+    );
+    _glideTo(index, velocity: velocity);
+    if (index != widget.selectedIndex) widget.onSelected(index);
+  }
+
+  void _dragCancel() {
+    _dragging = false;
+    _glideTo(widget.selectedIndex);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.items;
+    final reduced = context.reduceMotion;
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, _navGap),
+      child: SizedBox(
         height: _navHeight,
-        padding: const EdgeInsets.all(4),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: AnimatedAlign(
-                alignment: Alignment(
-                  items.length < 2
-                      ? 0
-                      : -1 + 2 * selectedIndex / (items.length - 1),
-                  0,
-                ),
-                duration: context.motion(),
-                curve: Curves.easeOut,
-                child: FractionallySizedBox(
-                  widthFactor: 1 / items.length,
-                  heightFactor: 1,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: context.palette.bg.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(AppRadii.round),
-                    ),
-                  ),
-                ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            _slot = (constraints.maxWidth - _padding * 2) / items.length;
+            return GestureDetector(
+              onHorizontalDragStart: reduced ? null : _dragStart,
+              onHorizontalDragUpdate: reduced ? null : _dragUpdate,
+              onHorizontalDragEnd: reduced ? null : _dragEnd,
+              onHorizontalDragCancel: reduced ? null : _dragCancel,
+              child: AnimatedBuilder(
+                animation: Listenable.merge([_position, _lift]),
+                builder: (context, _) {
+                  final lift = Curves.easeOut.transform(_lift.value);
+                  final center = _padding + _slot * (_position.value + 0.5);
+                  // It stretches along its travel and thins, like a drop.
+                  final stretch = (_position.velocity.abs() * 0.04).clamp(
+                    0.0,
+                    0.2,
+                  );
+                  final restHeight = _navHeight - _padding * 2;
+                  final width =
+                      lerpDouble(_slot, _slot * 1.3, lift)! * (1 + stretch);
+                  final height =
+                      lerpDouble(restHeight, _navHeight * 1.22, lift)! *
+                      (1 - stretch / 2);
+                  Positioned place(Widget child) => Positioned(
+                    left: center - width / 2,
+                    top: (_navHeight - height) / 2,
+                    width: width,
+                    height: height,
+                    child: IgnorePointer(child: child),
+                  );
+                  final lit = _position.value.round();
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        child: GlassSurface(
+                          borderRadius: BorderRadius.circular(AppRadii.round),
+                          // Flat, plain surface would match the cards and the
+                          // pill would vanish.
+                          color: context.palette.surfaceRaised,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              place(
+                                DecoratedBox(
+                                  key: const Key('nav-pill'),
+                                  decoration: BoxDecoration(
+                                    color: context.palette.bg.withValues(
+                                      alpha: 0.7 * (1 - lift),
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadii.round,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.all(_padding),
+                                child: Row(
+                                  children: [
+                                    for (final (i, item) in items.indexed)
+                                      Expanded(
+                                        child: _PillNavButton(
+                                          item: item,
+                                          selected: i == widget.selectedIndex,
+                                          lit: i == lit,
+                                          onTap: () => widget.onSelected(i),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Above the bar, so it bends the icons and overhangs.
+                      if (lift > 0) place(GlassLens(strength: lift)),
+                    ],
+                  );
+                },
               ),
-            ),
-            Row(
-              children: [
-                for (final (i, item) in items.indexed)
-                  Expanded(
-                    child: _PillNavButton(
-                      item: item,
-                      selected: i == selectedIndex,
-                      onTap: () => onSelected(i),
-                    ),
-                  ),
-              ],
-            ),
-          ],
+            );
+          },
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _PillNavButton extends StatelessWidget {
   const _PillNavButton({
     required this.item,
     required this.selected,
+    required this.lit,
     required this.onTap,
   });
 
   final PillNavItem item;
   final bool selected;
+
+  /// Under the selector now, which during a drag is not yet [selected].
+  final bool lit;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = selected
+    final color = lit
         ? context.palette.textPrimary
         : context.palette.textSecondary;
     return Semantics(
       button: true,
       selected: selected,
       child: Material(
-        color: Colors.transparent, // the sliding pill sits behind
+        color: Colors.transparent, // the selector sits behind
         borderRadius: BorderRadius.circular(AppRadii.round),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

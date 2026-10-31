@@ -101,46 +101,94 @@ void main() {
     expect(fade(0), findsNothing);
   });
 
-  testWidgets('the nav pill slides between tabs, and is instant when reduced', (
-    tester,
-  ) async {
-    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
-    Widget nav(int selected) => _app(
-      PillNavBar(
-        items: const [
-          (icon: Icons.home, label: 'A'),
-          (icon: Icons.star, label: 'B'),
-        ],
-        selectedIndex: selected,
-        onSelected: (_) {},
+  group('nav selector', () {
+    // A notifier, as a pumped-in new home does not reach a built route.
+    final tab = ValueNotifier(0);
+    setUp(() => tab.value = 0);
+    Widget nav([ValueChanged<int>? onSelected]) => _app(
+      Align(
+        alignment: Alignment.bottomCenter,
+        child: ValueListenableBuilder(
+          valueListenable: tab,
+          builder: (_, selected, _) => PillNavBar(
+            items: const [
+              (icon: Icons.home, label: 'A'),
+              (icon: Icons.star, label: 'B'),
+              (icon: Icons.add, label: 'C'),
+            ],
+            selectedIndex: selected,
+            onSelected: onSelected ?? (_) {},
+          ),
+        ),
       ),
     );
-    double pillLeft() => tester
-        .getTopLeft(
-          find.descendant(
-            of: find.byType(AnimatedAlign),
-            matching: find.byType(DecoratedBox),
-          ),
-        )
-        .dx;
+    double pillCenter(WidgetTester tester) =>
+        tester.getCenter(find.byKey(const Key('nav-pill'))).dx;
 
-    await tester.pumpWidget(nav(0));
-    await tester.pump();
-    final start = pillLeft();
-    await tester.pumpWidget(nav(1));
-    await tester.pump(const Duration(milliseconds: 100));
-    final middle = pillLeft();
-    await tester.pumpAndSettle();
-    final end = pillLeft();
-    expect(middle, greaterThan(start));
-    expect(end, greaterThan(middle));
+    testWidgets('lifts into a lens, glides to the tab and settles', (
+      tester,
+    ) async {
+      await tester.pumpWidget(nav());
+      await tester.pump();
+      final start = pillCenter(tester);
+      expect(find.byType(GlassLens), findsNothing);
 
-    tester.platformDispatcher.accessibilityFeaturesTestValue =
-        const FakeAccessibilityFeatures(reduceMotion: true);
-    await tester.pumpWidget(nav(0));
-    await tester.pump();
-    await tester.pump();
-    expect(pillLeft(), start);
+      tab.value = 1;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(find.byType(GlassLens), findsOneWidget);
+      expect(pillCenter(tester), greaterThan(start));
+
+      await tester.pumpAndSettle();
+      expect(find.byType(GlassLens), findsNothing);
+      expect(pillCenter(tester), greaterThan(start));
+    });
+
+    testWidgets('follows a drag and selects the nearest tab on release', (
+      tester,
+    ) async {
+      final selected = <int>[];
+      await tester.pumpWidget(nav(selected.add));
+      await tester.pump();
+      final start = pillCenter(tester);
+      final slot =
+          tester.getCenter(find.text('B')).dx -
+          tester.getCenter(find.text('A')).dx;
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('A')),
+      );
+      await gesture.moveBy(const Offset(30, 0));
+      await tester.pump(const Duration(milliseconds: 500));
+      await gesture.moveBy(Offset(slot * 1.8 - 30, 0));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(find.byType(GlassLens), findsOneWidget);
+      expect(selected, isEmpty); // nothing changes until release
+      expect(pillCenter(tester), greaterThan(start + slot));
+
+      await tester.pump(const Duration(milliseconds: 500));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(selected, [2]);
+      expect(find.byType(GlassLens), findsNothing);
+    });
+
+    testWidgets('is instant with no lens under Reduce Motion', (tester) async {
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(reduceMotion: true);
+      await tester.pumpWidget(nav());
+      await tester.pump();
+      final start = pillCenter(tester);
+      tab.value = 1;
+      await tester.pump();
+      await tester.pump();
+      expect(find.byType(GlassLens), findsNothing);
+      expect(pillCenter(tester), greaterThan(start));
+      expect(tester.hasRunningAnimations, isFalse);
+    });
   });
 
   testWidgets('glass paints a backdrop filter', (tester) async {
