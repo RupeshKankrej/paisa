@@ -4,3 +4,4 @@
 - Regex match rules for tracked senders, if "contains" proves too loose.
 - Show `ignored` stale lines somewhere, so a message skipped after a clock change can be recovered.
 - Update SPEC 3.3: `inbox.jsonl` is now claimed by rename and deleted, not truncated.
+- Show the ignored count in Settings. Ignored messages are invisible today, which hid a misconfigured Shortcut during Phase 2 testing.
