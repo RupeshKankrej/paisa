@@ -14,6 +14,10 @@ import '../../domain/budget.dart';
 import '../../domain/models.dart';
 import 'category_picker.dart';
 import 'limit_sheet.dart';
+import '../../app/glass.dart';
+import '../../core/theme/motion.dart';
+
+import 'package:flutter/services.dart';
 
 /// The Budget tab: what is left of the salary, and each category's limit
 /// (SPEC 5.16).
@@ -21,12 +25,10 @@ class BudgetScreen extends ConsumerWidget {
   const BudgetScreen({super.key});
 
   // The pencil and Add category both lead here (SPEC 5.16).
-  void _openAllocate(BuildContext context) => showModalBottomSheet<void>(
-    context: context,
-    useRootNavigator: true,
-    isScrollControlled: true,
+  void _openAllocate(BuildContext context) => showAppSheet<void>(
+    context,
     useSafeArea: true,
-    backgroundColor: context.palette.bg, // so the cards stand out on it
+    color: context.palette.bg, // so the cards stand out on it
     builder: (_) => const _AllocateSheet(),
   );
 
@@ -97,10 +99,14 @@ class BudgetScreen extends ConsumerWidget {
           GroupedCard(
             children: [
               for (final MapEntry(key: id, value: limit) in limits.entries)
-                _LimitTile(
-                  category: byId[id]!,
-                  limit: limit,
-                  spent: spend[id] ?? 0,
+                FadeSlideIn(
+                  key: ValueKey(id),
+                  index: limits.keys.toList().indexOf(id),
+                  child: _LimitTile(
+                    category: byId[id]!,
+                    limit: limit,
+                    spent: spend[id] ?? 0,
+                  ),
                 ),
               ListTile(
                 leading: Container(
@@ -217,11 +223,18 @@ class _SalaryRing extends ConsumerWidget {
                   ),
                   FittedBox(
                     fit: BoxFit.scaleDown,
-                    child: Text(
-                      remaining == null ? '—' : Money.format(remaining),
-                      style: Theme.of(context).textTheme.displaySmall
-                          ?.copyWith(color: over ? AppColors.debit : null),
-                    ),
+                    child: remaining == null
+                        ? Text(
+                            '—',
+                            style: Theme.of(context).textTheme.displaySmall,
+                          )
+                        : CountUpMoney(
+                            remaining,
+                            style: Theme.of(context).textTheme.displaySmall
+                                ?.copyWith(
+                                  color: over ? AppColors.debit : null,
+                                ),
+                          ),
                   ),
                   InkWell(
                     borderRadius: BorderRadius.circular(AppRadii.chip),
@@ -362,6 +375,7 @@ class _AllocateSheetState extends ConsumerState<_AllocateSheet> {
   }
 
   Future<void> _confirm(String month) async {
+    HapticFeedback.mediumImpact();
     final db = ref.read(databaseProvider);
     await db.transaction(() async {
       for (final MapEntry(key: id, value: edit) in _edits.entries) {

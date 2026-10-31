@@ -14,6 +14,10 @@ import '../../domain/models.dart';
 import '../budgets/category_picker.dart';
 import 'day_bar_chart.dart';
 import 'transaction_sheet.dart';
+import '../../app/glass.dart';
+import '../../core/theme/motion.dart';
+
+import 'package:flutter/services.dart';
 
 const _filters = [
   ('All', ExpenseFilter.all),
@@ -94,29 +98,30 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         body: ListView(
           padding: listClearance(context),
           children: [
-            MonthSwipe(
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Fills the gap above the header when iOS bounces the list.
-                  Positioned(
-                    key: Key('header-overscroll-fill'),
-                    left: 0,
-                    right: 0,
-                    top: -2000,
-                    height: 2000,
-                    child: ColoredBox(color: context.palette.heroTop),
-                  ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [context.palette.heroTop, context.palette.bg],
-                      ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Fills the gap above the header when iOS bounces the list.
+                Positioned(
+                  key: Key('header-overscroll-fill'),
+                  left: 0,
+                  right: 0,
+                  top: -2000,
+                  height: 2000,
+                  child: ColoredBox(color: context.palette.heroTop),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [context.palette.heroTop, context.palette.bg],
                     ),
-                    child: Padding(
-                      padding: EdgeInsets.only(top: belowFloatingBar(context)),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.only(top: belowFloatingBar(context)),
+                    // Inside the gradient, so only the figures follow a swipe.
+                    child: MonthSwipe(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -136,8 +141,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             SingleChildScrollView(
@@ -147,34 +152,43 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                 spacing: 8,
                 children: [
                   // First, so an active filter is never scrolled out of sight.
-                  ChoiceChip(
-                    label: Text(filterLabel(categoryFilter)),
-                    selected: categoryFilter != null,
-                    onSelected: (_) =>
-                        showCategoryFilter(context, CategoryType.expense),
+                  GlassChip(
+                    child: ChoiceChip(
+                      label: Text(filterLabel(categoryFilter)),
+                      selected: categoryFilter != null,
+                      onSelected: (_) =>
+                          showCategoryFilter(context, CategoryType.expense),
+                    ),
                   ),
                   for (final (label, filter) in _filters)
-                    ChoiceChip(
-                      label: Text(label),
-                      selected: selected == filter,
-                      onSelected: (_) =>
-                          ref.read(expenseFilterProvider.notifier).state =
-                              filter,
+                    GlassChip(
+                      child: ChoiceChip(
+                        label: Text(label),
+                        selected: selected == filter,
+                        onSelected: (_) =>
+                            ref.read(expenseFilterProvider.notifier).state =
+                                filter,
+                      ),
                     ),
                 ],
               ),
             ),
-            transactions.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(48),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (error, _) => Padding(
-                padding: const EdgeInsets.all(48),
-                child: Center(
-                  child: Text('Could not load transactions: $error'),
+            // Spread into the ListView, so only days near the screen are built.
+            ...transactions.when(
+              loading: () => const [
+                Padding(
+                  padding: EdgeInsets.all(48),
+                  child: Center(child: CircularProgressIndicator()),
                 ),
-              ),
+              ],
+              error: (error, _) => [
+                Padding(
+                  padding: const EdgeInsets.all(48),
+                  child: Center(
+                    child: Text('Could not load transactions: $error'),
+                  ),
+                ),
+              ],
               data: (rows) => _list(narrowed(rows), categories, selected),
             ),
           ],
@@ -183,7 +197,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     );
   }
 
-  Widget _list(
+  List<Widget> _list(
     List<TransactionRow> rows,
     Map<int, Category> categories,
     ExpenseFilter filter,
@@ -192,10 +206,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       (r) => !_dismissed.contains(r.id) && filter.matches(r.type, r.categoryId),
     );
     if (visible.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(48),
-        child: Center(child: Text('Nothing here for this month')),
-      );
+      return const [
+        Padding(
+          padding: EdgeInsets.all(48),
+          child: Center(child: Text('Nothing here for this month')),
+        ),
+      ];
     }
     final days = <List<TransactionRow>>[];
     for (final row in visible) {
@@ -206,26 +222,28 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       days.last.add(row);
     }
     final caption = Theme.of(context).textTheme.bodySmall;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final day in days) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              spacing: 8,
-              children: [
-                Expanded(
-                  child: Text(dayLabel(day.first.occurredAt), style: caption),
-                ),
-                Text(dayTotal(day), style: caption),
-              ],
-            ),
-          ),
-          GroupedCard(
+    var index = 0;
+    return [
+      for (final day in days) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            spacing: 8,
             children: [
-              for (final row in day)
-                SwipeToDelete(
+              Expanded(
+                child: Text(dayLabel(day.first.occurredAt), style: caption),
+              ),
+              Text(dayTotal(day), style: caption),
+            ],
+          ),
+        ),
+        GroupedCard(
+          children: [
+            for (final row in day)
+              FadeSlideIn(
+                key: ValueKey(row.id),
+                index: index++,
+                child: SwipeToDelete(
                   key: ValueKey(row.id),
                   onDismissed: () => _delete(row),
                   child: TransactionTile(
@@ -245,11 +263,11 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                     ),
                   ),
                 ),
-            ],
-          ),
-        ],
+              ),
+          ],
+        ),
       ],
-    );
+    ];
   }
 }
 
@@ -270,13 +288,21 @@ class SwipeToDelete extends StatelessWidget {
   Widget build(BuildContext context) => Dismissible(
     key: key!,
     direction: DismissDirection.endToStart,
+    movementDuration: context.motion(),
+    // Null removes the row without the collapse animation.
+    resizeDuration: context.reduceMotion
+        ? null
+        : const Duration(milliseconds: 300),
     background: Container(
       color: Colors.red,
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.only(right: 24),
       child: const Icon(Icons.delete, color: Colors.white),
     ),
-    onDismissed: (_) => onDismissed(),
+    onDismissed: (_) {
+      HapticFeedback.mediumImpact();
+      onDismissed();
+    },
     child: child,
   );
 }

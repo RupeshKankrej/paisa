@@ -20,6 +20,16 @@ import UIKit
         name: "paisa/emoji", binaryMessenger: engineBridge.applicationRegistrar.messenger()))
 
     FlutterMethodChannel(
+      name: "paisa/accessibility", binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    ).setMethodCallHandler { call, result in
+      guard call.method == "reduceTransparency" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      result(UIAccessibility.isReduceTransparencyEnabled)
+    }
+
+    FlutterMethodChannel(
       name: "paisa/inbox", binaryMessenger: engineBridge.applicationRegistrar.messenger()
     ).setMethodCallHandler { call, result in
       do {

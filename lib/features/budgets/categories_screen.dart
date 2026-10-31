@@ -13,6 +13,8 @@ import '../../domain/categories.dart';
 import '../../domain/models.dart';
 import 'category_picker.dart';
 import 'limit_sheet.dart';
+import '../../app/glass.dart';
+import '../../core/theme/motion.dart';
 
 const _levelColors = {
   BudgetLevel.under: Colors.green,
@@ -143,16 +145,20 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                         ('Expenses', TransactionType.debit),
                         ('Income', TransactionType.credit),
                       ])
-                        ChoiceChip(
-                          label: Text(label),
-                          selected: _type == type,
-                          onSelected: (_) => setState(() => _type = type),
+                        GlassChip(
+                          child: ChoiceChip(
+                            label: Text(label),
+                            selected: _type == type,
+                            onSelected: (_) => setState(() => _type = type),
+                          ),
                         ),
                       if (filter != null)
-                        ChoiceChip(
-                          label: Text(filterLabel(filter)),
-                          selected: true,
-                          onSelected: (_) => _openFilter(),
+                        GlassChip(
+                          child: ChoiceChip(
+                            label: Text(filterLabel(filter)),
+                            selected: true,
+                            onSelected: (_) => _openFilter(),
+                          ),
                         ),
                     ],
                   ),
@@ -255,6 +261,7 @@ class _Donut extends StatelessWidget {
           SizedBox.square(
             dimension: _size,
             child: PieChart(
+              duration: context.motion(const Duration(milliseconds: 150)),
               PieChartData(
                 centerSpaceRadius: _hole,
                 sectionsSpace: slices.length > 1 ? 6 : 0,
@@ -300,8 +307,8 @@ class _Donut extends StatelessWidget {
                 const FittedBox(fit: BoxFit.scaleDown, child: MonthPicker()),
                 FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: Text(
-                    Money.format(total),
+                  child: CountUpMoney(
+                    total,
                     style: Theme.of(context).textTheme.displaySmall,
                   ),
                 ),

@@ -8,6 +8,9 @@ import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/budget.dart';
+import '../../app/glass.dart';
+
+import 'package:flutter/services.dart';
 
 /// Opens the keypad for [category] in the selected period and saves the result.
 Future<void> editCategoryLimit(
@@ -63,12 +66,10 @@ Future<LimitEdit?> showLimitKeypad(
   required int otherLimits,
   required Map<String?, int> amounts,
   LimitEdit? initial,
-}) => showModalBottomSheet<LimitEdit>(
-  context: context,
-  useRootNavigator: true,
-  isScrollControlled: true,
+}) => showAppSheet<LimitEdit>(
+  context,
   useSafeArea: true,
-  backgroundColor: context.palette.bg,
+  color: context.palette.bg,
   builder: (_) => _LimitSheet(
     category: category,
     month: month,
@@ -172,7 +173,12 @@ class _LimitSheetState extends State<_LimitSheet> {
                     ),
                   ),
                   FilledButton(
-                    onPressed: canSave ? submit : null,
+                    onPressed: canSave
+                        ? () {
+                            HapticFeedback.mediumImpact();
+                            submit();
+                          }
+                        : null,
                     child: const Text('Done'),
                   ),
                 ],

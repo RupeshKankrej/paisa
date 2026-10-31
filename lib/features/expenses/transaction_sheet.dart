@@ -11,6 +11,7 @@ import '../../data/providers.dart';
 import '../../domain/categories.dart';
 import '../../domain/models.dart';
 import '../budgets/category_picker.dart';
+import '../../app/glass.dart';
 
 typedef SavedTransaction = ({
   DateTime occurredAt,
@@ -24,12 +25,10 @@ Future<SavedTransaction?> showTransactionSheet(
   BuildContext context, {
   TransactionRow? existing,
   VoidCallback? onDelete,
-}) => showModalBottomSheet<SavedTransaction>(
-  context: context,
-  useRootNavigator: true,
-  isScrollControlled: true,
+}) => showAppSheet<SavedTransaction>(
+  context,
   useSafeArea: true,
-  backgroundColor: context.palette.bg, // so the keys and chips stand out on it
+  color: context.palette.bg, // so the keys and chips stand out on it
   builder: (_) => _TransactionSheet(existing, onDelete),
 );
 

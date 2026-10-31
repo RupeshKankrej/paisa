@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../core/money.dart';
 import '../core/theme/tokens.dart';
 
+import 'package:flutter/services.dart';
+
 /// The hero amount as typed, with a backspace that clears all on a long press.
 class KeypadAmount extends StatelessWidget {
   const KeypadAmount(this.amount, {super.key, required this.onChanged});
@@ -83,7 +85,12 @@ class AmountKeypad extends StatelessWidget {
               child: _Key(
                 key: const Key('key-save'),
                 color: onSubmit == null ? palette.surface : palette.accent,
-                onTap: onSubmit,
+                onTap: onSubmit == null
+                    ? null
+                    : () {
+                        HapticFeedback.mediumImpact();
+                        onSubmit!();
+                      },
                 child: Icon(
                   Icons.arrow_forward,
                   color: onSubmit == null ? palette.textSecondary : palette.bg,

@@ -7,6 +7,7 @@ import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/categories.dart';
 import '../../domain/models.dart';
+import '../../app/glass.dart';
 
 // shortcut: iOS only, until Android needs its own emoji input (SPEC section 7).
 const _emojiInput = MethodChannel('paisa/emoji');
@@ -27,9 +28,9 @@ Future<bool> confirmDeleteCategory(
 ) async {
   final count = await db.countCategoryTransactions(category.id);
   if (!context.mounted) return false;
-  final confirmed = await showModalBottomSheet<bool>(
-    context: context,
-    useRootNavigator: true,
+  final confirmed = await showAppSheet<bool>(
+    context,
+    isScrollControlled: false,
     builder: (sheet) => SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -95,10 +96,8 @@ Future<Category?> showCategoryEditSheet(
   BuildContext context, {
   required CategoryType type,
   Category? existing,
-}) => showModalBottomSheet<Category>(
-  context: context,
-  useRootNavigator: true,
-  isScrollControlled: true,
+}) => showAppSheet<Category>(
+  context,
   builder: (_) => _CategoryEditSheet(type, existing),
 );
 
@@ -153,6 +152,7 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
   }
 
   Future<void> _save() async {
+    HapticFeedback.mediumImpact();
     setState(() => _saving = true);
     final db = ref.read(databaseProvider);
     final existing = widget.existing;

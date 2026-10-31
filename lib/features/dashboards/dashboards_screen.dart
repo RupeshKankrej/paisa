@@ -17,6 +17,7 @@ import '../../domain/categories.dart';
 import '../../domain/dashboards.dart';
 import '../../domain/models.dart';
 import 'day_sheet.dart';
+import '../../core/theme/motion.dart';
 
 const _spentColor = AppColors.expense;
 const _incomeColor = AppColors.income;
@@ -280,6 +281,7 @@ class _WindowBars extends ConsumerWidget {
     return SizedBox(
       height: _chartHeight,
       child: BarChart(
+        duration: context.motion(const Duration(milliseconds: 150)),
         BarChartData(
           minY: minY,
           maxY: maxY,
@@ -740,6 +742,7 @@ class _DayWiseCard extends ConsumerWidget {
               SizedBox(
                 height: _chartHeight,
                 child: BarChart(
+                  duration: context.motion(const Duration(milliseconds: 150)),
                   BarChartData(
                     minY: 0,
                     maxY: days.map((d) => d.paise).reduce(max) * 1.1,
@@ -864,6 +867,7 @@ class _DateRangeCardState extends ConsumerState<_DateRangeCard> {
               SizedBox(
                 height: _chartHeight,
                 child: LineChart(
+                  duration: context.motion(const Duration(milliseconds: 150)),
                   LineChartData(
                     minX: 0,
                     // A one-day range still needs a non-zero width.
@@ -954,6 +958,9 @@ class _BudgetPieCard extends ConsumerWidget {
                     alignment: Alignment.center,
                     children: [
                       PieChart(
+                        duration: context.motion(
+                          const Duration(milliseconds: 150),
+                        ),
                         PieChartData(
                           centerSpaceRadius: 0,
                           sectionsSpace: 0,

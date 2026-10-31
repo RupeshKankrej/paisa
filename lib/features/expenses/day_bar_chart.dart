@@ -7,6 +7,7 @@ import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../domain/dashboards.dart';
 import '../../domain/models.dart';
+import '../../core/theme/motion.dart';
 
 /// The Activity header's faint bars, one per day of the period (SPEC 5.12).
 class DayBarChart extends StatelessWidget {
@@ -32,6 +33,7 @@ class DayBarChart extends StatelessWidget {
       child: SizedBox(
         height: 180,
         child: BarChart(
+          duration: context.motion(const Duration(milliseconds: 150)),
           BarChartData(
             maxY: maxY,
             minY: 0,

@@ -6,6 +6,8 @@ import '../core/month_key.dart';
 import '../core/period.dart';
 import '../core/theme/tokens.dart';
 import '../data/providers.dart';
+import 'glass.dart';
+import '../core/theme/motion.dart';
 
 String _currentKey(WidgetRef ref) =>
     Period.containing(DateTime.now(), ref.read(salaryDayProvider).value).key;
@@ -30,12 +32,8 @@ class MonthPicker extends ConsumerWidget {
     final caption = Theme.of(context).textTheme.bodySmall;
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadii.chip),
-      onTap: () => showModalBottomSheet<void>(
-        context: context,
-        useRootNavigator: true,
-        isScrollControlled: true,
-        builder: (_) => const _MonthSheet(),
-      ),
+      onTap: () =>
+          showAppSheet<void>(context, builder: (_) => const _MonthSheet()),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Column(
@@ -251,27 +249,64 @@ class MonthSwipe extends ConsumerStatefulWidget {
   ConsumerState<MonthSwipe> createState() => _MonthSwipeState();
 }
 
-class _MonthSwipeState extends ConsumerState<MonthSwipe> {
+class _MonthSwipeState extends ConsumerState<MonthSwipe>
+    with SingleTickerProviderStateMixin {
   static const _minDistance = 32.0;
+
+  // How far the content follows the finger, and where the next month enters.
+  static const _maxShift = 48.0;
   var _distance = 0.0;
 
+  late final _shift = AnimationController.unbounded(vsync: this);
+
+  @override
+  void dispose() {
+    _shift.dispose();
+    super.dispose();
+  }
+
+  void _settle() => _shift.animateTo(
+    0,
+    duration: context.motion(),
+    curve: Curves.easeOutCubic,
+  );
+
+  void _update(DragUpdateDetails details) {
+    _distance += details.delta.dx;
+    if (context.reduceMotion) return;
+    _shift.value = (_distance * 0.4).clamp(-_maxShift, _maxShift);
+  }
+
   void _end() {
-    if (_distance.abs() < _minDistance) return;
-    final picked = widget.picked ?? pickedMonthProvider;
-    final next = MonthKey.shift(
-      ref.read(picked) ?? _currentKey(ref),
-      _distance > 0 ? -widget.months : widget.months,
-    );
-    if (_distance < 0 && next.compareTo(_currentKey(ref)) > 0) return;
-    ref.read(picked.notifier).state = next;
+    if (_distance.abs() >= _minDistance) {
+      final picked = widget.picked ?? pickedMonthProvider;
+      final next = MonthKey.shift(
+        ref.read(picked) ?? _currentKey(ref),
+        _distance > 0 ? -widget.months : widget.months,
+      );
+      if (_distance > 0 || next.compareTo(_currentKey(ref)) <= 0) {
+        ref.read(picked.notifier).state = next;
+        // The new month comes in from the side the finger left.
+        if (!context.reduceMotion) {
+          _shift.value = -_shift.value.sign * _maxShift;
+        }
+      }
+    }
+    _settle();
   }
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     behavior: HitTestBehavior.translucent,
     onHorizontalDragStart: (_) => _distance = 0,
-    onHorizontalDragUpdate: (details) => _distance += details.delta.dx,
+    onHorizontalDragUpdate: _update,
     onHorizontalDragEnd: (_) => _end(),
-    child: widget.child,
+    onHorizontalDragCancel: _settle,
+    child: AnimatedBuilder(
+      animation: _shift,
+      builder: (context, child) =>
+          Transform.translate(offset: Offset(_shift.value, 0), child: child),
+      child: widget.child,
+    ),
   );
 }

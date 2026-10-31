@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/theme/motion.dart';
 import '../features/budgets/budget_screen.dart';
 import '../features/budgets/categories_screen.dart';
 import '../features/dashboards/dashboards_screen.dart';
@@ -59,16 +60,44 @@ const _navItems = <PillNavItem>[
   (icon: Icons.account_balance_outlined, label: 'Accounts'),
 ];
 
-class _TabShell extends StatelessWidget {
+class _TabShell extends StatefulWidget {
   const _TabShell({required this.shell});
 
   final StatefulNavigationShell shell;
 
   @override
+  State<_TabShell> createState() => _TabShellState();
+}
+
+class _TabShellState extends State<_TabShell>
+    with SingleTickerProviderStateMixin {
+  late final _fade = AnimationController(
+    vsync: this,
+    duration: AppMotion.quick,
+    value: 1,
+  );
+
+  @override
+  void didUpdateWidget(_TabShell old) {
+    super.didUpdateWidget(old);
+    if (widget.shell.currentIndex != old.shell.currentIndex &&
+        !context.reduceMotion) {
+      _fade.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final shell = widget.shell;
     return Scaffold(
       extendBody: true, // lists scroll under the floating pill
-      body: shell,
+      body: FadeTransition(opacity: _fade, child: shell),
       bottomNavigationBar: PillNavBar(
         items: _navItems,
         selectedIndex: shell.currentIndex,

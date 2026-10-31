@@ -1,13 +1,15 @@
 import 'dart:math';
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/money.dart';
+import '../core/theme/motion.dart';
 import '../core/theme/tokens.dart';
 import '../features/expenses/transaction_sheet.dart';
+import 'glass.dart';
 import 'month_picker.dart';
 
 const _navHeight = 64.0;
@@ -39,13 +41,13 @@ class _SettingsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-    child: IconButton(
-      tooltip: 'Settings',
-      style: IconButton.styleFrom(
-        backgroundColor: context.palette.textPrimary.withValues(alpha: 0.12),
+    child: GlassSurface(
+      borderRadius: BorderRadius.circular(AppRadii.round),
+      child: IconButton(
+        tooltip: 'Settings',
+        icon: Icon(Icons.settings, color: context.palette.textPrimary),
+        onPressed: () => context.push('/settings'),
       ),
-      icon: Icon(Icons.settings, color: context.palette.textPrimary),
-      onPressed: () => context.push('/settings'),
     ),
   );
 }
@@ -90,11 +92,22 @@ class _AddFabState extends ConsumerState<AddFab> with WidgetsBindingObserver {
           12 -
           16,
     ),
-    child: FloatingActionButton(
-      heroTag: null, // one per tab, all alive in the shell's IndexedStack
-      tooltip: 'Add transaction',
-      onPressed: () => openTransactionSheet(context, ref),
-      child: const Icon(Icons.add),
+    child: GlassSurface(
+      borderRadius: BorderRadius.circular(AppRadii.round),
+      color: context.palette.accent,
+      opacity: 0.78,
+      child: FloatingActionButton(
+        heroTag: null, // one per tab, all alive in the shell's IndexedStack
+        tooltip: 'Add transaction',
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        highlightElevation: 0,
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          openTransactionSheet(context, ref);
+        },
+        child: const Icon(Icons.add),
+      ),
     ),
   );
 }
@@ -110,11 +123,27 @@ class HeroAmount extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 16),
     child: FittedBox(
       fit: BoxFit.scaleDown,
-      child: Text(
-        Money.format(paise),
+      child: CountUpMoney(
+        paise,
         style: Theme.of(context).textTheme.displayLarge,
       ),
     ),
+  );
+}
+
+/// An amount that counts to its new value when it changes (SPEC 5.15).
+class CountUpMoney extends StatelessWidget {
+  const CountUpMoney(this.paise, {super.key, this.style});
+
+  final int paise;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<int>(
+    tween: IntTween(end: paise),
+    duration: context.motion(),
+    curve: Curves.easeOut,
+    builder: (context, value, _) => Text(Money.format(value), style: style),
   );
 }
 
@@ -178,26 +207,50 @@ class PillNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SafeArea(
     minimum: const EdgeInsets.fromLTRB(16, 0, 16, _navGap),
-    child: ClipRRect(
+    child: GlassSurface(
       borderRadius: BorderRadius.circular(AppRadii.round),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          height: _navHeight,
-          padding: const EdgeInsets.all(4),
-          color: context.palette.surfaceRaised.withValues(alpha: 0.85),
-          child: Row(
-            children: [
-              for (final (i, item) in items.indexed)
-                Expanded(
-                  child: _PillNavButton(
-                    item: item,
-                    selected: i == selectedIndex,
-                    onTap: () => onSelected(i),
+      // Flat, plain surface would match the cards and the pill would vanish.
+      color: context.palette.surfaceRaised,
+      child: Container(
+        height: _navHeight,
+        padding: const EdgeInsets.all(4),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: AnimatedAlign(
+                alignment: Alignment(
+                  items.length < 2
+                      ? 0
+                      : -1 + 2 * selectedIndex / (items.length - 1),
+                  0,
+                ),
+                duration: context.motion(),
+                curve: Curves.easeOut,
+                child: FractionallySizedBox(
+                  widthFactor: 1 / items.length,
+                  heightFactor: 1,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: context.palette.bg.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(AppRadii.round),
+                    ),
                   ),
                 ),
-            ],
-          ),
+              ),
+            ),
+            Row(
+              children: [
+                for (final (i, item) in items.indexed)
+                  Expanded(
+                    child: _PillNavButton(
+                      item: item,
+                      selected: i == selectedIndex,
+                      onTap: () => onSelected(i),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     ),
@@ -224,7 +277,7 @@ class _PillNavButton extends StatelessWidget {
       button: true,
       selected: selected,
       child: Material(
-        color: selected ? context.palette.bg : Colors.transparent,
+        color: Colors.transparent, // the sliding pill sits behind
         borderRadius: BorderRadius.circular(AppRadii.round),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
