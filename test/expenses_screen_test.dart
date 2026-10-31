@@ -182,11 +182,11 @@ void main() {
     await pumpScreen(tester);
     final chart = find.byType(BarChart);
 
-    await tester.drag(chart, const Offset(100, 0));
+    await tester.drag(chart, const Offset(-100, 0));
     await settle(tester);
     expect(find.text('This one'), findsOneWidget, reason: 'no future months');
 
-    await tester.drag(chart, const Offset(-100, 0));
+    await tester.drag(chart, const Offset(100, 0));
     await settle(tester);
     expect(find.text('Last one'), findsOneWidget);
     expect(find.text('This one'), findsNothing);
@@ -198,7 +198,7 @@ void main() {
     await settle(tester);
     expect(find.text('Last one'), findsOneWidget, reason: 'too short to count');
 
-    await tester.drag(chart, const Offset(100, 0));
+    await tester.drag(chart, const Offset(-100, 0));
     await settle(tester);
     expect(find.text('This one'), findsOneWidget);
     expect(find.text('This month'), findsOneWidget);

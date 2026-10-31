@@ -24,3 +24,4 @@
 - Reconcile SPEC 5.12 "the budget pie becomes the Summary donut" with reference 03: the donut shows spend share, so slices match the % pills, and the 5.8 budget pie stays on Analytics. Decide its home in Phase 10.
 - Account chip in the add sheet for manual rows, and the sheet's overflow menu from reference 02. Both need multiple accounts.
 - Whole-rupee amounts on Activity and Summary, as the references show. SPEC 4.1 keeps `₹1,55,453.00` for now.
+- Update SPEC 5.17: it says swipe left = previous, swipe right = next. Rupesh chose the opposite on the iPhone (right = previous, left = next) for month swipes. Phase 10's Analytics window should follow the same direction unless Rupesh says otherwise.

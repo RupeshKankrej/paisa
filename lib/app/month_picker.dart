@@ -226,8 +226,8 @@ class _SheetChip extends StatelessWidget {
   }
 }
 
-/// A horizontal swipe on [child] changes the shared month: left goes back, right
-/// goes forward and stops at the current period (SPEC 5.13, 5.17).
+/// A horizontal swipe on [child] changes the shared month: right goes back, left
+/// goes forward and stops at the current period (SPEC 5.13).
 class MonthSwipe extends ConsumerStatefulWidget {
   const MonthSwipe({super.key, required this.child});
 
@@ -245,9 +245,9 @@ class _MonthSwipeState extends ConsumerState<MonthSwipe> {
     if (_distance.abs() < _minDistance) return;
     final next = MonthKey.shift(
       ref.read(selectedMonthProvider),
-      _distance < 0 ? -1 : 1,
+      _distance > 0 ? -1 : 1,
     );
-    if (_distance > 0 && next.compareTo(_currentKey(ref)) > 0) return;
+    if (_distance < 0 && next.compareTo(_currentKey(ref)) > 0) return;
     ref.read(pickedMonthProvider.notifier).state = next;
   }
 

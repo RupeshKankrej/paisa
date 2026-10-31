@@ -285,14 +285,14 @@ void main() {
   ) async {
     await add(5000, category: food);
     await pump(tester, const CategoriesScreen());
-    await tester.drag(find.byType(PieChart), const Offset(-100, 0));
+    await tester.drag(find.byType(PieChart), const Offset(100, 0));
     await settle(tester);
     expect(
       find.text('₹50.00'),
       findsNothing,
       reason: 'previous month is empty',
     );
-    await tester.drag(find.byType(PieChart), const Offset(100, 0));
+    await tester.drag(find.byType(PieChart), const Offset(-100, 0));
     await settle(tester);
     expect(find.text('₹50.00'), findsWidgets);
 

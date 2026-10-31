@@ -9,7 +9,7 @@ Status: built on branch `phase-8-ui-activity-summary` (from `phase-7-design-syst
 - Add/Edit (`transaction_sheet.dart`, rewritten): near-full-height sheet, hero amount, backspace, reset, delete, chips, category strip with grid button, 3x4 keypad with a light arrow key. This also fixes the drag handle sitting beside the clock.
 - Summary (`categories_screen.dart`, rewritten): donut with the month and total in the centre, Expenses/Income chips, rows with count, amount, % pill and budget bar.
 - Spec update (5.13, reference 10): `MonthPicker` is now a "This month ▾" caption opening the Select date sheet, with year chips, a 3x4 month grid with future months disabled, the date range in salary-day mode and the swipe tip. It replaces the dropdown on every screen.
-- `MonthSwipe`: a horizontal swipe changes the shared month. Left goes back, right goes forward and stops at the current period. It is on the Activity header, the Summary donut, and the Analytics day-wise and budget cards.
+- `MonthSwipe`: a horizontal swipe changes the shared month. Right goes back, left goes forward and stops at the current period, as Rupesh asked after trying it. This reverses the direction SPEC 5.17 gives for Analytics (see BACKLOG). It is on the Activity header, the Summary donut, and the Analytics day-wise and budget cards.
 - Activity day bars are drawn in a gradient, as Rupesh asked.
 - Fixed the add button sitting under the nav on the iPhone. It read the safe area once, without subscribing, so a first frame with no inset left it 14 points too low. A test reproduced this before the fix.
 - Pure helpers with tests: `MonthKey.pickerYears`, `Money.keypadPress`, `keypadText`, `keypadDisplay`; `totalsByCategory` and `percentLabel` in `lib/domain/budget.dart`. No schema change.
@@ -37,7 +37,7 @@ Status: built on branch `phase-8-ui-activity-summary` (from `phase-7-design-syst
 ### What to verify on the device
 1. Side by side with `docs/design/reference/01` to `04` and `10`: Activity, add sheet, Summary, month sheet.
 2. Force-quit and open: the + sits above the nav on every tab.
-3. Swipe left on the Activity header: previous month's rows and bars. Swipe right: forward, stopping at this month. Same on the Summary donut and the Analytics day-wise and budget cards. Vertical scrolling still works when starting on the chart.
+3. Swipe right on the Activity header: previous month's rows and bars. Swipe left: forward, stopping at this month. Same on the Summary donut and the Analytics day-wise and budget cards. Vertical scrolling still works when starting on the chart.
 4. Tap the caption: pick another year and month. Later months cannot be tapped. With salary day on, the range shows under the grid.
 5. Activity: tap to categorise, swipe to delete with Undo, chips filter, uncategorised rows dimmed.
 6. +: type an amount with paise on the keypad, backspace, long-press backspace to clear. Pick a date, toggle Income, add a name and note, pick from the strip and from the grid including New category. The arrow saves.
