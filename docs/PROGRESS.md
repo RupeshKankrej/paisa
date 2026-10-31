@@ -10,9 +10,10 @@ Status: built on branch `phase-3-expenses`, not merged. Tests pass and the list 
 - `lib/features/budgets/category_picker.dart`: grid, search and "New category". `CategoryAvatar` holds the icon-name mapping.
 - `lib/app/month_picker.dart`: the dropdown Home will reuse in Phase 4.
 - `MonthKey.start` and `MonthKey.range`. No schema change.
+- The Expenses screen has its own `ScaffoldMessenger`, so the undo snackbar lifts the FAB. Rupesh saw it covered on the iPhone with the shell's messenger.
 
 ### Decisions
-- The month picker lists the oldest transaction month through the newest, always including the current month.
+- The month picker lists at least the last 12 months, stretched to cover the oldest and newest transactions. Rupesh found that listing only months with data showed just October.
 - After a save, the screen moves to the saved row's month and clears a filter that would hide it, so a saved row never seems to vanish.
 - "New category" asks only for a name. The colour cycles through the seed palette and the icon is the generic one.
 - A new manual row uses the chosen date with the current time. An edit keeps the original time.
@@ -21,7 +22,7 @@ Status: built on branch `phase-3-expenses`, not merged. Tests pass and the list 
 - `Money.tryParse` now returns null above 15 rupee digits. It used to throw or overflow, and the amount field now takes typed input.
 
 ### Checks
-- `flutter analyze`: no issues. `flutter test`: 73 passed.
+- `flutter analyze`: no issues. `flutter test`: 74 passed.
 - Removing `persist: false` makes the snackbar test fail: Flutter otherwise keeps a snackbar with an action up indefinitely.
 - Simulator (iPhone 18 Pro, iOS 27.2): messages seeded through the inbox appear grouped by day, dimmed, with long titles cut and Indian grouping. Only the list was viewed; `simctl` cannot tap, so gestures and sheets are covered by widget tests only.
 
@@ -36,7 +37,6 @@ Status: built on branch `phase-3-expenses`, not merged. Tests pass and the list 
 
 ### Open issues and setup notes
 - Months are calendar months only, in `watchTransactions`. Phase 4 replaces this with `Period`.
-- The undo snackbar sits over the FAB for its 5 seconds, by reading of Flutter's nested-scaffold behaviour; not seen on a screen yet.
 - The selected month is set when the tab is first built, so leaving the app open across a month end keeps the old month until changed.
 - Free-team install expires about 2026-11-06.
 

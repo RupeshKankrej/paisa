@@ -32,12 +32,16 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   // catches up, or Dismissible throws.
   final _dismissed = <int>{};
 
+  // Its own messenger, because the tab shell's outer Scaffold would otherwise
+  // show the snackbar over this Scaffold's FAB instead of lifting it.
+  final _messenger = GlobalKey<ScaffoldMessengerState>();
+
   Future<void> _delete(TransactionRow row) async {
     setState(() => _dismissed.add(row.id));
     final db = ref.read(databaseProvider);
     await db.deleteTransaction(row.id);
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
+    _messenger.currentState!
       ..clearSnackBars()
       ..showSnackBar(
         SnackBar(
@@ -82,52 +86,55 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       for (final c in ref.watch(categoriesProvider).value ?? const <Category>[])
         c.id: c,
     };
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Expenses'),
-        actions: [
-          MonthPicker(
-            value: _month,
-            onChanged: (month) => setState(() => _month = month),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Add transaction',
-        onPressed: _openSheet,
-        child: const Icon(Icons.add),
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              spacing: 8,
-              children: [
-                for (final (label, type) in _filters)
-                  ChoiceChip(
-                    label: Text(label),
-                    selected: _filter == type,
-                    onSelected: (_) => setState(() => _filter = type),
-                  ),
-              ],
+    return ScaffoldMessenger(
+      key: _messenger,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Expenses'),
+          actions: [
+            MonthPicker(
+              value: _month,
+              onChanged: (month) => setState(() => _month = month),
             ),
-          ),
-          Expanded(
-            child: ref
-                .watch(transactionsProvider(_month))
-                .when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => Center(
-                    child: Text('Could not load transactions: $error'),
+            const SizedBox(width: 8),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          tooltip: 'Add transaction',
+          onPressed: _openSheet,
+          child: const Icon(Icons.add),
+        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Wrap(
+                spacing: 8,
+                children: [
+                  for (final (label, type) in _filters)
+                    ChoiceChip(
+                      label: Text(label),
+                      selected: _filter == type,
+                      onSelected: (_) => setState(() => _filter = type),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ref
+                  .watch(transactionsProvider(_month))
+                  .when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (error, _) => Center(
+                      child: Text('Could not load transactions: $error'),
+                    ),
+                    data: (rows) => _list(rows, categories),
                   ),
-                  data: (rows) => _list(rows, categories),
-                ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

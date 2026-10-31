@@ -64,7 +64,8 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [databaseProvider.overrideWithValue(db)],
-        child: const MaterialApp(home: ExpensesScreen()),
+        // The outer Scaffold stands in for the tab shell.
+        child: const MaterialApp(home: Scaffold(body: ExpensesScreen())),
       ),
     );
     await settle(tester);
@@ -112,6 +113,24 @@ void main() {
     await settle(tester);
     expect(find.text('Last month'), findsOneWidget);
     expect(find.text('Newer'), findsNothing);
+  });
+
+  testWidgets('the month picker offers the last 12 months with no data', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+    await tester.tap(find.byType(DropdownButton<String>));
+    await tester.pumpAndSettle();
+    final current = MonthKey.of(now);
+    expect(
+      find.text(MonthKey.label(MonthKey.shift(current, -11))),
+      findsWidgets,
+    );
+    expect(
+      find.text(MonthKey.label(MonthKey.shift(current, -12))),
+      findsNothing,
+    );
+    expect(find.text(MonthKey.label(MonthKey.shift(current, 1))), findsNothing);
   });
 
   testWidgets('filter chips separate expenses and income', (tester) async {
@@ -212,6 +231,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Undo'), findsOneWidget);
     await tester.pumpAndSettle(); // the timer starts once it has fully entered
+    expect(
+      tester.getBottomLeft(find.byType(FloatingActionButton)).dy,
+      lessThanOrEqualTo(tester.getTopLeft(find.byType(SnackBar)).dy),
+      reason: 'the snackbar must not cover the add button',
+    );
     await tester.pump(const Duration(seconds: 4));
     expect(find.text('Undo'), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
