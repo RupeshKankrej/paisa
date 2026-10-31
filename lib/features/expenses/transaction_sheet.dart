@@ -8,7 +8,11 @@ import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/models.dart';
 
-typedef SavedTransaction = ({DateTime occurredAt, TransactionType type});
+typedef SavedTransaction = ({
+  DateTime occurredAt,
+  TransactionType type,
+  int? categoryId,
+});
 
 /// Add when [existing] is null, otherwise edit (SPEC 5.3, 5.4). Returns what
 /// was saved, or null if dismissed.
@@ -105,7 +109,8 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
       await db.updateTransaction(existing.id, row);
     }
     if (mounted) {
-      Navigator.of(context).pop((occurredAt: _date, type: _type));
+      Navigator.of(context)
+          .pop((occurredAt: _date, type: _type, categoryId: _categoryId));
     }
   }
 

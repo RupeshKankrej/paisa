@@ -11,3 +11,5 @@
 - Refresh the selected month when the app resumes in a new month.
 - Parser: add a template for real HDFC UPI credits ("Credit Alert! Rs.1.00 credited to HDFC Bank A/c XX1541 on 31-10-26 from VPA ... (UPI ...)"). One landed in Unparsed on the iPhone on 2026-10-31; the current credit template covers only the "deposited" NEFT wording.
 - Show a trace when a message is skipped as an already-seen fingerprint. It leaves no new log row today, so a Shortcut resending the same wrong text looks exactly like the automation not firing.
+- Show archived categories' spend on the Categories screen when archiving is built (SPEC 5.9); today it would count in the total but have no row.
+- Remember the salary day when the month boundary switch is turned off.

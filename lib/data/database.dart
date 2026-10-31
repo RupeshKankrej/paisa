@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
-import '../core/month_key.dart';
+import '../core/period.dart';
 import '../domain/models.dart';
 
 part 'database.g.dart';
@@ -138,15 +138,12 @@ class AppDatabase extends _$AppDatabase {
           .watch();
 
   /// Newest first.
-  // shortcut: calendar months only, Phase 4 replaces the bounds with Period.
-  Stream<List<TransactionRow>> watchTransactions(String month) =>
+  Stream<List<TransactionRow>> watchTransactions(Period period) =>
       (select(transactions)
             ..where(
               (t) =>
-                  t.occurredAt.isBiggerOrEqualValue(MonthKey.start(month)) &
-                  t.occurredAt.isSmallerThanValue(
-                    MonthKey.start(MonthKey.shift(month, 1)),
-                  ),
+                  t.occurredAt.isBiggerOrEqualValue(period.start) &
+                  t.occurredAt.isSmallerThanValue(period.end),
             )
             ..orderBy([
               (t) => OrderingTerm.desc(t.occurredAt),
@@ -178,6 +175,67 @@ class AppDatabase extends _$AppDatabase {
   Future<void> restoreTransaction(TransactionRow row) =>
       into(transactions).insert(row);
 
+  /// Null means calendar months (SPEC 5.11).
+  Stream<int?> watchSalaryDay() =>
+      (select(settings)..where((s) => s.key.equals(_salaryDayKey)))
+          .watchSingleOrNull()
+          .map((row) => row == null ? null : int.tryParse(row.value));
+
+  Future<void> setSalaryDay(int? day) => day == null
+      ? (delete(settings)..where((s) => s.key.equals(_salaryDayKey))).go()
+      : into(settings).insertOnConflictUpdate(
+          SettingsCompanion.insert(key: _salaryDayKey, value: '$day'),
+        );
+
+  /// Amounts by month; the null key is the default.
+  Stream<Map<String?, int>> watchSalaryAmounts() =>
+      select(salary)
+          .watch()
+          .map((rows) => {for (final row in rows) row.month: row.amountPaise});
+
+  /// A null [month] is the default; null [paise] removes the row.
+  Future<void> setSalary(String? month, int? paise) => transaction(() async {
+    await (delete(salary)..where(
+          (s) => month == null ? s.month.isNull() : s.month.equals(month),
+        ))
+        .go();
+    if (paise != null) {
+      await into(
+        salary,
+      ).insert(SalaryCompanion.insert(month: Value(month), amountPaise: paise));
+    }
+  });
+
+  /// Amounts by month for each category id; the null key is the default.
+  Stream<Map<int, Map<String?, int>>> watchBudgetAmounts() =>
+      select(budgets).watch().map((rows) {
+        final amounts = <int, Map<String?, int>>{};
+        for (final row in rows) {
+          (amounts[row.categoryId] ??= {})[row.month] = row.amountPaise;
+        }
+        return amounts;
+      });
+
+  /// A null [month] is the default; null [paise] removes the row.
+  Future<void> setBudget(int categoryId, String? month, int? paise) =>
+      transaction(() async {
+        await (delete(budgets)..where(
+              (b) =>
+                  b.categoryId.equals(categoryId) &
+                  (month == null ? b.month.isNull() : b.month.equals(month)),
+            ))
+            .go();
+        if (paise != null) {
+          await into(budgets).insert(
+            BudgetsCompanion.insert(
+              categoryId: categoryId,
+              month: Value(month),
+              amountPaise: paise,
+            ),
+          );
+        }
+      });
+
   /// Colour comes from a fixed palette, as the sheet only asks for a name.
   Future<int> addCategory(String name) => transaction(() async {
     final count = await categories.count().getSingle();
@@ -191,6 +249,8 @@ class AppDatabase extends _$AppDatabase {
     );
   });
 }
+
+const _salaryDayKey = 'salary_day';
 
 final _seedSender = TrackedSendersCompanion.insert(
   label: 'HDFC Bank',

@@ -2,18 +2,53 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/amount_dialog.dart';
+import '../../core/money.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/models.dart';
 
+// Rupesh's salary usually lands on the 28th (SPEC 5.1 sample).
+const _defaultSalaryDay = 28;
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
+
+  // Back to the current period, as a month picked under the old rule means
+  // different dates under the new one.
+  Future<void> _setSalaryDay(WidgetRef ref, int? day) async {
+    await ref.read(databaseProvider).setSalaryDay(day);
+    ref.read(pickedMonthProvider.notifier).state = null;
+  }
+
+  Future<void> _editSalary(
+    BuildContext context,
+    WidgetRef ref,
+    int? salary,
+  ) async {
+    final result = await showAmountDialog(
+      context,
+      title: 'Monthly salary',
+      fields: [
+        (
+          label: 'Default',
+          initial: salary,
+          helper: 'Tap the salary on Home to change a single month.',
+        ),
+      ],
+    );
+    if (result != null) {
+      await ref.read(databaseProvider).setSalary(null, result.single);
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final senders = ref.watch(trackedSendersProvider).value ?? const [];
     final imported = ref.watch(importedCountProvider).value ?? 0;
     final failed = ref.watch(failedMessagesProvider).value ?? const [];
+    final salary = ref.watch(salaryAmountsProvider).value?[null];
+    final salaryDay = ref.watch(salaryDayProvider).value;
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
@@ -38,6 +73,31 @@ class SettingsScreen extends ConsumerWidget {
               builder: (_) => _AddSenderDialog(ref.read(databaseProvider)),
             ),
           ),
+          const Divider(),
+          ListTile(
+            title: const Text('Salary'),
+            trailing: Text(salary == null ? 'Not set' : Money.format(salary)),
+            onTap: () => _editSalary(context, ref, salary),
+          ),
+          SwitchListTile(
+            title: const Text('Salary day to salary day'),
+            subtitle: const Text('Off means calendar months.'),
+            value: salaryDay != null,
+            onChanged: (on) =>
+                _setSalaryDay(ref, on ? _defaultSalaryDay : null),
+          ),
+          if (salaryDay != null)
+            ListTile(
+              title: const Text('Salary day'),
+              trailing: DropdownButton<int>(
+                value: salaryDay,
+                items: [
+                  for (var day = 1; day <= 31; day++)
+                    DropdownMenuItem(value: day, child: Text('$day')),
+                ],
+                onChanged: (day) => _setSalaryDay(ref, day),
+              ),
+            ),
           const Divider(),
           ListTile(
             title: const Text('Imported messages'),

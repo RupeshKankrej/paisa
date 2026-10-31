@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,6 +39,19 @@ class CategoryAvatar extends StatelessWidget {
       child: Icon(_icons[category.icon] ?? Icons.category),
     );
   }
+}
+
+/// Asks for a category and saves it on [row] straight away.
+Future<void> categoriseTransaction(
+  BuildContext context,
+  WidgetRef ref,
+  TransactionRow row,
+) async {
+  final id = await showCategoryPicker(context);
+  if (id == null) return;
+  await ref
+      .read(databaseProvider)
+      .updateTransaction(row.id, TransactionsCompanion(categoryId: Value(id)));
 }
 
 /// Returns the chosen category's id, or null if dismissed.
