@@ -1,5 +1,44 @@
 # Progress
 
+## Phase 2: Parser + ingest (2026-10-31)
+
+Status: built on branch `phase-2-parser-ingest` (from `phase-1-foundation`), not merged. Acceptance tests pass. The check with real HDFC messages on the iPhone is still open.
+
+### What was built
+- `lib/domain/parser/`: normaliser, SHA-256 fingerprint, date parsing and the first-match-wins parser, in pure Dart. Templates are in `templates/hdfc.dart`. The patterns run on normalised text, so a line break in the SMS is a single space. All three date formats work in both templates.
+- `lib/features/ingest/ingest.dart`: the SPEC 5.1 pipeline, committing each line in its own database transaction. `inbox_reader.dart` drains the inbox on launch and resume.
+- `lib/features/settings/settings_screen.dart`: list and add tracked senders, imported count, read-only Unparsed messages list.
+- Schema v2: a `settings` key/value table and the seeded HDFC sender, for new databases and through a migration. `bank` columns now hold the `Bank` enum.
+- Native inbox: `claim` renames `inbox.jsonl` to `inbox.jsonl.claimed` under a file lock shared with the intent, and `ack` deletes it after the database commit. This replaces the "then truncated" in SPEC 3.3: truncating could lose a line on a crash or during a concurrent write.
+
+### Decisions
+- Patterns are case-insensitive "text contains", not regex. The Shortcuts intent passes only the message text, so sender IDs cannot be matched.
+- `occurred_at` is the date in the SMS plus the time of day it arrived, because the SMS has no time.
+- Audit rows use `ignored`, since SPEC has no separate status: ref-guard duplicates (with `ref_no`) and stale lines (with raw text). Untracked messages are `ignored` with no text kept, as they may be private.
+- A line that is not valid JSON is logged `failed` and shown under Unparsed, and later lines still import.
+- The imported count and Unparsed list are in this phase because 5.1 requires the list and the Expenses screen is Phase 3.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 57 passed, including goldens for both 5.1 samples, duplicate delivery and the v1 to v2 migration.
+- Swift `RunnerTests` on the simulator (iOS 27.2): 2 passed, including claim, retry and ack.
+- Simulator, real app and method channel: a line appended to the App Group inbox became one transaction on resume; the same line delivered again added none, and the inbox file was gone after each drain.
+- Release build installed on the iPhone 15 with `devicectl`. Not yet opened or checked.
+
+### What to verify on the device
+1. Open the app. The upgrade to schema v2 runs and any messages already in the inbox are imported. It should not crash.
+2. Settings: "HDFC Bank" is listed. Imported messages should count your real alerts. Open Unparsed messages: any real alert here means a template does not match the real wording.
+3. Send or wait for a real alert (a debit and a credit if possible), then reopen the app: Imported goes up by one each.
+4. Add a tracked sender: it appears in the list after a restart too.
+
+### Open issues and setup notes
+- The two templates are tested only against the SPEC samples. Real wording that differs lands in Unparsed, not in a wrong expense.
+- Any HDFC text matching the tracked pattern with no template, such as an OTP, is `failed` and its text is stored and shown under Unparsed. That follows SPEC 5.1.
+- The stale-line skip follows SPEC 5.1. If the phone's clock is moved backwards, a genuine new message can be skipped. It stays in `ingest_log` as `ignored` with its raw text, but no screen shows it.
+- A database error leaves the claimed file in place and retries on the next resume. A line that always throws would block the inbox; none is known.
+- Transactions cannot be seen in the app until Phase 3. Imported and Unparsed are the only view for now.
+- The `inbox.jsonl.lock` file in the App Group is expected and stays there.
+- `xcodebuild test` shuts down the simulator afterwards, so boot it again before using `simctl`.
+
 ## Phase 1: Foundation (2026-10-31)
 
 Status: built on branch `phase-1-foundation`, not merged. Rupesh confirmed it on the iPhone.
