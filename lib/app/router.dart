@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/budgets/categories_screen.dart';
+import '../features/dashboards/dashboards_screen.dart';
 import '../features/expenses/expenses_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/settings/settings_screen.dart';
@@ -15,7 +16,7 @@ final router = GoRouter(
         _tab('/home', const HomeScreen()),
         _tab('/expenses', const ExpensesScreen()),
         _tab('/categories', const CategoriesScreen()),
-        _tab('/dashboards', const _ComingSoon('Dashboards')),
+        _tab('/dashboards', const DashboardsScreen()),
         _tab('/settings', const SettingsScreen()),
       ],
     ),
@@ -59,20 +60,6 @@ class _TabShell extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ComingSoon extends StatelessWidget {
-  const _ComingSoon(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: const Center(child: Text('Coming soon')),
     );
   }
 }

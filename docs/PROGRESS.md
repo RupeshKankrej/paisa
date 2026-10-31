@@ -1,5 +1,40 @@
 # Progress
 
+## Phase 5: Dashboards (2026-10-31)
+
+Status: built on branch `phase-5-dashboards`, not merged. Tests pass and all four charts were viewed on the simulator. Release build installed on the iPhone 15; device checks below are not yet confirmed.
+
+### What was built
+- `lib/domain/dashboards.dart`: period totals, daily and weekly buckets, daily average and budget pie slices, in pure Dart.
+- `lib/features/dashboards/dashboards_screen.dart`: month-wise bars, day-wise bars with a dashed average, date-range line, budget pie with legend. Replaces the placeholder tab.
+- `Money.compact` for chart axes. `Period.shortDate` is now public. `watchAllTransactions` and its provider feed the month-wise and date-range charts. `fl_chart` added. No schema change.
+
+### Decisions
+- Over-salary pie: slice angles stay budget shares in both states. The outer edge stands for total spend and the thin ring for salary. The ring radius is the square root of salary / spend, so areas compare truly and the ring stays visible at large overspends. SPEC 5.8 does not say how angles behave here.
+- Slice shares follow SPEC literally: Unallocated is salary minus limits, and the uncategorised slice is added on top, so the slices can total more than the salary.
+- Spend in a category with no limit has no slice (SPEC: one slice per category with a limit). It gets a legend row and counts in the over-salary total.
+- Tapping a month-wise bar shows exact amounts in a line under the chart and highlights the month. fl_chart's tooltip disappears when the finger lifts and would show raw paise. Day-wise and date-range have no tap (see BACKLOG).
+- The month-wise amount axis is on the right, beside the newest months, because the chart opens scrolled there.
+- Daily average divides by the days up to today in a period in progress; otherwise a month would look cheaper early on. Past periods use all their days.
+- A range of exactly 90 days is daily; 91 or more is by week. The average stays per day. The end date cannot be later than today.
+- All credits count as income, as SPEC 3.2 says. The open question in SPEC 8 about refunds and transfers still stands.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 124 passed.
+- Simulator (iPhone 18 Pro, iOS 27.2): temporary build opening on Dashboards, with 14 months seeded directly in the database. Day-wise average 1,006.45 = 31,200 / 31; date-range average 1,040.00 = 31,200 / 30; a 20,000 override showed "Over salary by ₹11,200.00" with the ring. Neither tapping nor the pie legend was viewed there; `simctl` cannot tap, so those are covered by widget tests only. The temporary changes and the simulator data were reverted.
+
+### What to verify on the device
+1. Dashboards tab: bars for the last 12 months. Tap a month: exact amounts appear under the chart. Drag right to scroll further back if you have older data.
+2. Pick a month in the app bar: day-wise and pie change. Day-wise bars and average look right.
+3. Date range: defaults to the last 30 days. Pick more than 90 days: "Shown by week".
+4. Set category limits and a salary: half-spent limits are half dark, an overspent one has a red outline, the legend matches Categories.
+5. Tap the salary on Home, set an override below this month's spend, return to Dashboards: "Over salary by" and the ring show. Clear the override.
+6. Settings: turn on salary day. Day-wise follows the new dates. Turn it off.
+
+### Open issues and setup notes
+- Free-team install expires about 2026-11-06.
+- A category limit of zero has no visible slice, only a legend row.
+
 ## Phase 4: Budgets + Home (2026-10-31)
 
 Status: built on branch `phase-4-budgets-home`, not merged. Tests pass. Rupesh reported that all the device checks below passed on the iPhone 15 (2026-10-31).

@@ -43,10 +43,11 @@ class Period {
   /// '28 Oct – 27 Nov'.
   String get rangeLabel {
     final last = end.subtract(const Duration(hours: 12));
-    return '${_short(start)} – ${_short(last)}';
+    return '${shortDate(start)} – ${shortDate(last)}';
   }
 
-  static String _short(DateTime date) =>
+  /// '28 Oct'.
+  static String shortDate(DateTime date) =>
       '${date.day} ${MonthKey.label(MonthKey.of(date)).substring(0, 3)}';
 
   /// The salary day in that month, or its last day if the month is shorter.
