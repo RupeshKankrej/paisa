@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/month_picker.dart';
 import '../../app/shell_widgets.dart';
 import '../../core/money.dart';
 import '../../core/period.dart';
@@ -11,6 +12,7 @@ import '../../domain/budget.dart';
 import '../../domain/models.dart';
 import '../budgets/category_picker.dart';
 import '../budgets/month_summary_card.dart';
+import 'day_bar_chart.dart';
 import 'transaction_sheet.dart';
 
 const _filters = [
@@ -88,19 +90,62 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         c.id: c,
     };
     final selected = ref.watch(expenseFilterProvider);
-    final transactions = ref.watch(
-      transactionsProvider(ref.watch(selectedMonthProvider)),
-    );
+    final month = ref.watch(selectedMonthProvider);
+    final transactions = ref.watch(transactionsProvider(month));
+    final rows = transactions.value ?? const <TransactionRow>[];
     return ScaffoldMessenger(
       key: _messenger,
       child: Scaffold(
-        appBar: tabAppBar(),
+        appBar: floatingTabAppBar(),
+        extendBodyBehindAppBar: true,
         floatingActionButton: const AddFab(),
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        body: ListView(
+          padding: listClearance(context),
           children: [
-            HeroAmount(
-              sumPaise(spendOf(transactions.value ?? const []).values),
+            MonthSwipe(
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Fills the gap above the header when iOS bounces the list.
+                  const Positioned(
+                    key: Key('header-overscroll-fill'),
+                    left: 0,
+                    right: 0,
+                    top: -2000,
+                    height: 2000,
+                    child: ColoredBox(color: AppColors.heroTop),
+                  ),
+                  DecoratedBox(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [AppColors.heroTop, AppColors.bg],
+                      ),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(top: belowFloatingBar(context)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Center(child: MonthPicker()),
+                          Center(
+                            child: HeroAmount(sumPaise(spendOf(rows).values)),
+                          ),
+                          const SizedBox(height: 16),
+                          DayBarChart(
+                            rows: rows,
+                            period: Period.forMonthKey(
+                              month,
+                              ref.watch(salaryDayProvider).value,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             SingleChildScrollView(
@@ -120,13 +165,18 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                 ],
               ),
             ),
-            Expanded(
-              child: transactions.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) =>
-                    Center(child: Text('Could not load transactions: $error')),
-                data: (rows) => _list(rows, categories, selected),
+            transactions.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(48),
+                child: Center(child: CircularProgressIndicator()),
               ),
+              error: (error, _) => Padding(
+                padding: const EdgeInsets.all(48),
+                child: Center(
+                  child: Text('Could not load transactions: $error'),
+                ),
+              ),
+              data: (rows) => _list(rows, categories, selected),
             ),
           ],
         ),
@@ -143,7 +193,10 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       (r) => !_dismissed.contains(r.id) && filter.matches(r.type, r.categoryId),
     );
     if (visible.isEmpty) {
-      return const Center(child: Text('Nothing here for this month'));
+      return const Padding(
+        padding: EdgeInsets.all(48),
+        child: Center(child: Text('Nothing here for this month')),
+      );
     }
     final days = <List<TransactionRow>>[];
     for (final row in visible) {
@@ -154,8 +207,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       days.last.add(row);
     }
     final caption = Theme.of(context).textTheme.bodySmall;
-    return ListView(
-      padding: listClearance(context),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final day in days) ...[
           Padding(
@@ -187,7 +240,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                     row: row,
                     category: categories[row.categoryId],
                     onTap: () => categoriseTransaction(context, ref, row),
-                    onLongPress: () => openTransactionSheet(context, ref, row),
+                    onLongPress: () => openTransactionSheet(
+                      context,
+                      ref,
+                      row,
+                      () => _delete(row),
+                    ),
                   ),
                 ),
             ],

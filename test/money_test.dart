@@ -45,4 +45,34 @@ void main() {
       expect(Money.tryParse('9' * 15), 99999999999999900);
     });
   });
+
+  group('keypad', () {
+    String typed(String keys) => keys.split('').fold('', Money.keypadPress);
+
+    test('builds amounts Money can parse', () {
+      expect(typed('1250.5'), '1250.5');
+      expect(Money.tryParse(typed('1250.5')), 125050);
+      expect(typed('.5'), '0.5');
+    });
+
+    test('ignores presses that would make the amount invalid', () {
+      expect(typed('1.234'), '1.23');
+      expect(typed('1..2'), '1.2');
+      expect(typed('0005'), '5');
+      expect(typed('1' * 20), '1' * 15);
+    });
+
+    test('edits start without a zero fraction', () {
+      expect(Money.keypadText(12000), '120');
+      expect(Money.keypadText(12050), '120.50');
+      expect(Money.keypadText(15545300), '155453');
+    });
+
+    test('displays as typed with Indian grouping', () {
+      expect(Money.keypadDisplay(''), '₹0');
+      expect(Money.keypadDisplay('155453'), '₹1,55,453');
+      expect(Money.keypadDisplay('1250.'), '₹1,250.');
+      expect(Money.keypadDisplay('1250.5'), '₹1,250.5');
+    });
+  });
 }

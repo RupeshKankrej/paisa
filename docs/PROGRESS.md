@@ -1,5 +1,56 @@
 # Progress
 
+## Phase 8: UI Activity, Add, Summary (2026-10-31)
+
+Status: built on branch `phase-8-ui-activity-summary` (from `phase-7-design-system`, which is not merged), not merged. Tests pass and the three screens were viewed on the simulator. Rupesh confirmed swipe works on the iPhone; the other device checks below are waiting.
+
+### What was built
+- Activity: one scrolling page with the gradient header, month caption, hero total and `DayBarChart` (`lib/features/expenses/day_bar_chart.dart`), then chips and day cards. The settings button stays put while the page scrolls under it.
+- Add/Edit (`transaction_sheet.dart`, rewritten): near-full-height sheet, hero amount, backspace, reset, delete, chips, category strip with grid button, 3x4 keypad with a light arrow key. This also fixes the drag handle sitting beside the clock.
+- Summary (`categories_screen.dart`, rewritten): donut with the month and total in the centre, Expenses/Income chips, rows with count, amount, % pill and budget bar.
+- Spec update (5.13, reference 10): `MonthPicker` is now a "This month ▾" caption opening the Select date sheet, with year chips, a 3x4 month grid with future months disabled, the date range in salary-day mode and the swipe tip. It replaces the dropdown on every screen.
+- `MonthSwipe`: a horizontal swipe changes the shared month. Right goes back, left goes forward and stops at the current period, as Rupesh asked after trying it. SPEC 5.13 and 5.17 now state this direction for all date swipes. It is on the Activity header, the Summary donut, and the Analytics day-wise and budget cards.
+- Activity day bars are drawn in a gradient, as Rupesh asked.
+- Pulling Activity down past the top showed the page background above the gradient (Rupesh, iPhone). The header's top colour now extends above it. Checked with a held pull-down on the simulator.
+- Fixed the add button sitting under the nav on the iPhone. It read the safe area once, without subscribing, so a first frame with no inset left it 14 points too low. A test reproduced this before the fix.
+- Pure helpers with tests: `MonthKey.pickerYears`, `Money.keypadPress`, `keypadText`, `keypadDisplay`; `totalsByCategory` and `percentLabel` in `lib/domain/budget.dart`. No schema change.
+
+### Decisions
+- The donut shows spend share, as reference 03 does, so slices match the % pills. SPEC 5.12 says the budget pie becomes this donut; the budget pie stays on Analytics so nothing is lost (see BACKLOG).
+- Over salary on the donut: a red outline, "Over salary by", and a thin inner ring whose sweep is salary / spend.
+- Summary lost the spent/salary/remaining card to match the reference. One line under the donut keeps the picture from SPEC 5.7 ("₹X left of ₹Y"). Editing the salary override is on the Budget tab only.
+- Uncategorised stays the top row per SPEC 5.7, then categories by amount. Zero-spend categories stay listed so a limit can be set. The Income chip lists only categories with income, without bars or limit editing.
+- Row amount and % pill are stacked, not in one line as in the reference, because paise leave a name too little room.
+- Sheet icons: refresh resets the sheet to its opening values, as the reference's meaning is unknown. Delete shows only when editing from Activity and uses the same 5-second undo. The clear button deletes one digit on tap and clears all on long press.
+- Chips: the reference's Personal slot is the Expense/Income toggle (SPEC 5.3). A read-only account chip shows only when a row has an account number. Note and "from SMS" are chips, since SPEC 5.3 and 5.4 keep them.
+- A category picked from the grid moves to the front of the strip. A tap in the strip does not move it, so rows do not jump.
+- The first validation error shows under the amount: "Enter an amount", then "Pick a category".
+- Swipe covers the whole Activity header, including the caption and hero, not only the chart, to give a larger target. The minimum swipe is 32 points.
+- The Analytics month-wise and date-range charts do not swipe. Month-wise already scrolls sideways and date-range has its own dates. Phase 10 replaces them with the 6-period window (5.17).
+- Swiping back has no floor, and the year chips stretch to include the selected year.
+- Caption wording: "This month", the month name within the current year, month and year otherwise. In salary-day mode the range stays under the caption (5.11).
+- Not added: search, Monthly, All accounts and sort chips (already in BACKLOG), and the sheet's overflow menu.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 147 passed. The Activity picker tests caught it sitting under the transparent app bar, where it could not be tapped; fixed with `belowFloatingBar`.
+- Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point with in-memory data, since `simctl` cannot tap. Activity, the add sheet, and Summary in the normal and over-salary states were viewed. This found colliding day labels (fl_chart ignores `interval` on bar titles) and dim Summary amounts. Both are fixed; the label fix has a widget test, but neither fix was viewed again on the simulator. The swipe and the month sheet were then driven with synthetic touches on the simulator and viewed: September's rows and bars appeared, and the sheet matches reference 10. The edit sheet was not viewed; other gestures are covered by widget tests only. The simulator still has that temporary debug build installed.
+
+### What to verify on the device
+1. Side by side with `docs/design/reference/01` to `04` and `10`: Activity, add sheet, Summary, month sheet.
+2. Force-quit and open: the + sits above the nav on every tab.
+3. Swipe right on the Activity header: previous month's rows and bars. Swipe left: forward, stopping at this month. Same on the Summary donut and the Analytics day-wise and budget cards. Vertical scrolling still works when starting on the chart.
+4. Tap the caption: pick another year and month. Later months cannot be tapped. With salary day on, the range shows under the grid.
+5. Activity: tap to categorise, swipe to delete with Undo, chips filter, uncategorised rows dimmed.
+6. +: type an amount with paise on the keypad, backspace, long-press backspace to clear. Pick a date, toggle Income, add a name and note, pick from the strip and from the grid including New category. The arrow saves.
+7. Long-press an SMS row: amount and date editable, "from SMS" shows the raw text, reset restores, delete offers Undo.
+8. Summary: slices and % add up, tap a row to set a limit, bar colours, yellow note, Income chip.
+9. Over salary: set an override below spend on the Budget tab, see the outline, ring and red line on Summary. Clear it.
+10. Widget still updates after adding from the new sheet, and `paisa://add` opens it.
+
+### Open issues and setup notes
+- The sheet's keypad has fixed-height keys. Fits on the iPhone 15; a larger accessibility text size has not been tried.
+- Small slices have barely rounded corners, as the corner radius is limited by slice width.
+
 ## Phase 7: UI design system + shell (2026-10-31)
 
 Status: built on branch `phase-7-design-system`, not merged. Tests pass and the tabs were viewed on the simulator. Rupesh reported all the device checks below passed on the iPhone 15 (2026-10-31).

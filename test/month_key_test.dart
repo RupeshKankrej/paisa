@@ -38,4 +38,16 @@ void main() {
     ]);
     expect(MonthKey.range('2026-10', '2026-10'), ['2026-10']);
   });
+
+  test('picker years: at least 5, stretched to the oldest and newest keys', () {
+    expect(MonthKey.pickerYears('2026-10', const []), [
+      2026,
+      2025,
+      2024,
+      2023,
+      2022,
+    ]);
+    expect(MonthKey.pickerYears('2026-10', const ['2020-03']).last, 2020);
+    expect(MonthKey.pickerYears('2026-10', const ['2027-01']).first, 2027);
+  });
 }

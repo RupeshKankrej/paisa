@@ -15,6 +15,28 @@ Map<int?, int> spendByCategory(Iterable<(int?, int)> debits) {
   return spend;
 }
 
+/// Entry count and total per category, from (category id, paise) entries.
+Map<int?, ({int count, int paise})> totalsByCategory(
+  Iterable<(int?, int)> entries,
+) {
+  final totals = <int?, ({int count, int paise})>{};
+  for (final (category, paise) in entries) {
+    final total = totals[category];
+    totals[category] = (
+      count: (total?.count ?? 0) + 1,
+      paise: (total?.paise ?? 0) + paise,
+    );
+  }
+  return totals;
+}
+
+/// '39.02%'. Rounded from integers, so it cannot pick up float noise.
+String percentLabel(int part, int total) {
+  final hundredths = total <= 0 ? 0 : (part * 10000 + total ~/ 2) ~/ total;
+  final fraction = (hundredths % 100).toString().padLeft(2, '0');
+  return '${hundredths ~/ 100}.$fraction%';
+}
+
 int sumPaise(Iterable<int> amounts) => amounts.fold(0, (a, b) => a + b);
 
 /// Green below 70%, amber from 70% to 100%, red above (SPEC 5.7). In integers,

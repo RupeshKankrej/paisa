@@ -139,4 +139,37 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
+
+  testWidgets('the add button clears the pill when the inset arrives late', (
+    tester,
+  ) async {
+    addTearDown(tester.view.reset);
+    final db = AppDatabase(
+      DatabaseConnection(
+        NativeDatabase.memory(),
+        closeStreamsSynchronously: true,
+      ),
+    );
+    addTearDown(db.close);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          inboxDrainProvider.overrideWithValue(() async {}),
+          widgetPublisherProvider.overrideWithValue((_) async {}),
+        ],
+        child: const PaisaApp(),
+      ),
+    );
+    await tester.pump();
+    tester.view.padding = const FakeViewPadding(bottom: 102);
+    tester.view.viewPadding = const FakeViewPadding(bottom: 102);
+    await tester.pump();
+    expect(
+      tester.getBottomLeft(find.byType(FloatingActionButton)).dy,
+      lessThan(tester.getTopLeft(find.byType(PillNavBar)).dy),
+    );
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
 }
