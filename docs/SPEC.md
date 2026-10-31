@@ -120,7 +120,10 @@ Build in this order. Phase 0 is a spike that de-risks the only part we cannot co
 | 4. Budgets + Home | Salary (default + per-month override), per-category limits (default + per-month override), month-boundary toggle and Period helper (5.11), Home summary (spent / remaining / month picker), Categories screen with coloured progress bars | All of 5.5 to 5.7 verified; totals match a hand-computed month |
 | 5. Dashboards | Month-wise expense vs income bars, day-wise spend for a month, date-range chart, budget pie with over-salary handling | All of 5.8 verified against seeded data, including a month where spend > salary |
 | 6. Widget | `home_widget` bridge writing `widget_summary.json`; WidgetKit extension with small + medium families; App Group entitlement on all targets | Widget on the home screen shows current-month spent/remaining and updates after adding an expense |
-| 7. Polish + release | Share Extension, monthly Excel export (5.10) plus CSV/JSON, backup/restore of the SQLite file, app icon, TestFlight build | Installed from TestFlight; export produces a file openable in Numbers/Excel |
+| 7. UI: design system + shell | Theme tokens from 5.12 (dark palette, type scale, radii, category colours), shared widgets (pill bottom nav, floating FAB, filter chips, card list rows, month dropdown, hero number, bottom sheet), app settings button; every existing screen swapped onto the new shell with no behaviour change | Side-by-side with docs/design/reference/ screenshots: nav, chips, cards and FAB match; all Phase 3–5 acceptance checks still pass |
+| 8. UI: Activity, Add, Summary | Activity screen (hero total + day-bar chart header, day-grouped cards), full-screen Add/Edit sheet with custom keypad and category strip, Summary screen (donut ring with month in the centre, category rows with count, amount and %) | Screens 1–4 of the reference set reproduced on device; swipe-delete, categorise and edit still work; uncategorised rows still dimmed |
+| 9. UI: Budget, Analytics, Settings + motion | Budget screen (left-this-month ring, allocate-budget sheet with running total), Analytics (income vs expenses bars, income-left bars, calendar heatmap), grouped Settings list; transitions, haptics, empty states, light theme variant | Screens 5–9 reproduced; over-salary pie case from 5.8 still handled; app usable in light and dark |
+| 10. Polish + release | Share Extension, monthly Excel export (5.10) plus CSV/JSON, backup/restore of the SQLite file, app icon, TestFlight build | Installed from TestFlight; export produces a file openable in Numbers/Excel |
 
 ### 4.1 Working agreement for Claude Code
 
@@ -234,6 +237,43 @@ Rules when salary-day mode is on with salary day `D`:
 - Day-wise and date-range charts use the period's real dates. The month-wise bar chart uses period totals.
 
 Implementation: one pure function `Period.forMonthKey(key, settings)` and `Period.containing(date, settings)` in `core/`, used by every query; never compute month ranges inline in screens. Unit-test both modes, including the 31st and February cases.
+
+### 5.12 Visual design language
+
+The target look is defined by nine reference screenshots stored in `docs/design/reference/` (numbered `01-activity.png` … `09-settings.png`). They come from another app, so the goal is the same layout, density and feel built from our own widgets, not a pixel copy: no third-party logos, icons or seasonal decorations (the ghosts are a Halloween theme, leave them out). Phases 7–9 build toward them. Claude Code should open the relevant screenshot with its image tool before building each screen.
+
+**Tokens (Phase 7, `lib/core/theme/`).**
+
+| Token | Value | Used for |
+| --- | --- | --- |
+| `bg` | near-black navy `#121619`; Activity header fades from `#1E3A4C` to `bg` | Page background, hero gradient |
+| `surface` | `#1C2227` | Cards, chips, keypad keys, bottom-nav pill |
+| `surfaceRaised` | `#262D33` | Selected chip, pressed key |
+| `textPrimary` / `textSecondary` | `#FFFFFF` / `#8A949C` | Numbers and labels / captions, axis ticks |
+| `accent` | `#F2F2F2` | FAB and primary button (light button on dark) |
+| `income` / `expense` | `#4CC38A` / `#5AA9F5` | Analytics bars, pills |
+| Category colours | blue `#5AA9F5`, coral `#E8737A`, violet `#7B6CF6`, orange `#F2A65A`, amber `#F0C36A`, purple `#B36CF6`, pink `#F07AC8`, green `#4CC38A` | Category icon border, donut slices, calendar cells; seeded per category |
+| Radii | cards 20, chips and keys 16, FAB and icon tiles 999 |  |
+| Type | display 56/700 for hero amounts, 34/700 for donut centre, 17/500 body, 13/400 captions; system font (SF Pro on iOS, Roboto on Android) |  |
+
+**Shared components (Phase 7).** Floating pill bottom nav with five items (Activity, Summary, Budget, Analytics, Accounts; `Accounts` can stay a placeholder until multi-account exists); round light FAB bottom-right on every tab; horizontally scrolling filter chips (search icon chip first, then Expenses/Income, Monthly, All accounts, sort); day-grouped card list with the day total right-aligned in the group header; category icon tile = emoji on `surface` with a 2 px border in the category colour; month dropdown as a small caption with a chevron above a large number; round translucent settings button top-left.
+
+**Per screen.**
+
+| Ref | Screen | What to match |
+| --- | --- | --- |
+| 01 | Activity (our Expenses screen) | Gradient header, "This month ▾" caption, hero spend amount, faint day-wise bar chart for the period with 0 axis labels, filter chips, grouped cards, FAB |
+| 02 | Add / Edit | Full-height sheet: refresh and delete icons top, hero amount with a clear button, date chip, account chip, name chip, scrollable category strip with a "more" grid button, 3×4 custom keypad with a light arrow key to confirm |
+| 03–04 | Summary (our Categories screen) | Thick donut ring of category slices, month and total in the centre, same chips, category rows: icon tile, name, count badge, amount, % pill. Our spec adds the per-category budget bar under each row and the uncategorised grey row |
+| 05 | Budget | Large ring "Left this month ▾ / ₹X of ₹Y", dashed "Add category" card, pencil button to edit; salary is the ring total |
+| 06 | Allocate budget sheet | "X% set · ₹a / ₹b" progress with "₹c left to allocate", category rows with amount and % that update live, sticky Confirm button |
+| 07 | Analytics (top) | Chip row, card with Income/Expenses legend and totals, grouped rounded bars per month with k-formatted axis, selected month pill under the axis |
+| 08 | Analytics (bottom) | "Income left" bar card with amount/percent toggle and dashed outline bars for months with no income; Calendar heatmap: 7-column grid, cell intensity by spend, k-formatted amounts, grey cells for zero days |
+| 09 | Settings | Grouped list with icon tiles, trailing value and chevron, toggles; sections Preferences and Privacy & security; our Month start day row is the 5.11 toggle |
+
+**Charts.** Keep fl\_chart but theme it: rounded bar caps, no grid lines, axis labels in `textSecondary`, bar glow via a soft shadow. The budget pie from 5.8 becomes the Summary donut; the over-salary case keeps its thin inner ring and red outline.
+
+**Motion (Phase 9).** Sheets slide up with a drag handle; bottom-nav selection animates the pill; haptic on FAB, confirm and swipe-delete; hero numbers count up on month change (200 ms). Respect Reduce Motion.
 
 ## 6. iOS home-screen widget
 
