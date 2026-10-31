@@ -222,4 +222,29 @@ void main() {
     expect(heatLevel(1, 10000), closeTo(0.307, 0.001));
     expect(heatLevel(0, 0), 0);
   });
+
+  group('withSalaryIncome', () {
+    const empty = (key: '2026-08', spent: 0, income: 0);
+    const sep = (key: '2026-09', spent: 100, income: 50);
+    const oct = (key: '2026-10', spent: 0, income: 0);
+    const salaries = {null: 1000, '2026-10': 2000};
+
+    test(
+      'adds the resolved salary to other income from the first activity',
+      () {
+        expect(withSalaryIncome([empty, sep, oct], salaries, {}), [
+          empty,
+          (key: '2026-09', spent: 100, income: 1050),
+          (key: '2026-10', spent: 0, income: 2000),
+        ]);
+      },
+    );
+    test('a period with a salary credit is not counted twice', () {
+      expect(withSalaryIncome([sep], salaries, {'2026-09'}), [sep]);
+    });
+    test('no transactions or no salary leaves totals alone', () {
+      expect(withSalaryIncome([empty, oct], salaries, {}), [empty, oct]);
+      expect(withSalaryIncome([sep], {}, {}), [sep]);
+    });
+  });
 }

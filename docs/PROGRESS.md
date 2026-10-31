@@ -11,6 +11,7 @@ Status: built on branch `phase-10-budget-analytics-settings` (from `main`), not 
 - Settings: grouped list with icon tiles, plus Appearance (System, Light, Dark).
 - Light theme: `AppPalette` is a theme extension, read through `context.palette`; `AppColors` keeps only colours shared by both themes.
 - From the iPhone check, Rupesh asked for these (SPEC 5.17 updated, as Rupesh decided): every Analytics card now keeps its own month in `cardMonthProvider`, so a swipe or bar tap moves only that card and never the app-wide month. A tapped bar's figures show at the top of its card. The calendar shows its month and year and opens `day_sheet.dart` on a date tap, where rows edit and swipe-delete as on Activity (shared `SwipeToDelete`, `showDeletedSnackBar`).
+- Also from the iPhone check: Analytics income is the salary plus other credits (`withSalaryIncome`, SPEC 5.17). A credit tagged Salary replaces the setting for that period, so it is not counted twice. An untagged salary credit still counts twice until it is tagged. Periods before the first transaction add nothing. The Summary Income chip still lists only real credits.
 - Pure helpers with tests: `limitAfterEdit`, `budgetLeft`, `canSaveLimit`, `wholePercentLabel`, `windowLabel`, `incomeLeftPercent`, `heatLevel`. No schema change: new choices are rows in `settings`.
 
 ### Decisions
@@ -34,7 +35,7 @@ Status: built on branch `phase-10-budget-analytics-settings` (from `main`), not 
 - `Money.compact` wrote large negative amounts as `₹-5000`. It now gives `-₹5k`.
 
 ### Checks
-- `flutter analyze`: no issues. `flutter test`: 195 passed.
+- `flutter analyze`: no issues. `flutter test`: 199 passed.
 - Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point with seeded data, deleted afterwards. Viewed in both themes: Budget, keypad blocked over salary, Analytics amount mode, Settings. Dark only: a window crossing a year. Light only: Allocate, percent mode, calendar, Activity, Summary. This found an overflow in the Allocate header, a blank row under the calendar and colliding axis labels, all fixed; the last two fixes were not viewed again. Real swipes and taps are covered by widget tests only. The simulator still has that temporary debug build installed.
 
 ### What to verify on the device

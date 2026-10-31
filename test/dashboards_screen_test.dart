@@ -246,6 +246,43 @@ void main() {
     });
   });
 
+  testWidgets('salary counts as income, once, with other credits', (
+    tester,
+  ) async {
+    await db.setSalary(null, 10000000); // 1,00,000
+    await add(500000, type: TransactionType.credit); // 5,000, a refund
+    await add(2000000); // 20,000 spent
+    final last = MonthKey.start(MonthKey.shift(month, -1));
+    final salary = (await tester.runAsync(() => db.watchCategories().first))!
+        .firstWhere((c) => c.name == 'Salary');
+    await add(
+      9000000,
+      category: salary.id,
+      type: TransactionType.credit,
+      at: last,
+    );
+    await pump(tester);
+    expect(
+      find.text('₹1,05,000.00'),
+      findsOneWidget,
+      reason: 'salary + refund',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const Key('income-left'))).data,
+      '₹85,000.00',
+    );
+    final groups = tester
+        .widget<BarChart>(find.byType(BarChart).first)
+        .data
+        .barGroups;
+    expect(groups.last.barRods.first.toY, 10500000);
+    expect(
+      groups[4].barRods.first.toY,
+      9000000,
+      reason: 'the tagged credit alone',
+    );
+  });
+
   testWidgets('income left: the toggle persists, zero income is dashed', (
     tester,
   ) async {

@@ -13,6 +13,7 @@ import '../../core/period.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/budget.dart';
+import '../../domain/categories.dart';
 import '../../domain/dashboards.dart';
 import '../../domain/models.dart';
 import 'day_sheet.dart';
@@ -203,11 +204,26 @@ class _WindowCards extends ConsumerWidget {
             child: Center(child: CircularProgressIndicator()),
           ),
           data: (rows) {
+            final salaryCategories = {
+              for (final c in ref.watch(categoriesProvider).value ?? const [])
+                if (c.type == CategoryType.income &&
+                    nameTaken([c.name], 'Salary'))
+                  c.id,
+            };
             final byKey = {
-              for (final t in monthTotals(
-                rows.map((r) => (r.occurredAt, r.type, r.amountPaise)),
-                salaryDay,
-                DateTime.now(),
+              for (final t in withSalaryIncome(
+                monthTotals(
+                  rows.map((r) => (r.occurredAt, r.type, r.amountPaise)),
+                  salaryDay,
+                  DateTime.now(),
+                ),
+                ref.watch(salaryAmountsProvider).value ?? const {},
+                {
+                  for (final r in rows)
+                    if (r.type == TransactionType.credit &&
+                        salaryCategories.contains(r.categoryId))
+                      Period.containing(r.occurredAt, salaryDay).key,
+                },
               ))
                 t.key: t,
             };

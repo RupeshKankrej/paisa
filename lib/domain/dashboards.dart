@@ -166,3 +166,25 @@ double? incomeLeftPercent(MonthTotal t) =>
 /// visible; any spend at all is clearly different from a grey zero cell.
 double heatLevel(int paise, int most) =>
     most <= 0 ? 0 : 0.3 + 0.7 * sqrt(paise / most);
+
+/// Counts each period's salary as income on top of its credits (SPEC 5.17).
+/// [paid] holds periods with a credit tagged as salary, which already is that
+/// income. Periods before the first transaction stay empty, as the app was not
+/// in use then and a default salary would invent income for them.
+List<MonthTotal> withSalaryIncome(
+  List<MonthTotal> totals,
+  Map<String?, int> salaries,
+  Set<String> paid,
+) {
+  final start = totals.indexWhere((t) => t.spent != 0 || t.income != 0);
+  return [
+    for (final (i, t) in totals.indexed)
+      start < 0 || i < start || paid.contains(t.key)
+          ? t
+          : (
+              key: t.key,
+              spent: t.spent,
+              income: t.income + (resolveAmount(salaries, t.key) ?? 0),
+            ),
+  ];
+}
