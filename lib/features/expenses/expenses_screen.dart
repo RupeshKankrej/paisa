@@ -18,7 +18,10 @@ const _filters = [
 ];
 
 class ExpensesScreen extends ConsumerStatefulWidget {
-  const ExpensesScreen({super.key});
+  const ExpensesScreen({super.key, this.addRequest});
+
+  /// A new value opens the add sheet (the widget's add link).
+  final String? addRequest;
 
   @override
   ConsumerState<ExpensesScreen> createState() => _ExpensesScreenState();
@@ -32,6 +35,28 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   // Its own messenger, because the tab shell's outer Scaffold would otherwise
   // show the snackbar over this Scaffold's FAB instead of lifting it.
   final _messenger = GlobalKey<ScaffoldMessengerState>();
+
+  bool _sheetOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.addRequest != null) _openSheetAfterFrame();
+  }
+
+  @override
+  void didUpdateWidget(ExpensesScreen old) {
+    super.didUpdateWidget(old);
+    if (widget.addRequest != null && widget.addRequest != old.addRequest) {
+      _openSheetAfterFrame();
+    }
+  }
+
+  void _openSheetAfterFrame() =>
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // A second widget tap must not stack a sheet on one left open.
+        if (mounted && !_sheetOpen) _openSheet();
+      });
 
   Future<void> _delete(TransactionRow row) async {
     setState(() => _dismissed.add(row.id));
@@ -58,7 +83,11 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
   // Shows the saved row, which may be in another month or filtered out.
   Future<void> _openSheet([TransactionRow? row]) async {
-    final saved = await showTransactionSheet(context, existing: row);
+    _sheetOpen = true;
+    final saved = await showTransactionSheet(
+      context,
+      existing: row,
+    ).whenComplete(() => _sheetOpen = false);
     if (saved == null || !mounted) return;
     ref.read(pickedMonthProvider.notifier).state = Period.containing(
       saved.occurredAt,

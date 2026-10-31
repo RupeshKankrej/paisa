@@ -28,5 +28,24 @@ import UIKit
         result(FlutterError(code: "inbox", message: "\(error)", details: nil))
       }
     }
+
+    FlutterMethodChannel(
+      name: "paisa/widget", binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    ).setMethodCallHandler { call, result in
+      guard call.method == "write", let json = call.arguments as? String else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      do {
+        // Atomic, so the widget can never read a half-written file.
+        try Data(json.utf8).write(
+          to: Inbox.url().deletingLastPathComponent()
+            .appendingPathComponent("widget_summary.json"),
+          options: .atomic)
+        result(nil)
+      } catch {
+        result(FlutterError(code: "widget", message: "\(error)", details: nil))
+      }
+    }
   }
 }

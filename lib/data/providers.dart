@@ -2,8 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
 import '../core/period.dart';
+import '../domain/budget.dart';
 import '../domain/models.dart';
+import '../domain/widget_summary.dart';
 import '../features/ingest/inbox_reader.dart';
+import '../widget/widget_bridge.dart';
 import 'database.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -77,3 +80,34 @@ final inboxDrainProvider = Provider<Future<void> Function()>((ref) {
       running ??= drainInbox(ref.read(databaseProvider))
           .whenComplete(() => running = null);
 });
+
+/// The current period's widget_summary.json, null until the data has loaded.
+/// Rebuilds on any change to what it reads; the app also refreshes it on resume,
+/// when the period may have rolled over.
+final widgetSummaryProvider = Provider<String?>((ref) {
+  final salaryDay = ref.watch(salaryDayProvider);
+  if (!salaryDay.hasValue) return null;
+  final now = DateTime.now();
+  final month = Period.containing(now, salaryDay.value).key;
+  final rows = ref.watch(transactionsProvider(month)).value;
+  final salaries = ref.watch(salaryAmountsProvider).value;
+  final categories = ref.watch(categoriesProvider).value;
+  if (rows == null || salaries == null || categories == null) return null;
+  return widgetSummaryJson(
+    month: month,
+    spend: spendByCategory(
+      rows
+          .where((r) => r.type == TransactionType.debit)
+          .map((r) => (r.categoryId, r.amountPaise)),
+    ),
+    salary: resolveAmount(salaries, month),
+    categories: {
+      for (final c in categories) c.id: (name: c.name, color: c.color),
+    },
+    now: now,
+  );
+});
+
+final widgetPublisherProvider = Provider<Future<void> Function(String)>(
+  (ref) => publishWidgetSummary,
+);

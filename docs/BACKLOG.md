@@ -15,3 +15,6 @@
 - Remember the salary day when the month boundary switch is turned off.
 - Tap a day-wise bar or a date-range point to see its exact amount (SPEC 5.8 asks for this only on the month-wise chart).
 - Keep the month-wise amount axis visible while scrolling back; it sits at the newest end and scrolls away.
+- Widget tap opens Expenses on whichever month is picked in the app, which may differ from the month the widget shows.
+- Update SPEC 3.3 and 2.4: `home_widget` reloads the widget but cannot write `widget_summary.json`; our own channel does.
+- Lock-screen widget (`accessoryRectangular`, SPEC 6 nice-to-have).
