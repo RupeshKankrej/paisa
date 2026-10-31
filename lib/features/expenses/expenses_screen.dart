@@ -103,32 +103,48 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           padding: listClearance(context),
           children: [
             MonthSwipe(
-              child: DecoratedBox(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [AppColors.heroTop, AppColors.bg],
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Fills the gap above the header when iOS bounces the list.
+                  const Positioned(
+                    key: Key('header-overscroll-fill'),
+                    left: 0,
+                    right: 0,
+                    top: -2000,
+                    height: 2000,
+                    child: ColoredBox(color: AppColors.heroTop),
                   ),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.only(top: belowFloatingBar(context)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const Center(child: MonthPicker()),
-                      Center(child: HeroAmount(sumPaise(spendOf(rows).values))),
-                      const SizedBox(height: 16),
-                      DayBarChart(
-                        rows: rows,
-                        period: Period.forMonthKey(
-                          month,
-                          ref.watch(salaryDayProvider).value,
-                        ),
+                  DecoratedBox(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [AppColors.heroTop, AppColors.bg],
                       ),
-                    ],
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.only(top: belowFloatingBar(context)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Center(child: MonthPicker()),
+                          Center(
+                            child: HeroAmount(sumPaise(spendOf(rows).values)),
+                          ),
+                          const SizedBox(height: 16),
+                          DayBarChart(
+                            rows: rows,
+                            period: Period.forMonthKey(
+                              month,
+                              ref.watch(salaryDayProvider).value,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
             const SizedBox(height: 16),

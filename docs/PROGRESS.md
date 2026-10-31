@@ -2,15 +2,16 @@
 
 ## Phase 8: UI Activity, Add, Summary (2026-10-31)
 
-Status: built on branch `phase-8-ui-activity-summary` (from `phase-7-design-system`, which is not merged), not merged. Tests pass and the three screens were viewed on the simulator. Device checks below are waiting on Rupesh.
+Status: built on branch `phase-8-ui-activity-summary` (from `phase-7-design-system`, which is not merged), not merged. Tests pass and the three screens were viewed on the simulator. Rupesh confirmed swipe works on the iPhone; the other device checks below are waiting.
 
 ### What was built
 - Activity: one scrolling page with the gradient header, month caption, hero total and `DayBarChart` (`lib/features/expenses/day_bar_chart.dart`), then chips and day cards. The settings button stays put while the page scrolls under it.
 - Add/Edit (`transaction_sheet.dart`, rewritten): near-full-height sheet, hero amount, backspace, reset, delete, chips, category strip with grid button, 3x4 keypad with a light arrow key. This also fixes the drag handle sitting beside the clock.
 - Summary (`categories_screen.dart`, rewritten): donut with the month and total in the centre, Expenses/Income chips, rows with count, amount, % pill and budget bar.
 - Spec update (5.13, reference 10): `MonthPicker` is now a "This month ▾" caption opening the Select date sheet, with year chips, a 3x4 month grid with future months disabled, the date range in salary-day mode and the swipe tip. It replaces the dropdown on every screen.
-- `MonthSwipe`: a horizontal swipe changes the shared month. Right goes back, left goes forward and stops at the current period, as Rupesh asked after trying it. This reverses the direction SPEC 5.17 gives for Analytics (see BACKLOG). It is on the Activity header, the Summary donut, and the Analytics day-wise and budget cards.
+- `MonthSwipe`: a horizontal swipe changes the shared month. Right goes back, left goes forward and stops at the current period, as Rupesh asked after trying it. SPEC 5.13 and 5.17 now state this direction for all date swipes. It is on the Activity header, the Summary donut, and the Analytics day-wise and budget cards.
 - Activity day bars are drawn in a gradient, as Rupesh asked.
+- Pulling Activity down past the top showed the page background above the gradient (Rupesh, iPhone). The header's top colour now extends above it. Checked with a held pull-down on the simulator.
 - Fixed the add button sitting under the nav on the iPhone. It read the safe area once, without subscribing, so a first frame with no inset left it 14 points too low. A test reproduced this before the fix.
 - Pure helpers with tests: `MonthKey.pickerYears`, `Money.keypadPress`, `keypadText`, `keypadDisplay`; `totalsByCategory` and `percentLabel` in `lib/domain/budget.dart`. No schema change.
 
