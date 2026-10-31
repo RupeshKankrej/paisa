@@ -24,7 +24,7 @@ class CategoryAvatar extends StatelessWidget {
       height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.palette.surface,
         borderRadius: BorderRadius.circular(AppRadii.round),
         border: Border.all(
           color: category == null ? Colors.grey : Color(category.color),
@@ -57,7 +57,7 @@ class CategoryTypeSegment extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
-      color: AppColors.surfaceRaised,
+      color: context.palette.surfaceRaised,
       borderRadius: BorderRadius.circular(AppRadii.round),
     ),
     child: Row(
@@ -71,7 +71,7 @@ class CategoryTypeSegment extends StatelessWidget {
               button: true,
               selected: type == value,
               child: Material(
-                color: type == value ? AppColors.bg : Colors.transparent,
+                color: type == value ? context.palette.bg : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppRadii.round),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
@@ -83,8 +83,8 @@ class CategoryTypeSegment extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: type == value
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
+                            ? context.palette.textPrimary
+                            : context.palette.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -171,7 +171,7 @@ class _CategoryGridSheetState extends ConsumerState<_CategoryGridSheet> {
                 IconButton(
                   tooltip: 'Edit categories',
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.surfaceRaised,
+                    backgroundColor: context.palette.surfaceRaised,
                   ),
                   icon: const Icon(Icons.edit, size: 20),
                   onPressed: () =>
@@ -188,12 +188,12 @@ class _CategoryGridSheetState extends ConsumerState<_CategoryGridSheet> {
                 spacing: 8,
                 children: [
                   ActionChip(
-                    backgroundColor: AppColors.surfaceRaised,
+                    backgroundColor: context.palette.surfaceRaised,
                     label: const Text('All'),
                     onPressed: () => db.setCategoryFilter(null),
                   ),
                   ActionChip(
-                    backgroundColor: AppColors.surfaceRaised,
+                    backgroundColor: context.palette.surfaceRaised,
                     label: const Text('None'),
                     onPressed: () => db.setCategoryFilter(const {}),
                   ),
@@ -226,7 +226,7 @@ class _CategoryGridSheetState extends ConsumerState<_CategoryGridSheet> {
                             )
                           : () => Navigator.of(context).pop(c),
                     ),
-                  _AddNewTile(onTap: () => _addNew(filter)),
+                  AddNewTile(onTap: () => _addNew(filter)),
                 ],
               ),
             ),
@@ -259,7 +259,7 @@ class _Tile extends StatelessWidget {
       button: true,
       selected: selected,
       child: Material(
-        color: AppColors.surfaceRaised,
+        color: context.palette.surfaceRaised,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.chip),
           side: outline == null
@@ -295,29 +295,34 @@ class _Tile extends StatelessWidget {
   }
 }
 
-class _AddNewTile extends StatelessWidget {
-  const _AddNewTile({required this.onTap});
+/// A dashed tile with a plus and a label.
+class AddNewTile extends StatelessWidget {
+  const AddNewTile({super.key, required this.onTap, this.label = 'Add new'});
 
   final VoidCallback onTap;
+  final String label;
 
   @override
   Widget build(BuildContext context) => CustomPaint(
-    painter: _DashedBorder(),
+    painter: _DashedBorder(context.palette.textSecondary),
     child: Semantics(
       button: true,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.chip),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           spacing: 8,
           children: [
-            Icon(Icons.add, color: AppColors.textSecondary),
+            Icon(Icons.add, color: context.palette.textSecondary),
             Text(
-              'Add new',
+              label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: TextStyle(
+                fontSize: 13,
+                color: context.palette.textSecondary,
+              ),
             ),
           ],
         ),
@@ -327,13 +332,17 @@ class _AddNewTile extends StatelessWidget {
 }
 
 class _DashedBorder extends CustomPainter {
+  _DashedBorder(this.color);
+
+  final Color color;
+
   static const _dash = 8.0;
   static const _gap = 6.0;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.textSecondary
+      ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     final outline = Path()
@@ -351,5 +360,5 @@ class _DashedBorder extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_DashedBorder oldDelegate) => false;
+  bool shouldRepaint(_DashedBorder oldDelegate) => oldDelegate.color != color;
 }

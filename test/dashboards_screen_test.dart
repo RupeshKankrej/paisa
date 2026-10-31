@@ -73,7 +73,7 @@ void main() {
     tester,
   ) async {
     await pump(tester);
-    expect(find.text('No transactions yet.'), findsOneWidget);
+    expect(find.text('No transactions in these months.'), findsNWidgets(2));
     expect(
       find.text('No spending in ${MonthKey.label(month)}.'),
       findsOneWidget,
@@ -88,7 +88,7 @@ void main() {
     expect(find.byType(PieChart), findsNothing);
   });
 
-  testWidgets('month-wise bars match seeded totals, and tapping shows them', (
+  testWidgets('the window has 6 periods, and tapping a bar selects one', (
     tester,
   ) async {
     final last = MonthKey.start(MonthKey.shift(month, -1));
@@ -100,44 +100,212 @@ void main() {
 
     final chart = tester.widget<BarChart>(find.byType(BarChart).first);
     final groups = chart.data.barGroups;
-    expect(groups.length, 12);
-    expect(groups.last.barRods.map((r) => r.toY), [30000, 5000000]);
-    expect(groups[10].barRods.map((r) => r.toY), [70000, 9000000]);
-    expect(
-      groups.expand((g) => g.barRods).map((r) => r.backDrawRodData.color),
-      everyElement(Colors.transparent),
-      reason: 'only the red and green bars show',
-    );
-    expect(
-      find.text('${MonthKey.label(month)}: spent ₹300.00, income ₹50,000.00'),
-      findsOneWidget,
-    );
+    expect(groups.length, 6);
+    expect(groups.last.barRods.map((r) => r.toY), [5000000, 30000]);
+    expect(groups[4].barRods.map((r) => r.toY), [9000000, 70000]);
+    expect(find.text('₹50,000.00'), findsWidgets);
 
     // Second group from the right; the axis takes the last 44 points.
     final box = tester.getRect(find.byType(BarChart).first);
-    final slot = (box.width - 44) / 12;
+    final slot = (box.width - 44) / 6;
     await tester.tapAt(Offset(box.right - 44 - slot * 1.5, box.center.dy));
-    await tester.pumpAndSettle();
+    await settle(tester);
+    expect(find.text('₹90,000.00'), findsWidgets);
+    expect(find.text('₹700.00'), findsWidgets);
+  });
+
+  testWidgets('each card swipes and selects on its own', (tester) async {
+    final older = MonthKey.shift(month, -6);
+    await add(123400, at: MonthKey.start(older));
+    await add(5000);
+    await pump(tester);
+    Text left() => tester.widget<Text>(find.byKey(const Key('income-left')));
+    expect(find.text(MonthKey.label(month)), findsNWidgets(3));
+    expect(left().data, '-₹50.00');
+
+    await tester.drag(find.byType(BarChart).first, const Offset(100, 0));
+    await settle(tester);
+    expect(find.text('₹1,234.00'), findsOneWidget, reason: 'its legend moved');
+    expect(left().data, '-₹50.00', reason: 'income left did not');
+    expect(find.text(MonthKey.label(month)), findsNWidgets(3));
+
+    await tester.drag(find.byType(BarChart).at(1), const Offset(100, 0));
+    await settle(tester);
+    expect(left().data, '-₹1,234.00');
+
+    await tester.drag(find.text('Calendar'), const Offset(100, 0));
+    await settle(tester);
     expect(
-      find.text(
-        '${MonthKey.label(MonthKey.shift(month, -1))}: '
-        'spent ₹700.00, income ₹90,000.00',
-      ),
+      find.text(MonthKey.label(MonthKey.shift(month, -1))),
       findsOneWidget,
+      reason: 'the calendar moved one month, day-wise and pie stayed',
+    );
+    expect(find.text(MonthKey.label(month)), findsNWidgets(2));
+
+    await tester.drag(find.text('Calendar'), const Offset(-100, 0));
+    await settle(tester);
+    await tester.drag(find.text('Calendar'), const Offset(-100, 0));
+    await settle(tester);
+    expect(
+      find.text(MonthKey.label(month)),
+      findsNWidgets(3),
+      reason: 'no further than the current period',
     );
   });
 
-  testWidgets('more than 12 months scroll, opening on the newest', (
+  testWidgets('a tapped bar changes only its own card', (tester) async {
+    final last = MonthKey.start(MonthKey.shift(month, -1));
+    await add(70000, at: last);
+    await add(5000);
+    await pump(tester);
+    Text left() => tester.widget<Text>(find.byKey(const Key('income-left')));
+
+    final box = tester.getRect(find.byType(BarChart).first);
+    final slot = (box.width - 44) / 6;
+    await tester.tapAt(Offset(box.right - 44 - slot * 1.5, box.center.dy));
+    await settle(tester);
+    expect(find.text('₹700.00'), findsOneWidget, reason: 'its legend');
+    expect(left().data, '-₹50.00');
+  });
+
+  group('the day sheet', () {
+    Future<void> openDay(WidgetTester tester) async {
+      await tester.tap(find.byKey(ValueKey(DateTime(start.year, start.month))));
+      await settle(tester);
+    }
+
+    Text total(WidgetTester tester) =>
+        tester.widget<Text>(find.byKey(const Key('day-total')));
+
+    Future<void> seed() async {
+      await db.addTransaction(
+        TransactionsCompanion.insert(
+          type: TransactionType.debit,
+          amountPaise: 9000,
+          occurredAt: start.add(const Duration(hours: 9)),
+          source: TransactionSource.manual,
+          counterparty: const Value('Lunch'),
+          categoryId: const Value(food),
+        ),
+      );
+      await add(100000, at: start.add(const Duration(hours: 10)));
+      await add(5000, type: TransactionType.credit);
+      await add(7700, at: start.add(const Duration(days: 1)));
+    }
+
+    testWidgets('lists only that day\'s expenses with their total', (
+      tester,
+    ) async {
+      await seed();
+      await pump(tester);
+      await openDay(tester);
+      expect(total(tester).data, '-₹1,090.00');
+      expect(find.text('Lunch'), findsOneWidget);
+      expect(find.text('₹77.00'), findsNothing);
+      expect(find.text('+₹50.00'), findsNothing);
+
+      await tester.tap(find.byTooltip('Close'));
+      await settle(tester);
+      expect(find.text('Total amount'), findsNothing);
+    });
+
+    testWidgets('a tap edits, and the edit shows at once', (tester) async {
+      await seed();
+      await pump(tester);
+      await openDay(tester);
+      await tester.tap(find.text('Lunch'));
+      await settle(tester);
+      expect(find.byKey(const Key('sheet-amount')), findsOneWidget);
+      await tester.tap(find.byTooltip('Backspace'));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('key-save')));
+      await settle(tester);
+      expect(find.byKey(const Key('sheet-amount')), findsNothing);
+      expect(total(tester).data, '-₹1,009.00');
+    });
+
+    testWidgets('a swipe deletes, and Undo restores it', (tester) async {
+      await seed();
+      await pump(tester);
+      await openDay(tester);
+      await tester.drag(find.text('Lunch'), const Offset(-600, 0));
+      await settle(tester);
+      expect(find.text('Lunch'), findsNothing);
+      expect(total(tester).data, '-₹1,000.00');
+
+      await tester.tap(find.text('Undo'));
+      await settle(tester);
+      expect(find.text('Lunch'), findsOneWidget);
+      expect(total(tester).data, '-₹1,090.00');
+    });
+
+    testWidgets('a day with no expenses says so', (tester) async {
+      await pump(tester);
+      await openDay(tester);
+      expect(find.text('No expenses on this day'), findsOneWidget);
+    });
+  });
+
+  testWidgets('salary counts as income, once, with other credits', (
     tester,
   ) async {
-    await add(100, at: MonthKey.start(MonthKey.shift(month, -30)));
-    await pump(tester);
-    final chart = tester.widget<BarChart>(find.byType(BarChart).first);
-    expect(chart.data.barGroups.length, 31);
-    final scroll = tester.widget<SingleChildScrollView>(
-      find.byType(SingleChildScrollView).first,
+    await db.setSalary(null, 10000000); // 1,00,000
+    await add(500000, type: TransactionType.credit); // 5,000, a refund
+    await add(2000000); // 20,000 spent
+    final last = MonthKey.start(MonthKey.shift(month, -1));
+    final salary = (await tester.runAsync(() => db.watchCategories().first))!
+        .firstWhere((c) => c.name == 'Salary');
+    await add(
+      9000000,
+      category: salary.id,
+      type: TransactionType.credit,
+      at: last,
     );
-    expect(scroll.reverse, isTrue);
+    await pump(tester);
+    expect(
+      find.text('₹1,05,000.00'),
+      findsOneWidget,
+      reason: 'salary + refund',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const Key('income-left'))).data,
+      '₹85,000.00',
+    );
+    final groups = tester
+        .widget<BarChart>(find.byType(BarChart).first)
+        .data
+        .barGroups;
+    expect(groups.last.barRods.first.toY, 10500000);
+    expect(
+      groups[4].barRods.first.toY,
+      9000000,
+      reason: 'the tagged credit alone',
+    );
+  });
+
+  testWidgets('income left: the toggle persists, zero income is dashed', (
+    tester,
+  ) async {
+    await add(2500000, type: TransactionType.credit);
+    await add(500000);
+    await add(100, at: MonthKey.start(MonthKey.shift(month, -1)));
+    await pump(tester);
+    Text header() => tester.widget<Text>(find.byKey(const Key('income-left')));
+    expect(header().data, '₹20,000.00');
+    BarChart left() => tester.widget<BarChart>(find.byType(BarChart).at(1));
+    expect(left().data.barGroups[4].barRods.single.toY, -100);
+
+    await tester.tap(find.byTooltip('Show percent'));
+    await settle(tester);
+    expect(header().data, '80%');
+    expect(left().data.barGroups.last.barRods.single.toY, 80);
+    final none = left().data.barGroups[4].barRods.single;
+    expect(none.borderDashArray, isNotNull);
+    expect(none.color, Colors.transparent);
+    expect(
+      await tester.runAsync(() => db.watchSetting(incomeLeftPercentKey).first),
+      isNotNull,
+    );
   });
 
   testWidgets('day-wise has every day and a dashed average line', (
@@ -279,7 +447,7 @@ void main() {
       ),
     );
     await settle(tester);
-    widgetRef.read(pickedMonthProvider.notifier).state = '2026-11';
+    widgetRef.read(cardMonthProvider('dayWise').notifier).state = '2026-11';
     await settle(tester);
 
     final chart = tester.widget<BarChart>(find.byType(BarChart).last);

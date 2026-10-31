@@ -82,15 +82,17 @@ class DayBarChart extends StatelessWidget {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          AppColors.textPrimary.withValues(alpha: 0.15),
-                          AppColors.textPrimary.withValues(alpha: 0.7),
+                          context.palette.textPrimary.withValues(alpha: 0.15),
+                          context.palette.textPrimary.withValues(alpha: 0.7),
                         ],
                       ),
                       borderRadius: BorderRadius.circular(3),
                       backDrawRodData: BackgroundBarChartRodData(
                         show: true,
                         toY: maxY,
-                        color: AppColors.textPrimary.withValues(alpha: 0.05),
+                        color: context.palette.textPrimary.withValues(
+                          alpha: 0.05,
+                        ),
                       ),
                     ),
                   ],

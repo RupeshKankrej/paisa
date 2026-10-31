@@ -8,10 +8,10 @@ import 'package:paisa/app/shell_widgets.dart';
 import 'package:paisa/data/database.dart';
 import 'package:paisa/domain/models.dart';
 import 'package:paisa/data/providers.dart';
+import 'package:paisa/features/budgets/budget_screen.dart';
 import 'package:paisa/features/budgets/categories_screen.dart';
 import 'package:paisa/features/dashboards/dashboards_screen.dart';
 import 'package:paisa/features/expenses/expenses_screen.dart';
-import 'package:paisa/features/home/home_screen.dart';
 import 'package:paisa/features/settings/accounts_screen.dart';
 import 'package:paisa/features/settings/settings_screen.dart';
 import 'package:paisa/main.dart';
@@ -78,7 +78,7 @@ void main() {
       reason: 'the add button sits above the pill',
     );
     for (final (label, screen) in [
-      ('Budget', HomeScreen),
+      ('Budget', BudgetScreen),
       ('Analytics', DashboardsScreen),
       ('Accounts', AccountsScreen),
       ('Activity', ExpensesScreen),

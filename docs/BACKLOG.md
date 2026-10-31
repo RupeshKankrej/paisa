@@ -18,10 +18,17 @@
 - Filter chips from SPEC 5.12 that have no behaviour yet: search, Monthly, All accounts, sort. Add each with its feature.
 - Update SPEC 5.12 or the reference: the radii table says icon tiles 999, the screenshots show rounded squares.
 - Liquid Glass feel for the bottom nav (Rupesh, Phase 7 device check). Phase 9 motion covers the pill animating between tabs; do this with it as a springy slide over the existing blur. SPEC does not ask for glass refraction, and Flutter has no system Liquid Glass, so true refraction would need a native tab bar or a custom shader.
-- Reconcile SPEC 5.12 "the budget pie becomes the Summary donut" with reference 03: the donut shows spend share, so slices match the % pills, and the 5.8 budget pie stays on Analytics. Decide its home in Phase 10.
+- Reconcile SPEC 5.12 "the budget pie becomes the Summary donut" with reference 03: the donut shows spend share, so slices match the % pills, and the 5.8 budget pie stays on Analytics, below the calendar (Phase 10).
 - Account chip in the add sheet for manual rows, and the sheet's overflow menu from reference 02. Both need multiple accounts.
 - Whole-rupee amounts on Activity and Summary, as the references show. SPEC 4.1 keeps `₹1,55,453.00` for now.
 - Decide whether to replace the 8 older categories on an existing install with the new SPEC 5.14 expense seed. The migration only adds the 2 income seeds.
 - The SPEC 5.14 filter has no Uncategorised tile: any subset hides uncategorised rows. The Activity Uncategorised chip needs the filter on All.
 - Emoji input on Android: the `paisa/emoji` channel exists on iOS only.
 - SPEC 5.9 still lists archive for categories, but 5.14 and reference 26 dropped it. The Archive button is gone; `is_archived`, the Archived section and Unarchive stay only for categories archived before that. Decide whether to remove them.
+- Update SPEC 5.6 and 3.1: Home is gone. Phase 10's Budget tab took its place and has no last-5 list, which Activity already shows.
+- Decide whether Analytics keeps Day-wise, Date range and the budget pie below the calendar. References 07, 08, 22 and 23 show only the first three cards; SPEC 5.8 still asks for these.
+- Reference 08 shows dashed income-left bars in amount mode too. SPEC 5.17 asks for them in percent mode only, which is what is built.
+- Bar glow (SPEC 5.12): fl_chart bars have no shadow option, so it needs a custom painter.
+- Settings rows from reference 09 with nothing behind them: language, reminder, first day of week, currency format, display cents, haptics, hide balances. Export, backup and About arrive in Phase 12.
+- Calendar and axis amounts use `Money.compact` (lakh as L). The references show only k, as they come from a non-Indian app.
+- A default limit saved for every month is checked against the selected period's salary only; a month with a lower override can still end up past its salary, and Summary's note then flags it.

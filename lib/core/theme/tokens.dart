@@ -1,16 +1,75 @@
-import 'dart:ui';
+import 'package:flutter/material.dart';
 
-/// Design tokens from SPEC 5.12. Category colours live in the database seed.
-abstract final class AppColors {
-  static const bg = Color(0xFF121619);
+/// Design tokens from SPEC 5.12 that change with the theme. Category colours
+/// live in the database seed.
+class AppPalette extends ThemeExtension<AppPalette> {
+  const AppPalette({
+    required this.bg,
+    required this.heroTop,
+    required this.surface,
+    required this.surfaceRaised,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.accent,
+  });
+
+  static const dark = AppPalette(
+    bg: Color(0xFF121619),
+    heroTop: Color(0xFF1E3A4C),
+    surface: Color(0xFF1C2227),
+    surfaceRaised: Color(0xFF262D33),
+    textPrimary: Color(0xFFFFFFFF),
+    textSecondary: Color(0xFF8A949C),
+    accent: Color(0xFFF2F2F2),
+  );
+
+  static const light = AppPalette(
+    bg: Color(0xFFF3F5F7),
+    heroTop: Color(0xFFC9DFED),
+    surface: Color(0xFFFFFFFF),
+    surfaceRaised: Color(0xFFE4E8EC),
+    textPrimary: Color(0xFF12171B),
+    textSecondary: Color(0xFF5C6770),
+    accent: Color(0xFF1C2227),
+  );
+
+  final Color bg;
 
   /// Top of the Activity header, fading down to [bg].
-  static const heroTop = Color(0xFF1E3A4C);
-  static const surface = Color(0xFF1C2227);
-  static const surfaceRaised = Color(0xFF262D33);
-  static const textPrimary = Color(0xFFFFFFFF);
-  static const textSecondary = Color(0xFF8A949C);
-  static const accent = Color(0xFFF2F2F2);
+  final Color heroTop;
+  final Color surface;
+  final Color surfaceRaised;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color accent;
+
+  @override
+  AppPalette copyWith() => this;
+
+  @override
+  AppPalette lerp(AppPalette? other, double t) {
+    if (other == null) return this;
+    Color mix(Color a, Color b) => Color.lerp(a, b, t)!;
+    return AppPalette(
+      bg: mix(bg, other.bg),
+      heroTop: mix(heroTop, other.heroTop),
+      surface: mix(surface, other.surface),
+      surfaceRaised: mix(surfaceRaised, other.surfaceRaised),
+      textPrimary: mix(textPrimary, other.textPrimary),
+      textSecondary: mix(textSecondary, other.textSecondary),
+      accent: mix(accent, other.accent),
+    );
+  }
+}
+
+extension PaletteOf on BuildContext {
+  /// Dark when a test's bare MaterialApp has no palette.
+  AppPalette get palette =>
+      Theme.of(this).extension<AppPalette>() ?? AppPalette.dark;
+}
+
+/// Colours that are the same in both themes.
+abstract final class AppColors {
   static const income = Color(0xFF4CC38A);
   static const expense = Color(0xFF5AA9F5);
 

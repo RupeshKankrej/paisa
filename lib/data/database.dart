@@ -232,6 +232,18 @@ class AppDatabase extends _$AppDatabase {
           SettingsCompanion.insert(key: _salaryDayKey, value: '$day'),
         );
 
+  Stream<String?> watchSetting(String key) =>
+      (select(settings)..where((s) => s.key.equals(key)))
+          .watchSingleOrNull()
+          .map((row) => row?.value);
+
+  /// A null [value] removes the row.
+  Future<void> setSetting(String key, String? value) => value == null
+      ? (delete(settings)..where((s) => s.key.equals(key))).go()
+      : into(settings).insertOnConflictUpdate(
+          SettingsCompanion.insert(key: key, value: value),
+        );
+
   /// Amounts by month; the null key is the default.
   Stream<Map<String?, int>> watchSalaryAmounts() =>
       select(salary)

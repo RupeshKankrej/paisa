@@ -53,3 +53,27 @@ double spentFraction(int spent, int limit) {
   if (limit <= 0) return spent > 0 ? 1 : 0;
   return min(spent / limit, 1);
 }
+
+/// One typed limit: [paise] null is a blank amount, and [everyMonth] picks the
+/// default rather than the selected period's override (SPEC 5.5).
+typedef LimitEdit = ({int? paise, bool everyMonth});
+
+/// What the period's limit becomes. Saving for every month also clears that
+/// period's override, and a blank override falls back to the default.
+int? limitAfterEdit(Map<String?, int> amounts, LimitEdit edit) =>
+    edit.everyMonth ? edit.paise : edit.paise ?? amounts[null];
+
+/// Salary less every limit, including this one as typed (SPEC 5.16).
+int budgetLeft(int salary, int otherLimits, int? limit) =>
+    salary - otherLimits - (limit ?? 0);
+
+/// A negative amount left blocks saving. Blank stays allowed, so limits already
+/// past a lowered salary can still be removed. No salary means no cap.
+bool canSaveLimit(int? salary, int otherLimits, int? limit, LimitEdit edit) =>
+    edit.paise == null ||
+    salary == null ||
+    budgetLeft(salary, otherLimits, limit) >= 0;
+
+/// '10%' for the Allocate sheet. Zero when there is no total to share.
+String wholePercentLabel(int part, int total) =>
+    total <= 0 ? '0%' : '${(part * 100 + total ~/ 2) ~/ total}%';

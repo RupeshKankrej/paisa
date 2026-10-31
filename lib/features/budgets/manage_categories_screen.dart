@@ -136,9 +136,9 @@ class _ManageCategoriesScreenState
                             color: AppColors.delete,
                             alignment: Alignment.centerRight,
                             padding: const EdgeInsets.only(right: 24),
-                            child: const Icon(
+                            child: Icon(
                               Icons.delete_outline,
-                              color: AppColors.textPrimary,
+                              color: context.palette.textPrimary,
                             ),
                           ),
                           confirmDismiss: (_) => confirmDismissCategory(c),
@@ -159,7 +159,7 @@ class _ManageCategoriesScreenState
                                 padding: const EdgeInsets.all(8),
                                 child: Icon(
                                   Icons.drag_handle,
-                                  color: AppColors.textSecondary,
+                                  color: context.palette.textSecondary,
                                   semanticLabel: 'Reorder ${c.name}',
                                 ),
                               ),
@@ -184,7 +184,7 @@ class _ManageCategoriesScreenState
                         height: 44,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: AppColors.surfaceRaised,
+                          color: context.palette.surfaceRaised,
                           borderRadius: BorderRadius.circular(AppRadii.chip),
                         ),
                         child: Text(
@@ -197,7 +197,7 @@ class _ManageCategoriesScreenState
                       trailing: IconButton(
                         tooltip: 'Add ${s.name}',
                         style: IconButton.styleFrom(
-                          backgroundColor: AppColors.surfaceRaised,
+                          backgroundColor: context.palette.surfaceRaised,
                         ),
                         icon: const Icon(Icons.add),
                         onPressed: () => _addSuggestion(s, i),

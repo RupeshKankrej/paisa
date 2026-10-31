@@ -14,8 +14,13 @@ const _navHeight = 64.0;
 const _navGap = 8.0;
 
 /// App bar for a tab: settings button on the left, month dropdown or a title.
-AppBar tabAppBar({Widget title = const MonthPicker()}) =>
-    AppBar(leading: const _SettingsButton(), leadingWidth: 64, title: title);
+AppBar tabAppBar({Widget title = const MonthPicker(), List<Widget>? actions}) =>
+    AppBar(
+      leading: const _SettingsButton(),
+      leadingWidth: 64,
+      title: title,
+      actions: actions,
+    );
 
 /// App bar for a tab whose page scrolls under it, month dropdown in the page.
 AppBar floatingTabAppBar() => tabAppBar(title: const SizedBox.shrink());
@@ -37,9 +42,9 @@ class _SettingsButton extends StatelessWidget {
     child: IconButton(
       tooltip: 'Settings',
       style: IconButton.styleFrom(
-        backgroundColor: AppColors.textPrimary.withValues(alpha: 0.12),
+        backgroundColor: context.palette.textPrimary.withValues(alpha: 0.12),
       ),
-      icon: const Icon(Icons.settings, color: AppColors.textPrimary),
+      icon: Icon(Icons.settings, color: context.palette.textPrimary),
       onPressed: () => context.push('/settings'),
     ),
   );
@@ -113,6 +118,23 @@ class HeroAmount extends StatelessWidget {
   );
 }
 
+/// A small count or percentage beside an amount.
+class Pill extends StatelessWidget {
+  const Pill(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    decoration: BoxDecoration(
+      color: context.palette.surfaceRaised,
+      borderRadius: BorderRadius.circular(AppRadii.chip),
+    ),
+    child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+  );
+}
+
 /// Rows in one rounded card with hairlines between them.
 class GroupedCard extends StatelessWidget {
   const GroupedCard({
@@ -163,7 +185,7 @@ class PillNavBar extends StatelessWidget {
         child: Container(
           height: _navHeight,
           padding: const EdgeInsets.all(4),
-          color: AppColors.surfaceRaised.withValues(alpha: 0.85),
+          color: context.palette.surfaceRaised.withValues(alpha: 0.85),
           child: Row(
             children: [
               for (final (i, item) in items.indexed)
@@ -195,12 +217,14 @@ class _PillNavButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.textPrimary : AppColors.textSecondary;
+    final color = selected
+        ? context.palette.textPrimary
+        : context.palette.textSecondary;
     return Semantics(
       button: true,
       selected: selected,
       child: Material(
-        color: selected ? AppColors.bg : Colors.transparent,
+        color: selected ? context.palette.bg : Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadii.round),
         clipBehavior: Clip.antiAlias,
         child: InkWell(

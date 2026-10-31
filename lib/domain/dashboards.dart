@@ -132,3 +132,59 @@ BudgetPie budgetPie(Map<int, int> limits, Map<int?, int> spend, int? salary) {
     over && salary > 0 ? sqrt(salary / total) : null,
   );
 }
+
+const analyticsWindow = 6;
+
+/// The 6 periods shown around [selected], oldest first. Windows count back from
+/// [current], so one always ends on it and shifting by 6 moves exactly one
+/// window while keeping the selected slot (SPEC 5.17).
+List<String> periodWindow(String selected, String current) {
+  final back = selected.compareTo(current) >= 0
+      ? 0
+      : MonthKey.range(selected, current).length - 1;
+  final end = MonthKey.shift(
+    current,
+    -(back ~/ analyticsWindow) * analyticsWindow,
+  );
+  return MonthKey.range(MonthKey.shift(end, 1 - analyticsWindow), end);
+}
+
+/// 'Jan', with the year on the first label of a window crossing one: "Dec '25".
+String windowLabel(List<String> keys, int index) {
+  final key = keys[index];
+  final name = MonthKey.label(key).substring(0, 3);
+  final crosses = keys.first.substring(0, 4) != keys.last.substring(0, 4);
+  return index == 0 && crosses ? "$name '${key.substring(2, 4)}" : name;
+}
+
+/// Share of the period's income left after spending, as a percentage; null when
+/// there was no income, where a share has no meaning.
+double? incomeLeftPercent(MonthTotal t) =>
+    t.income == 0 ? null : (t.income - t.spent) * 100 / t.income;
+
+/// Calendar cell opacity. A square root, so one huge day leaves the others
+/// visible; any spend at all is clearly different from a grey zero cell.
+double heatLevel(int paise, int most) =>
+    most <= 0 ? 0 : 0.3 + 0.7 * sqrt(paise / most);
+
+/// Counts each period's salary as income on top of its credits (SPEC 5.17).
+/// [paid] holds periods with a credit tagged as salary, which already is that
+/// income. Periods before the first transaction stay empty, as the app was not
+/// in use then and a default salary would invent income for them.
+List<MonthTotal> withSalaryIncome(
+  List<MonthTotal> totals,
+  Map<String?, int> salaries,
+  Set<String> paid,
+) {
+  final start = totals.indexWhere((t) => t.spent != 0 || t.income != 0);
+  return [
+    for (final (i, t) in totals.indexed)
+      start < 0 || i < start || paid.contains(t.key)
+          ? t
+          : (
+              key: t.key,
+              spent: t.spent,
+              income: t.income + (resolveAmount(salaries, t.key) ?? 0),
+            ),
+  ];
+}

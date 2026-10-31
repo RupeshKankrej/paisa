@@ -53,7 +53,7 @@ Future<bool> confirmDeleteCategory(
             FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.delete,
-                foregroundColor: AppColors.textPrimary,
+                foregroundColor: context.palette.textPrimary,
                 minimumSize: const Size.fromHeight(52),
               ),
               onPressed: () => Navigator.of(sheet).pop(true),
@@ -80,8 +80,8 @@ class _SecondaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => FilledButton(
     style: FilledButton.styleFrom(
-      backgroundColor: AppColors.surfaceRaised,
-      foregroundColor: AppColors.textPrimary,
+      backgroundColor: context.palette.surfaceRaised,
+      foregroundColor: context.palette.textPrimary,
       minimumSize: const Size.fromHeight(52),
     ),
     onPressed: onPressed,
@@ -197,7 +197,7 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
     final taken = _taken;
     final canSave = _name.text.trim().isNotEmpty && !taken && !_saving;
     final fieldShape = BoxDecoration(
-      color: AppColors.surfaceRaised,
+      color: context.palette.surfaceRaised,
       borderRadius: BorderRadius.circular(AppRadii.chip),
     );
     return SafeArea(
@@ -238,15 +238,15 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
                       decoration: InputDecoration(
                         hintText: 'Category name',
                         filled: true,
-                        fillColor: AppColors.surfaceRaised,
+                        fillColor: context.palette.surfaceRaised,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadii.chip),
                           borderSide: BorderSide.none,
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(AppRadii.chip),
-                          borderSide: const BorderSide(
-                            color: AppColors.textPrimary,
+                          borderSide: BorderSide(
+                            color: context.palette.textPrimary,
                             width: 2,
                           ),
                         ),
@@ -348,7 +348,7 @@ class _CategoryEditSheetState extends ConsumerState<_CategoryEditSheet> {
                               color: Color(color),
                               border: color == _color
                                   ? Border.all(
-                                      color: AppColors.textPrimary,
+                                      color: context.palette.textPrimary,
                                       width: 3,
                                     )
                                   : null,

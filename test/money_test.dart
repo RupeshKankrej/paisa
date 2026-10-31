@@ -75,4 +75,9 @@ void main() {
       expect(Money.keypadDisplay('1250.5'), '₹1,250.5');
     });
   });
+
+  test('compact keeps the sign outside the rupee symbol', () {
+    expect(Money.compact(-150000), '-₹1.5k');
+    expect(Money.compact(-5000), '-₹50');
+  });
 }

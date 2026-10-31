@@ -57,7 +57,9 @@ class _PaisaAppState extends ConsumerState<PaisaApp> {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Paisa',
-      theme: appTheme(),
+      theme: appTheme(Brightness.light),
+      darkTheme: appTheme(),
+      themeMode: ref.watch(themeModeProvider).value ?? ThemeMode.system,
       routerConfig: router,
     );
   }

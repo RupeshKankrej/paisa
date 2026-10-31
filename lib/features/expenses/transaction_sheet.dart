@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app/amount_keypad.dart';
 import '../../core/money.dart';
 import '../../core/period.dart';
 import '../../core/theme/tokens.dart';
@@ -28,7 +29,7 @@ Future<SavedTransaction?> showTransactionSheet(
   useRootNavigator: true,
   isScrollControlled: true,
   useSafeArea: true,
-  backgroundColor: AppColors.bg, // so the keys and chips stand out on it
+  backgroundColor: context.palette.bg, // so the keys and chips stand out on it
   builder: (_) => _TransactionSheet(existing, onDelete),
 );
 
@@ -258,41 +259,7 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       spacing: 8,
                       children: [
-                        Row(
-                          children: [
-                            const SizedBox(width: 48), // balances the backspace
-                            Expanded(
-                              child: Center(
-                                child: FittedBox(
-                                  fit: BoxFit.scaleDown,
-                                  child: Text(
-                                    Money.keypadDisplay(_amount),
-                                    key: const Key('sheet-amount'),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .displayLarge,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            GestureDetector(
-                              onLongPress: () => _setAmount(''),
-                              child: IconButton(
-                                tooltip: 'Backspace',
-                                icon: const Icon(Icons.backspace_outlined),
-                                color: AppColors.textSecondary,
-                                onPressed: _amount.isEmpty
-                                    ? null
-                                    : () => _setAmount(
-                                        _amount.substring(
-                                          0,
-                                          _amount.length - 1,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        KeypadAmount(_amount, onChanged: _setAmount),
                         if (_error case final error?)
                           Text(
                             error,
@@ -356,7 +323,10 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
                 ],
               ),
               _categoryStrip(),
-              _keypad(),
+              AmountKeypad(
+                onKey: (key) => _setAmount(Money.keypadPress(_amount, key)),
+                onSubmit: _save,
+              ),
             ],
           ),
         ),
@@ -374,7 +344,7 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
           child: Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.surfaceRaised),
+              border: Border.all(color: context.palette.surfaceRaised),
               borderRadius: BorderRadius.circular(AppRadii.round),
             ),
             child: ClipRRect(
@@ -405,72 +375,6 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
       ],
     );
   }
-
-  Widget _keypad() {
-    Widget digit(String key) => _Key(
-      key: Key('key-$key'),
-      onTap: () => _setAmount(Money.keypadPress(_amount, key)),
-      child: Text(
-        key,
-        style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
-      ),
-    );
-    return Column(
-      spacing: 8,
-      children: [
-        for (final row in const ['123', '456', '789'])
-          Row(
-            spacing: 8,
-            children: [
-              for (final key in row.split('')) Expanded(child: digit(key)),
-            ],
-          ),
-        Row(
-          spacing: 8,
-          children: [
-            Expanded(child: digit('.')),
-            Expanded(child: digit('0')),
-            Expanded(
-              child: _Key(
-                key: const Key('key-save'),
-                color: AppColors.accent,
-                onTap: _save,
-                child: const Icon(
-                  Icons.arrow_forward,
-                  color: AppColors.bg,
-                  semanticLabel: 'Save',
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _Key extends StatelessWidget {
-  const _Key({
-    super.key,
-    required this.onTap,
-    required this.child,
-    this.color = AppColors.surface,
-  });
-
-  final VoidCallback onTap;
-  final Widget child;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: color,
-    borderRadius: BorderRadius.circular(AppRadii.chip),
-    clipBehavior: Clip.antiAlias,
-    child: InkWell(
-      onTap: onTap,
-      child: SizedBox(height: 60, child: Center(child: child)),
-    ),
-  );
 }
 
 class _RoundIcon extends StatelessWidget {
@@ -483,8 +387,8 @@ class _RoundIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconButton(
     tooltip: tooltip,
-    style: IconButton.styleFrom(backgroundColor: AppColors.surface),
-    icon: Icon(icon, color: AppColors.textSecondary),
+    style: IconButton.styleFrom(backgroundColor: context.palette.surface),
+    icon: Icon(icon, color: context.palette.textSecondary),
     onPressed: onPressed,
   );
 }
@@ -505,7 +409,7 @@ class _StripItem extends StatelessWidget {
     button: true,
     selected: selected,
     child: Material(
-      color: selected ? AppColors.surfaceRaised : Colors.transparent,
+      color: selected ? context.palette.surfaceRaised : Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadii.round),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -515,7 +419,9 @@ class _StripItem extends StatelessWidget {
           child: Text(
             '${category.emoji}  ${category.name}',
             style: TextStyle(
-              color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+              color: selected
+                  ? context.palette.textPrimary
+                  : context.palette.textSecondary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -545,7 +451,7 @@ class _TextChip extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: value.isEmpty
-            ? const TextStyle(color: AppColors.textSecondary)
+            ? TextStyle(color: context.palette.textSecondary)
             : null,
       ),
     ),

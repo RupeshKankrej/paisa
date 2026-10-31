@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
 
@@ -25,6 +26,40 @@ List<Category> pickableCategories(List<Category> all, CategoryType type) => [
   for (final c in all)
     if (c.type == type && !c.isArchived) c,
 ];
+
+/// Spend per category for rows of any type; credits are left out.
+Map<int?, int> spendOf(List<TransactionRow> rows) => spendByCategory(
+  rows
+      .where((r) => r.type == TransactionType.debit)
+      .map((r) => (r.categoryId, r.amountPaise)),
+);
+
+/// The month's resolved limit of each expense category that has one, in order.
+Map<int, int> expenseLimits(
+  List<Category> categories,
+  Map<int, Map<String?, int>> budgets,
+  String month,
+) => {
+  for (final c in pickableCategories(categories, CategoryType.expense))
+    c.id: ?resolveAmount(budgets[c.id] ?? const {}, month),
+};
+
+const appearanceKey = 'appearance';
+const incomeLeftPercentKey = 'income_left_percent';
+
+final themeModeProvider = StreamProvider<ThemeMode>(
+  (ref) => ref
+      .watch(databaseProvider)
+      .watchSetting(appearanceKey)
+      .map((name) => ThemeMode.values.asNameMap()[name] ?? ThemeMode.system),
+);
+
+final incomeLeftPercentProvider = StreamProvider<bool>(
+  (ref) => ref
+      .watch(databaseProvider)
+      .watchSetting(incomeLeftPercentKey)
+      .map((value) => value != null),
+);
 
 final categoryFilterProvider = StreamProvider<Set<int>?>(
   (ref) => ref.watch(databaseProvider).watchCategoryFilter(),
@@ -69,6 +104,12 @@ final budgetAmountsProvider = StreamProvider<Map<int, Map<String?, int>>>(
 
 /// Null until a month is chosen, which means the current one.
 final pickedMonthProvider = StateProvider<String?>((ref) => null);
+
+/// Each Analytics card's own month, independent of the app-wide one and of the
+/// other cards. Null means the current period.
+final cardMonthProvider = StateProvider.family<String?, String>(
+  (ref, card) => null,
+);
 
 final selectedMonthProvider = Provider<String>(
   (ref) =>
