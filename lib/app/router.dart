@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/budgets/budget_screen.dart';
 import '../features/budgets/categories_screen.dart';
 import '../features/dashboards/dashboards_screen.dart';
 import '../features/expenses/expenses_screen.dart';
-import '../features/home/home_screen.dart';
 import '../features/settings/accounts_screen.dart';
 import '../features/settings/settings_screen.dart';
 import 'shell_widgets.dart';
@@ -26,8 +26,7 @@ final router = GoRouter(
           ],
         ),
         _tab('/categories', const CategoriesScreen()),
-        // Home stands in as the Budget tab until Phase 10 builds that screen.
-        _tab('/home', const HomeScreen()),
+        _tab('/budget', const BudgetScreen()),
         _tab('/dashboards', const DashboardsScreen()),
         _tab('/accounts', const AccountsScreen()),
       ],

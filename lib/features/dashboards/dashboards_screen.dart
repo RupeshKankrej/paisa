@@ -15,7 +15,6 @@ import '../../data/providers.dart';
 import '../../domain/budget.dart';
 import '../../domain/dashboards.dart';
 import '../../domain/models.dart';
-import '../budgets/month_summary_card.dart';
 
 const _spentColor = AppColors.expense;
 const _incomeColor = AppColors.income;
@@ -72,7 +71,7 @@ class DashboardsScreen extends ConsumerWidget {
       body: ListView(
         padding: listClearance(context),
         children: const [
-          _MonthWiseCard(),
+          _WindowCards(),
           _DayWiseCard(),
           _DateRangeCard(),
           _BudgetPieCard(),
@@ -157,139 +156,486 @@ class _Swatch extends StatelessWidget {
   );
 }
 
-class _MonthWiseCard extends ConsumerStatefulWidget {
-  const _MonthWiseCard();
+/// Income vs expenses, income left and the calendar, moving together: a swipe
+/// shifts all three by one window (SPEC 5.17).
+class _WindowCards extends ConsumerWidget {
+  const _WindowCards();
 
   @override
-  ConsumerState<_MonthWiseCard> createState() => _MonthWiseCardState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(selectedMonthProvider);
+    final salaryDay = ref.watch(salaryDayProvider).value;
+    final now = DateTime.now();
+    return ref
+        .watch(allTransactionsProvider)
+        .when(
+          error: (error, _) => Text('Could not load: $error'),
+          loading: () => const SizedBox(
+            height: _chartHeight,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          data: (rows) {
+            final byKey = {
+              for (final t in monthTotals(
+                rows.map((r) => (r.occurredAt, r.type, r.amountPaise)),
+                salaryDay,
+                now,
+              ))
+                t.key: t,
+            };
+            final keys = periodWindow(
+              selected,
+              Period.containing(now, salaryDay).key,
+            );
+            final totals = [
+              for (final key in keys)
+                byKey[key] ?? (key: key, spent: 0, income: 0),
+            ];
+            final current =
+                byKey[selected] ?? (key: selected, spent: 0, income: 0);
+            return MonthSwipe(
+              months: analyticsWindow,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _IncomeExpensesCard(totals, current),
+                  _IncomeLeftCard(totals, current),
+                  _CalendarCard(rows),
+                ],
+              ),
+            );
+          },
+        );
+  }
 }
 
-class _MonthWiseCardState extends ConsumerState<_MonthWiseCard> {
-  String? _tapped;
+Widget _plainCard(Widget child) => Card(
+  margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+  child: Padding(padding: const EdgeInsets.all(16), child: child),
+);
+
+bool _hasData(List<MonthTotal> totals) =>
+    totals.any((t) => t.spent != 0 || t.income != 0);
+
+/// Bars for one window, with the selected period as a pill under the axis.
+/// Tapping anywhere in a group selects that period.
+class _WindowBars extends ConsumerWidget {
+  const _WindowBars({
+    required this.totals,
+    required this.groups,
+    required this.minY,
+    required this.maxY,
+    required this.axisLabel,
+  });
+
+  final List<MonthTotal> totals;
+  final List<BarChartGroupData> groups;
+  final double minY;
+  final double maxY;
+  final String Function(double) axisLabel;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(selectedMonthProvider);
+    final keys = [for (final t in totals) t.key];
+    final span = max(maxY, -minY);
+    return SizedBox(
+      height: _chartHeight,
+      child: BarChart(
+        BarChartData(
+          minY: minY,
+          maxY: maxY,
+          alignment: BarChartAlignment.spaceAround,
+          borderData: FlBorderData(show: false),
+          gridData: const FlGridData(show: false),
+          titlesData: _titles(
+            right: SideTitles(
+              showTitles: true,
+              reservedSize: _axisWidth,
+              // Labels fall on multiples from zero; an end that is not one would
+              // get its own label, right beside the nearest multiple.
+              interval: span / 2,
+              maxIncluded: maxY == span,
+              minIncluded: minY == 0 || -minY == span,
+              getTitlesWidget: (value, meta) => _AxisText(axisLabel(value)),
+            ),
+            bottom: SideTitles(
+              showTitles: true,
+              reservedSize: 32,
+              getTitlesWidget: (value, meta) {
+                final i = value.toInt();
+                return Container(
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: keys[i] == selected
+                        ? context.palette.surfaceRaised
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: _AxisText(windowLabel(keys, i)),
+                );
+              },
+            ),
+          ),
+          barTouchData: BarTouchData(
+            handleBuiltInTouches: false,
+            allowTouchBarBackDraw: true,
+            touchCallback: (event, response) {
+              final index = response?.spot?.touchedBarGroupIndex;
+              if (event is FlTapUpEvent && index != null) {
+                ref.read(pickedMonthProvider.notifier).state = keys[index];
+              }
+            },
+          ),
+          barGroups: groups,
+        ),
+      ),
+    );
+  }
+}
+
+class _IncomeExpensesCard extends StatelessWidget {
+  const _IncomeExpensesCard(this.totals, this.current);
+
+  final List<MonthTotal> totals;
+  final MonthTotal current;
 
   @override
   Widget build(BuildContext context) {
-    return _ChartCard(
-      title: 'Expenses vs income',
-      rows: ref.watch(allTransactionsProvider),
-      child: _chart,
-    );
-  }
-
-  Widget _chart(List<TransactionRow> rows) {
-    final salaryDay = ref.watch(salaryDayProvider).value;
-    final now = DateTime.now();
-    final totals = monthTotals(
-      rows.map((r) => (r.occurredAt, r.type, r.amountPaise)),
-      salaryDay,
-      now,
-    );
-    if (rows.isEmpty) return const _EmptyChart('No transactions yet.');
-
-    final selectedKey = _tapped ?? Period.containing(now, salaryDay).key;
-    final selected = totals.firstWhere(
-      (t) => t.key == selectedKey,
-      orElse: () => totals.last,
-    );
-    final top = totals.map((t) => max(t.spent, t.income)).reduce(max) * 1.1;
-
+    final top = max(
+      1,
+      totals.map((t) => max(t.spent, t.income)).reduce(max),
+    ).toDouble();
     BarChartRodData rod(int paise, Color color) => BarChartRodData(
       toY: paise.toDouble(),
       color: color,
-      width: 8,
-      borderRadius: BorderRadius.zero,
-      // Lets a tap anywhere above a short bar still select its month.
+      width: 14,
+      borderRadius: BorderRadius.circular(6),
+      // Lets a tap above a short bar still select its period.
       backDrawRodData: BackgroundBarChartRodData(
         show: true,
         toY: top,
         color: Colors.transparent,
       ),
     );
+    Widget legend(String label, Color color, int paise) => Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 2,
+        children: [
+          _Swatch(color),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              Money.format(paise),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    return _plainCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 12,
+        children: [
+          Row(
+            spacing: 16,
+            children: [
+              legend('Income', _incomeColor, current.income),
+              legend('Expenses', _spentColor, current.spent),
+            ],
+          ),
+          if (!_hasData(totals))
+            const _EmptyChart('No transactions in these months.')
+          else
+            Semantics(
+              label: [
+                for (final t in totals)
+                  '${MonthKey.label(t.key)}: income '
+                      '${Money.format(t.income)}, expenses '
+                      '${Money.format(t.spent)}',
+              ].join('. '),
+              child: _WindowBars(
+                totals: totals,
+                minY: 0,
+                maxY: top * 1.05,
+                axisLabel: (value) => Money.compact(value.round()),
+                groups: [
+                  for (final (i, t) in totals.indexed)
+                    BarChartGroupData(
+                      x: i,
+                      barsSpace: 3,
+                      barRods: [
+                        rod(t.income, _incomeColor),
+                        rod(t.spent, _spentColor),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 8,
-      children: [
-        Row(
-          spacing: 4,
-          children: [
-            _Swatch(_spentColor),
-            const Text('Spent'),
-            const SizedBox(width: 8),
-            _Swatch(_incomeColor),
-            const Text('Income'),
-          ],
-        ),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final slot = (constraints.maxWidth - _axisWidth) / 12;
-            return SizedBox(
-              height: _chartHeight,
-              // Newest at the right; earlier months scroll in from the left.
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                reverse: true,
-                child: SizedBox(
-                  width: slot * totals.length + _axisWidth,
-                  child: Semantics(
-                    label: [
-                      for (final t in totals.reversed)
-                        '${MonthKey.label(t.key)}: spent '
-                            '${Money.format(t.spent)}, income '
-                            '${Money.format(t.income)}',
-                    ].join('. '),
-                    child: BarChart(
-                      BarChartData(
-                        minY: 0,
-                        maxY: top,
-                        alignment: BarChartAlignment.spaceAround,
-                        borderData: _baseline(context),
-                        gridData: const FlGridData(drawVerticalLine: false),
-                        titlesData: _titles(
-                          right: _amountAxis(),
-                          bottom: _bottomAxis((i) {
-                            final key = totals[i].key;
-                            final name = MonthKey.label(key).substring(0, 3);
-                            return key.endsWith('-01')
-                                ? '$name\n${key.substring(0, 4)}'
-                                : name;
-                          }),
-                        ),
-                        barTouchData: BarTouchData(
-                          handleBuiltInTouches: false,
-                          allowTouchBarBackDraw: true,
-                          touchCallback: (event, response) {
-                            final index = response?.spot?.touchedBarGroupIndex;
-                            if (event is FlTapUpEvent && index != null) {
-                              setState(() => _tapped = totals[index].key);
-                            }
-                          },
-                        ),
-                        barGroups: [
-                          for (final (i, t) in totals.indexed)
-                            BarChartGroupData(
-                              x: i,
-                              barsSpace: 2,
-                              barRods: [
-                                rod(t.spent, _spentColor),
-                                rod(t.income, _incomeColor),
-                              ],
-                            ),
-                        ],
+class _IncomeLeftCard extends ConsumerWidget {
+  const _IncomeLeftCard(this.totals, this.current);
+
+  final List<MonthTotal> totals;
+  final MonthTotal current;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final percent = ref.watch(incomeLeftPercentProvider).value ?? false;
+    final values = [
+      for (final t in totals)
+        percent ? incomeLeftPercent(t) : (t.income - t.spent).toDouble(),
+    ];
+    final known = values.nonNulls;
+    // A percentage scale always shows the whole of 100%.
+    final top = max<double>(percent ? 100 : 1, known.fold(0, max));
+    final bottom = min<double>(0, known.fold(0, min));
+    final selected = percent
+        ? incomeLeftPercent(current)
+        : (current.income - current.spent).toDouble();
+    String format(double value) =>
+        percent ? '${value.round()}%' : Money.compact(value.round());
+    return _plainCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 12,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Income left',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        selected == null
+                            ? '—'
+                            : percent
+                            ? format(selected)
+                            : Money.format(selected.round()),
+                        key: const Key('income-left'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-            );
-          },
+              _AmountPercentToggle(
+                percent: percent,
+                onChanged: (value) => ref
+                    .read(databaseProvider)
+                    .setSetting(incomeLeftPercentKey, value ? '1' : null),
+              ),
+            ],
+          ),
+          if (!_hasData(totals))
+            const _EmptyChart('No transactions in these months.')
+          else
+            _WindowBars(
+              totals: totals,
+              minY: bottom,
+              maxY: top,
+              axisLabel: format,
+              groups: [
+                for (final (i, value) in values.indexed)
+                  BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      if (value == null)
+                        BarChartRodData(
+                          toY: top,
+                          width: 30,
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: context.palette.textSecondary,
+                          ),
+                          borderDashArray: const [4, 4],
+                        )
+                      else
+                        BarChartRodData(
+                          toY: value,
+                          width: 30,
+                          color: value < 0 ? AppColors.debit : _incomeColor,
+                          borderRadius: BorderRadius.circular(8),
+                          backDrawRodData: BackgroundBarChartRodData(
+                            show: true,
+                            toY: top,
+                            color: Colors.transparent,
+                          ),
+                        ),
+                    ],
+                  ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AmountPercentToggle extends StatelessWidget {
+  const _AmountPercentToggle({required this.percent, required this.onChanged});
+
+  final bool percent;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    Widget button(IconData icon, String tooltip, bool value) => IconButton(
+      tooltip: tooltip,
+      isSelected: percent == value,
+      style: IconButton.styleFrom(
+        backgroundColor: percent == value ? palette.bg : Colors.transparent,
+      ),
+      icon: Icon(
+        icon,
+        size: 20,
+        color: percent == value ? palette.textPrimary : palette.textSecondary,
+      ),
+      onPressed: () => onChanged(value),
+    );
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: palette.surfaceRaised,
+        borderRadius: BorderRadius.circular(AppRadii.round),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          button(Icons.toll_outlined, 'Show amount', false),
+          button(Icons.percent, 'Show percent', true),
+        ],
+      ),
+    );
+  }
+}
+
+class _CalendarCard extends ConsumerWidget {
+  const _CalendarCard(this.rows);
+
+  final List<TransactionRow> rows;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final period = Period.forMonthKey(
+      ref.watch(selectedMonthProvider),
+      ref.watch(salaryDayProvider).value,
+    );
+    final days = dailySpend(_debits(rows), period.start, period.end);
+    final most = days.map((d) => d.paise).fold(0, max);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final caption = Theme.of(context).textTheme.bodySmall;
+    return _plainCard(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 12,
+        children: [
+          Text('Calendar', style: caption),
+          Row(
+            children: [
+              for (final letter in 'MTWTFSS'.split(''))
+                Expanded(
+                  child: Text(
+                    letter,
+                    textAlign: TextAlign.center,
+                    style: caption,
+                  ),
+                ),
+            ],
+          ),
+          GridView.count(
+            crossAxisCount: 7,
+            shrinkWrap: true,
+            padding: EdgeInsets.zero,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 4,
+            crossAxisSpacing: 4,
+            childAspectRatio: 0.8,
+            children: [
+              // Monday first, as in the reference.
+              for (var i = 1; i < days.first.start.weekday; i++)
+                const SizedBox.shrink(),
+              for (final day in days) _DayCell(day, most, day.start == today),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  const _DayCell(this.day, this.most, this.today);
+
+  final Bucket day;
+  final int most;
+  final bool today;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    return Semantics(
+      label: '${Period.shortDate(day.start)}: ${Money.format(day.paise)}',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: day.paise == 0
+              ? palette.surfaceRaised
+              : AppColors.expense.withValues(alpha: heatLevel(day.paise, most)),
+          borderRadius: BorderRadius.circular(10),
+          border: today ? Border.all(color: palette.textPrimary) : null,
         ),
-        Text(
-          '${MonthKey.label(selected.key)}: spent '
-          '${Money.format(selected.spent)}, income '
-          '${Money.format(selected.income)}',
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            Text(
+              '${day.start.day}',
+              style: TextStyle(
+                fontSize: 11,
+                color: day.paise == 0
+                    ? palette.textSecondary
+                    : palette.textPrimary,
+              ),
+            ),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                // shortcut: no rupee sign, it does not fit a seventh of the card.
+                Money.compact(day.paise).replaceFirst('₹', ''),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: day.paise == 0
+                      ? palette.textSecondary
+                      : palette.textPrimary,
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

@@ -12,7 +12,6 @@ import '../../domain/budget.dart';
 import '../../domain/categories.dart';
 import '../../domain/models.dart';
 import '../budgets/category_picker.dart';
-import '../budgets/month_summary_card.dart';
 import 'day_bar_chart.dart';
 import 'transaction_sheet.dart';
 
@@ -113,20 +112,20 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                 clipBehavior: Clip.none,
                 children: [
                   // Fills the gap above the header when iOS bounces the list.
-                  const Positioned(
+                  Positioned(
                     key: Key('header-overscroll-fill'),
                     left: 0,
                     right: 0,
                     top: -2000,
                     height: 2000,
-                    child: ColoredBox(color: AppColors.heroTop),
+                    child: ColoredBox(color: context.palette.heroTop),
                   ),
                   DecoratedBox(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [AppColors.heroTop, AppColors.bg],
+                        colors: [context.palette.heroTop, context.palette.bg],
                       ),
                     ),
                     child: Padding(

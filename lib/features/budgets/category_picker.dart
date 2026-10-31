@@ -24,7 +24,7 @@ class CategoryAvatar extends StatelessWidget {
       height: 44,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.palette.surface,
         borderRadius: BorderRadius.circular(AppRadii.round),
         border: Border.all(
           color: category == null ? Colors.grey : Color(category.color),
@@ -57,7 +57,7 @@ class CategoryTypeSegment extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(4),
     decoration: BoxDecoration(
-      color: AppColors.surfaceRaised,
+      color: context.palette.surfaceRaised,
       borderRadius: BorderRadius.circular(AppRadii.round),
     ),
     child: Row(
@@ -71,7 +71,7 @@ class CategoryTypeSegment extends StatelessWidget {
               button: true,
               selected: type == value,
               child: Material(
-                color: type == value ? AppColors.bg : Colors.transparent,
+                color: type == value ? context.palette.bg : Colors.transparent,
                 borderRadius: BorderRadius.circular(AppRadii.round),
                 clipBehavior: Clip.antiAlias,
                 child: InkWell(
@@ -83,8 +83,8 @@ class CategoryTypeSegment extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: type == value
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
+                            ? context.palette.textPrimary
+                            : context.palette.textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -99,13 +99,18 @@ class CategoryTypeSegment extends StatelessWidget {
 }
 
 /// The category grid sheet (SPEC 5.14). Returns the choice, or null if dismissed.
-Future<Category?> showCategoryPicker(BuildContext context, CategoryType type) =>
-    showModalBottomSheet<Category>(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      builder: (_) => _CategoryGridSheet(type: type, multiSelect: false),
-    );
+/// With [hide], only that type is offered, without those categories.
+Future<Category?> showCategoryPicker(
+  BuildContext context,
+  CategoryType type, {
+  Set<int>? hide,
+}) => showModalBottomSheet<Category>(
+  context: context,
+  useRootNavigator: true,
+  isScrollControlled: true,
+  builder: (_) =>
+      _CategoryGridSheet(type: type, multiSelect: false, hide: hide),
+);
 
 /// The same grid with multi-select. Each tap applies at once.
 Future<void> showCategoryFilter(BuildContext context, CategoryType type) =>
@@ -117,10 +122,15 @@ Future<void> showCategoryFilter(BuildContext context, CategoryType type) =>
     );
 
 class _CategoryGridSheet extends ConsumerStatefulWidget {
-  const _CategoryGridSheet({required this.type, required this.multiSelect});
+  const _CategoryGridSheet({
+    required this.type,
+    required this.multiSelect,
+    this.hide,
+  });
 
   final CategoryType type;
   final bool multiSelect;
+  final Set<int>? hide;
 
   @override
   ConsumerState<_CategoryGridSheet> createState() => _CategoryGridSheetState();
@@ -159,19 +169,21 @@ class _CategoryGridSheetState extends ConsumerState<_CategoryGridSheet> {
                 const SizedBox(width: 48), // balances the pencil
                 Expanded(
                   child: Center(
-                    child: SizedBox(
-                      width: 220,
-                      child: CategoryTypeSegment(
-                        value: _type,
-                        onChanged: (type) => setState(() => _type = type),
-                      ),
-                    ),
+                    child: widget.hide != null
+                        ? null
+                        : SizedBox(
+                            width: 220,
+                            child: CategoryTypeSegment(
+                              value: _type,
+                              onChanged: (type) => setState(() => _type = type),
+                            ),
+                          ),
                   ),
                 ),
                 IconButton(
                   tooltip: 'Edit categories',
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.surfaceRaised,
+                    backgroundColor: context.palette.surfaceRaised,
                   ),
                   icon: const Icon(Icons.edit, size: 20),
                   onPressed: () =>
@@ -188,12 +200,12 @@ class _CategoryGridSheetState extends ConsumerState<_CategoryGridSheet> {
                 spacing: 8,
                 children: [
                   ActionChip(
-                    backgroundColor: AppColors.surfaceRaised,
+                    backgroundColor: context.palette.surfaceRaised,
                     label: const Text('All'),
                     onPressed: () => db.setCategoryFilter(null),
                   ),
                   ActionChip(
-                    backgroundColor: AppColors.surfaceRaised,
+                    backgroundColor: context.palette.surfaceRaised,
                     label: const Text('None'),
                     onPressed: () => db.setCategoryFilter(const {}),
                   ),
@@ -208,25 +220,27 @@ class _CategoryGridSheetState extends ConsumerState<_CategoryGridSheet> {
                 childAspectRatio: 0.85,
                 children: [
                   for (final c in pickableCategories(all, _type))
-                    _Tile(
-                      emoji: c.emoji,
-                      name: c.name,
-                      outline: widget.multiSelect && filterMatches(filter, c.id)
-                          ? Color(c.color)
-                          : null,
-                      selected: widget.multiSelect
-                          ? filterMatches(filter, c.id)
-                          : null,
-                      onTap: widget.multiSelect
-                          ? () => db.setCategoryFilter(
-                              toggleFilter(filter, c.id, [
-                                for (final a in all)
-                                  if (!a.isArchived) a.id,
-                              ]),
-                            )
-                          : () => Navigator.of(context).pop(c),
-                    ),
-                  _AddNewTile(onTap: () => _addNew(filter)),
+                    if (!(widget.hide?.contains(c.id) ?? false))
+                      _Tile(
+                        emoji: c.emoji,
+                        name: c.name,
+                        outline:
+                            widget.multiSelect && filterMatches(filter, c.id)
+                            ? Color(c.color)
+                            : null,
+                        selected: widget.multiSelect
+                            ? filterMatches(filter, c.id)
+                            : null,
+                        onTap: widget.multiSelect
+                            ? () => db.setCategoryFilter(
+                                toggleFilter(filter, c.id, [
+                                  for (final a in all)
+                                    if (!a.isArchived) a.id,
+                                ]),
+                              )
+                            : () => Navigator.of(context).pop(c),
+                      ),
+                  AddNewTile(onTap: () => _addNew(filter)),
                 ],
               ),
             ),
@@ -259,7 +273,7 @@ class _Tile extends StatelessWidget {
       button: true,
       selected: selected,
       child: Material(
-        color: AppColors.surfaceRaised,
+        color: context.palette.surfaceRaised,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.chip),
           side: outline == null
@@ -295,29 +309,34 @@ class _Tile extends StatelessWidget {
   }
 }
 
-class _AddNewTile extends StatelessWidget {
-  const _AddNewTile({required this.onTap});
+/// A dashed tile with a plus and a label.
+class AddNewTile extends StatelessWidget {
+  const AddNewTile({super.key, required this.onTap, this.label = 'Add new'});
 
   final VoidCallback onTap;
+  final String label;
 
   @override
   Widget build(BuildContext context) => CustomPaint(
-    painter: _DashedBorder(),
+    painter: _DashedBorder(context.palette.textSecondary),
     child: Semantics(
       button: true,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.chip),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           spacing: 8,
           children: [
-            Icon(Icons.add, color: AppColors.textSecondary),
+            Icon(Icons.add, color: context.palette.textSecondary),
             Text(
-              'Add new',
+              label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              style: TextStyle(
+                fontSize: 13,
+                color: context.palette.textSecondary,
+              ),
             ),
           ],
         ),
@@ -327,13 +346,17 @@ class _AddNewTile extends StatelessWidget {
 }
 
 class _DashedBorder extends CustomPainter {
+  _DashedBorder(this.color);
+
+  final Color color;
+
   static const _dash = 8.0;
   static const _gap = 6.0;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.textSecondary
+      ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     final outline = Path()
@@ -351,5 +374,5 @@ class _DashedBorder extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_DashedBorder oldDelegate) => false;
+  bool shouldRepaint(_DashedBorder oldDelegate) => oldDelegate.color != color;
 }

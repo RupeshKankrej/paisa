@@ -1,5 +1,59 @@
 # Progress
 
+## Phase 10: UI Budget, Analytics, Settings (2026-11-01)
+
+Status: built on branch `phase-10-budget-analytics-settings` (from `phase-9-categories`, which is not merged), not merged. Tests pass and the screens were viewed on the simulator in both themes. The device checks below are waiting for Rupesh.
+
+### What was built
+- `budget_screen.dart`: salary ring, category cards with ring icons, Add category, Allocate sheet. It replaces Home on the Budget tab; `home_screen.dart` and `month_summary_card.dart` are gone.
+- `limit_sheet.dart`: per-category keypad sheet with the over-salary block. Budget, Allocate and Summary all use it, so no path can save past the salary. `amount_keypad.dart` holds the keypad and hero amount, now shared with the add sheet.
+- Analytics: `periodWindow` gives the 6-period window. Income vs expenses, income left (with saved amount/percent toggle) and the calendar heatmap move together on a swipe, by `MonthSwipe(months: 6)`.
+- Settings: grouped list with icon tiles, plus Appearance (System, Light, Dark).
+- Light theme: `AppPalette` is a theme extension, read through `context.palette`; `AppColors` keeps only colours shared by both themes.
+- Pure helpers with tests: `limitAfterEdit`, `budgetLeft`, `canSaveLimit`, `wholePercentLabel`, `windowLabel`, `incomeLeftPercent`, `heatLevel`. No schema change: new choices are rows in `settings`.
+
+### Decisions
+- Appearance defaults to System, so a phone in light mode now opens light.
+- The keypad has an Every month / <Month> only choice, to keep the default and override rule of SPEC 5.5. It starts on the month only when that month already has an override. Every month also clears that month's override.
+- A blank amount removes the limit (or, for month only, falls back to the default) and can always be saved. Otherwise limits past a lowered salary could never be removed. Anything else that leaves the amount negative is blocked, as 5.16 says.
+- With no salary set there is no cap to check, so limits save and the sheet says "No salary set".
+- Allocate holds edits in memory: each row's cap counts edits not yet confirmed, and dismissing the sheet drops them.
+- The window counts back from the current period, so it has no state of its own: a swipe shifts the app-wide month by 6 and keeps the same slot highlighted.
+- The window cards replace the old 12-month chart. Day-wise, Date range and the budget pie stay below them, so 5.8 behaviour is kept (see BACKLOG).
+- The Budget tab keeps the uncategorised shortcut but drops the last-5 list (see BACKLOG). Tapping "of ₹X" on the ring sets the month's salary override.
+- Summary keeps its note for limits above the salary: lowering a salary can still cause it.
+- Income left in percent mode dashes only the zero-income periods, per 5.17. Negative periods draw downward in red.
+- Calendar weeks start on Monday, as in the reference; today's cell is outlined.
+- Not added: the Monthly and All accounts chips (already in BACKLOG), reference 09 rows with no behaviour, bar glow (see BACKLOG).
+
+### Bugs found and fixed
+- Long-press on the keypad backspace never cleared the amount, in the add sheet too. The button's tooltip took the gesture. Phase 8 listed this as working, but no test covered it; one does now.
+- `Money.compact` wrote large negative amounts as `₹-5000`. It now gives `-₹5k`.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 190 passed.
+- Simulator (iPhone 18 Pro, iOS 27.2): temporary entry point with seeded data, deleted afterwards. Viewed in both themes: Budget, keypad blocked over salary, Analytics amount mode, Settings. Dark only: a window crossing a year. Light only: Allocate, percent mode, calendar, Activity, Summary. This found an overflow in the Allocate header, a blank row under the calendar and colliding axis labels, all fixed; the last two fixes were not viewed again. Real swipes and taps are covered by widget tests only. The simulator still has that temporary debug build installed.
+
+### What to verify on the device
+1. Force-quit and open: your rows, categories and limits are all there. The app follows the phone's light or dark setting.
+2. Budget, side by side with references 05 and 18: ring, cards, Add category. Spend in a category and its ring icon fills. Swipe on the ring changes month.
+3. Add category: the grid shows only expense categories with no limit. Pick one, compare the keypad with reference 20.
+4. Type past the salary, compare with reference 21: red "budget left", arrow and Done do nothing. Lower it and it saves.
+5. Pencil, compare with references 06 and 19: tap a row, change it, the header updates. Dismiss: nothing saved. Do it again and Confirm: saved.
+6. Tap "of ₹X" on the ring, set an override: the keypad's cap follows that month only. Clear it.
+7. Tap a row on Summary: the same keypad, with the same block.
+8. Every month against <Month> only: a month-only limit does not change other months. Clear the amount and save: the limit goes.
+9. Long-press the backspace, in this keypad and the add sheet: the amount clears.
+10. Analytics, side by side with references 07, 08, 22 and 23: swipe right moves back 6 months on all three cards; swipe left returns and stops at the current window. Tap a bar: the legend and calendar follow. Vertical scrolling still works when starting on a chart.
+11. Percent toggle: force-quit, it stays. A month with no income is a dashed outline.
+12. Set an override below spend: the budget pie further down shows "Over salary by" and the ring. Clear it.
+13. Settings, compare with reference 09. Appearance: Light, Dark, System, on every tab and sheet, looking for anything hard to read.
+14. Salary day on: the window, calendar and keypad follow the period. Turn it off.
+
+### Open issues and setup notes
+- Free-team install expires about 2026-11-07.
+- Colours in Summary's limit bars and note stay fixed in both themes; the yellow note has its own dark text.
+
 ## Phase 9: Categories (2026-10-31)
 
 Status: built on branch `phase-9-categories` (from `main`), not merged. Tests pass. Rupesh reported all the device checks below passed on the iPhone 15 (2026-10-31). The later change to tapping uncategorised rows came after that report and is listed in the checks.

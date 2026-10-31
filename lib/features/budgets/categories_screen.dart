@@ -2,11 +2,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/amount_dialog.dart';
 import '../../app/month_picker.dart';
 import '../../app/shell_widgets.dart';
 import '../../core/money.dart';
-import '../../core/month_key.dart';
 import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
@@ -14,7 +12,7 @@ import '../../domain/budget.dart';
 import '../../domain/categories.dart';
 import '../../domain/models.dart';
 import 'category_picker.dart';
-import 'month_summary_card.dart';
+import 'limit_sheet.dart';
 
 const _levelColors = {
   BudgetLevel.under: Colors.green,
@@ -37,33 +35,6 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     context,
     _type == TransactionType.debit ? CategoryType.expense : CategoryType.income,
   );
-
-  Future<void> _editLimit(
-    Category category,
-    String month,
-    Map<String?, int> amounts,
-  ) async {
-    final result = await showAmountDialog(
-      context,
-      title: '${category.name} limit',
-      fields: [
-        (
-          label: 'Every month',
-          initial: amounts[null],
-          helper: 'Blank means no limit',
-        ),
-        (
-          label: '${MonthKey.label(month)} only',
-          initial: amounts[month],
-          helper: 'Blank uses the monthly limit',
-        ),
-      ],
-    );
-    if (result == null) return;
-    final db = ref.read(databaseProvider);
-    await db.setBudget(category.id, null, result[0]);
-    await db.setBudget(category.id, month, result[1]);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -190,7 +161,9 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               // Outside the scroll, so it stays reachable when chips are added.
               IconButton(
                 tooltip: 'Filter categories',
-                style: IconButton.styleFrom(backgroundColor: AppColors.surface),
+                style: IconButton.styleFrom(
+                  backgroundColor: context.palette.surface,
+                ),
                 icon: const Icon(Icons.edit, size: 18),
                 onPressed: _openFilter,
               ),
@@ -239,11 +212,7 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                       ? resolveAmount(budgets[category.id] ?? const {}, month)
                       : null,
                   onTap: expenses
-                      ? () => _editLimit(
-                          category,
-                          month,
-                          budgets[category.id] ?? const {},
-                        )
+                      ? () => editCategoryLimit(context, ref, category)
                       : null,
                 ),
             ],
@@ -292,7 +261,7 @@ class _Donut extends StatelessWidget {
                 startDegreeOffset: -90,
                 pieTouchData: PieTouchData(enabled: false),
                 sections: slices.isEmpty
-                    ? [section(AppColors.surfaceRaised, 1)]
+                    ? [section(context.palette.surfaceRaised, 1)]
                     : [
                         for (final (color, paise) in slices)
                           section(color, paise.toDouble()),
@@ -318,7 +287,7 @@ class _Donut extends StatelessWidget {
               child: CircularProgressIndicator(
                 value: salary / total,
                 strokeWidth: 2,
-                color: AppColors.textPrimary,
+                color: context.palette.textPrimary,
                 backgroundColor: Colors.transparent,
               ),
             ),
@@ -343,22 +312,6 @@ class _Donut extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-    decoration: BoxDecoration(
-      color: AppColors.surfaceRaised,
-      borderRadius: BorderRadius.circular(AppRadii.chip),
-    ),
-    child: Text(text, style: Theme.of(context).textTheme.bodySmall),
-  );
 }
 
 class _CategoryTile extends StatelessWidget {
@@ -391,7 +344,7 @@ class _CategoryTile extends StatelessWidget {
           Flexible(
             child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
-          _Pill('$count'),
+          Pill('$count'),
         ],
       ),
       subtitle: limit == null
@@ -416,13 +369,13 @@ class _CategoryTile extends StatelessWidget {
         children: [
           Text(
             Money.format(amount),
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            style: TextStyle(
+              color: context.palette.textPrimary,
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
           ),
-          _Pill(percentLabel(amount, total)),
+          Pill(percentLabel(amount, total)),
         ],
       ),
       onTap: onTap,

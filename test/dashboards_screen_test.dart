@@ -73,7 +73,7 @@ void main() {
     tester,
   ) async {
     await pump(tester);
-    expect(find.text('No transactions yet.'), findsOneWidget);
+    expect(find.text('No transactions in these months.'), findsNWidgets(2));
     expect(
       find.text('No spending in ${MonthKey.label(month)}.'),
       findsOneWidget,
@@ -88,7 +88,7 @@ void main() {
     expect(find.byType(PieChart), findsNothing);
   });
 
-  testWidgets('month-wise bars match seeded totals, and tapping shows them', (
+  testWidgets('the window has 6 periods, and tapping a bar selects one', (
     tester,
   ) async {
     final last = MonthKey.start(MonthKey.shift(month, -1));
@@ -100,44 +100,81 @@ void main() {
 
     final chart = tester.widget<BarChart>(find.byType(BarChart).first);
     final groups = chart.data.barGroups;
-    expect(groups.length, 12);
-    expect(groups.last.barRods.map((r) => r.toY), [30000, 5000000]);
-    expect(groups[10].barRods.map((r) => r.toY), [70000, 9000000]);
-    expect(
-      groups.expand((g) => g.barRods).map((r) => r.backDrawRodData.color),
-      everyElement(Colors.transparent),
-      reason: 'only the red and green bars show',
-    );
-    expect(
-      find.text('${MonthKey.label(month)}: spent ₹300.00, income ₹50,000.00'),
-      findsOneWidget,
-    );
+    expect(groups.length, 6);
+    expect(groups.last.barRods.map((r) => r.toY), [5000000, 30000]);
+    expect(groups[4].barRods.map((r) => r.toY), [9000000, 70000]);
+    expect(find.text('₹50,000.00'), findsWidgets);
 
     // Second group from the right; the axis takes the last 44 points.
     final box = tester.getRect(find.byType(BarChart).first);
-    final slot = (box.width - 44) / 12;
+    final slot = (box.width - 44) / 6;
     await tester.tapAt(Offset(box.right - 44 - slot * 1.5, box.center.dy));
-    await tester.pumpAndSettle();
-    expect(
-      find.text(
-        '${MonthKey.label(MonthKey.shift(month, -1))}: '
-        'spent ₹700.00, income ₹90,000.00',
-      ),
-      findsOneWidget,
-    );
+    await settle(tester);
+    expect(find.text('₹90,000.00'), findsWidgets);
+    expect(find.text('₹700.00'), findsWidgets);
   });
 
-  testWidgets('more than 12 months scroll, opening on the newest', (
+  testWidgets(
+    'a swipe moves all three cards a window, stopping at the newest',
+    (tester) async {
+      final older = MonthKey.shift(month, -6);
+      await add(123400, at: MonthKey.start(older));
+      await add(5000);
+      await pump(tester);
+      expect(find.text('₹1,234.00'), findsNothing);
+
+      await tester.drag(find.byType(BarChart).first, const Offset(100, 0));
+      await settle(tester);
+      expect(find.text('₹1,234.00'), findsOneWidget, reason: 'expenses legend');
+      expect(find.text('-₹1,234.00'), findsOneWidget, reason: 'income left');
+      final days = tester
+          .widgetList<Semantics>(find.byType(Semantics))
+          .where((w) => w.properties.label?.endsWith(': ₹1,234.00') ?? false);
+      expect(days, hasLength(1), reason: 'the calendar followed');
+
+      await tester.drag(find.text('Calendar'), const Offset(-100, 0));
+      await settle(tester);
+      expect(find.text('₹1,234.00'), findsNothing);
+      await tester.drag(find.text('Calendar'), const Offset(-100, 0));
+      await settle(tester);
+      expect(
+        tester
+            .widget<BarChart>(find.byType(BarChart).first)
+            .data
+            .barGroups
+            .last
+            .barRods
+            .last
+            .toY,
+        5000,
+        reason: 'no further than the current period',
+      );
+    },
+  );
+
+  testWidgets('income left: the toggle persists, zero income is dashed', (
     tester,
   ) async {
-    await add(100, at: MonthKey.start(MonthKey.shift(month, -30)));
+    await add(2500000, type: TransactionType.credit);
+    await add(500000);
+    await add(100, at: MonthKey.start(MonthKey.shift(month, -1)));
     await pump(tester);
-    final chart = tester.widget<BarChart>(find.byType(BarChart).first);
-    expect(chart.data.barGroups.length, 31);
-    final scroll = tester.widget<SingleChildScrollView>(
-      find.byType(SingleChildScrollView).first,
+    Text header() => tester.widget<Text>(find.byKey(const Key('income-left')));
+    expect(header().data, '₹20,000.00');
+    BarChart left() => tester.widget<BarChart>(find.byType(BarChart).at(1));
+    expect(left().data.barGroups[4].barRods.single.toY, -100);
+
+    await tester.tap(find.byTooltip('Show percent'));
+    await settle(tester);
+    expect(header().data, '80%');
+    expect(left().data.barGroups.last.barRods.single.toY, 80);
+    final none = left().data.barGroups[4].barRods.single;
+    expect(none.borderDashArray, isNotNull);
+    expect(none.color, Colors.transparent);
+    expect(
+      await tester.runAsync(() => db.watchSetting(incomeLeftPercentKey).first),
+      isNotNull,
     );
-    expect(scroll.reverse, isTrue);
   });
 
   testWidgets('day-wise has every day and a dashed average line', (

@@ -12,7 +12,10 @@ String _currentKey(WidgetRef ref) =>
 /// The caption that shows the month shared by every screen and opens the
 /// picker sheet (SPEC 5.13).
 class MonthPicker extends ConsumerWidget {
-  const MonthPicker({super.key});
+  const MonthPicker({super.key, this.prefix});
+
+  /// Turns the caption into 'Left this month' or 'Left in September'.
+  final String? prefix;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,6 +23,9 @@ class MonthPicker extends ConsumerWidget {
     final value = ref.watch(selectedMonthProvider);
     final current = Period.containing(DateTime.now(), salaryDay).key;
     final label = MonthKey.label(value);
+    final name = value.substring(0, 4) == current.substring(0, 4)
+        ? label.split(' ').first
+        : label;
     final caption = Theme.of(context).textTheme.bodySmall;
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadii.chip),
@@ -38,17 +44,15 @@ class MonthPicker extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               spacing: 4,
               children: [
-                Text(
-                  value == current
-                      ? 'This month'
-                      : value.substring(0, 4) == current.substring(0, 4)
-                      ? label.split(' ').first
-                      : label,
-                  style: caption?.copyWith(fontSize: 15),
-                ),
-                const Icon(
+                Text(switch ((prefix, value == current)) {
+                  (null, true) => 'This month',
+                  (final p?, true) => '$p this month',
+                  (null, false) => name,
+                  (final p?, false) => '$p in $name',
+                }, style: caption?.copyWith(fontSize: 15)),
+                Icon(
                   Icons.expand_more,
-                  color: AppColors.textSecondary,
+                  color: context.palette.textSecondary,
                   size: 20,
                 ),
               ],
@@ -195,12 +199,12 @@ class _SheetChip extends StatelessWidget {
       enabled: enabled,
       child: Material(
         color: enabled
-            ? AppColors.surfaceRaised
-            : AppColors.surfaceRaised.withValues(alpha: 0.4),
+            ? context.palette.surfaceRaised
+            : context.palette.surfaceRaised.withValues(alpha: 0.4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.chip),
           side: selected
-              ? const BorderSide(color: AppColors.textPrimary, width: 2)
+              ? BorderSide(color: context.palette.textPrimary, width: 2)
               : BorderSide.none,
         ),
         clipBehavior: Clip.antiAlias,
@@ -214,8 +218,8 @@ class _SheetChip extends StatelessWidget {
               label,
               style: TextStyle(
                 color: enabled
-                    ? AppColors.textPrimary
-                    : AppColors.textSecondary,
+                    ? context.palette.textPrimary
+                    : context.palette.textSecondary,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -226,11 +230,12 @@ class _SheetChip extends StatelessWidget {
   }
 }
 
-/// A horizontal swipe on [child] changes the shared month: right goes back, left
-/// goes forward and stops at the current period (SPEC 5.13).
+/// A horizontal swipe on [child] changes the shared month by [months]: right goes
+/// back, left goes forward and stops at the current period (SPEC 5.13, 5.17).
 class MonthSwipe extends ConsumerStatefulWidget {
-  const MonthSwipe({super.key, required this.child});
+  const MonthSwipe({super.key, this.months = 1, required this.child});
 
+  final int months;
   final Widget child;
 
   @override
@@ -245,7 +250,7 @@ class _MonthSwipeState extends ConsumerState<MonthSwipe> {
     if (_distance.abs() < _minDistance) return;
     final next = MonthKey.shift(
       ref.read(selectedMonthProvider),
-      _distance > 0 ? -1 : 1,
+      _distance > 0 ? -widget.months : widget.months,
     );
     if (_distance < 0 && next.compareTo(_currentKey(ref)) > 0) return;
     ref.read(pickedMonthProvider.notifier).state = next;

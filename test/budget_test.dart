@@ -46,4 +46,41 @@ void main() {
     expect(percentLabel(5, 5), '100.00%');
     expect(percentLabel(0, 0), '0.00%');
   });
+
+  group('limit edits', () {
+    const amounts = {null: 5000, '2026-11': 3000};
+    test('an override falls back to the default when blank', () {
+      expect(limitAfterEdit(amounts, (paise: 100, everyMonth: false)), 100);
+      expect(limitAfterEdit(amounts, (paise: null, everyMonth: false)), 5000);
+    });
+    test('every month replaces both, blank removes the limit', () {
+      expect(limitAfterEdit(amounts, (paise: 100, everyMonth: true)), 100);
+      expect(limitAfterEdit(amounts, (paise: null, everyMonth: true)), isNull);
+    });
+    test('exactly the salary saves, one paisa more does not', () {
+      bool can(int paise) =>
+          canSaveLimit(10000, 4000, paise, (paise: paise, everyMonth: true));
+      expect(can(6000), isTrue);
+      expect(can(6001), isFalse);
+      expect(budgetLeft(10000, 4000, 7000), -1000);
+    });
+    test('blank can always save, so an overspent limit can be removed', () {
+      expect(
+        canSaveLimit(1000, 4000, null, (paise: null, everyMonth: true)),
+        isTrue,
+      );
+    });
+    test('no salary means no cap', () {
+      expect(
+        canSaveLimit(null, 4000, 9000, (paise: 9000, everyMonth: true)),
+        isTrue,
+      );
+    });
+  });
+
+  test('wholePercentLabel rounds and survives no salary', () {
+    expect(wholePercentLabel(10000, 100000), '10%');
+    expect(wholePercentLabel(1, 3), '33%');
+    expect(wholePercentLabel(5, 0), '0%');
+  });
 }

@@ -180,4 +180,46 @@ void main() {
     expect(Money.compact(15545300), '₹1.6L');
     expect(Money.compact(1500000000), '₹1.5Cr');
   });
+
+  group('periodWindow', () {
+    test('holds 6 periods ending on the current one', () {
+      expect(periodWindow('2026-11', '2026-11'), [
+        '2026-06',
+        '2026-07',
+        '2026-08',
+        '2026-09',
+        '2026-10',
+        '2026-11',
+      ]);
+      expect(periodWindow('2026-06', '2026-11').last, '2026-11');
+    });
+    test('moving back 6 moves exactly one window', () {
+      expect(periodWindow('2026-05', '2026-11').first, '2025-12');
+      expect(periodWindow('2026-05', '2026-11').last, '2026-05');
+      expect(periodWindow('2025-12', '2026-11').last, '2026-05');
+      expect(periodWindow('2025-11', '2026-11').last, '2025-11');
+    });
+    test('a selected period past the current one shows the newest window', () {
+      expect(periodWindow('2027-01', '2026-11').last, '2026-11');
+    });
+  });
+
+  test('only the first label of a window crossing a year has the year', () {
+    final keys = periodWindow('2026-05', '2026-11');
+    expect(windowLabel(keys, 0), "Dec '25");
+    expect(windowLabel(keys, 1), 'Jan');
+    expect(windowLabel(periodWindow('2026-11', '2026-11'), 0), 'Jun');
+  });
+
+  test('income left is a share of income, null without income', () {
+    expect(incomeLeftPercent((key: 'k', spent: 25, income: 100)), 75);
+    expect(incomeLeftPercent((key: 'k', spent: 150, income: 100)), -50);
+    expect(incomeLeftPercent((key: 'k', spent: 50, income: 0)), isNull);
+  });
+
+  test('heat rises with spend and tops out at full', () {
+    expect(heatLevel(100, 100), 1);
+    expect(heatLevel(1, 10000), closeTo(0.307, 0.001));
+    expect(heatLevel(0, 0), 0);
+  });
 }

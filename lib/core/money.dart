@@ -41,6 +41,7 @@ abstract final class Money {
 
   /// A short form for chart axes: ₹500, ₹1.5k, ₹1.5L, ₹1.5Cr.
   static String compact(int paise) {
+    if (paise < 0) return '-${compact(-paise)}';
     final rupees = paise / 100;
     String short(double value, String unit) =>
         '₹${value.toStringAsFixed(1).replaceFirst(RegExp(r'\.0$'), '')}$unit';
