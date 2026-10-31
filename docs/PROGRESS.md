@@ -2,7 +2,7 @@
 
 ## Phase 3: Expenses screen (2026-10-31)
 
-Status: built on branch `phase-3-expenses`, not merged. Tests pass and the list was checked on the simulator. Acceptance on the iPhone (SPEC 5.2 to 5.4) is still to be confirmed by Rupesh.
+Status: built on branch `phase-3-expenses`, not merged. Tests pass and the list was checked on the simulator. On the iPhone, Rupesh reported that the app is working correctly and that the issues raised are resolved: the undo snackbar covering the add button, the month list, and an edited test message not importing. The cause of the missed import was not isolated. Credit messages were not tried.
 
 ### What was built
 - `lib/features/expenses/expenses_screen.dart`: list grouped by day, uncategorised rows at 50% opacity with a hint, All / Expenses / Income chips, swipe-left delete with a 5-second undo, FAB. Long-press opens the edit sheet.
@@ -27,6 +27,7 @@ Status: built on branch `phase-3-expenses`, not merged. Tests pass and the list 
 - Simulator (iPhone 18 Pro, iOS 27.2): messages seeded through the inbox appear grouped by day, dimmed, with long titles cut and Indian grouping. Only the list was viewed; `simctl` cannot tap, so gestures and sheets are covered by widget tests only.
 
 ### What to verify on the device
+Rupesh's report did not go through this list item by item, and credit messages are still untried. A real UPI credit is known to land in Unparsed (see BACKLOG).
 1. Expenses tab: real messages grouped by day, newest first, uncategorised rows dimmed.
 2. Tap a row: picker opens, search filters, choosing saves and undims. "New category" creates and assigns.
 3. Swipe left: red background, row goes, Undo restores it. Without Undo the snackbar goes after 5 seconds and the row stays gone after a force-quit.
