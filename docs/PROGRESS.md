@@ -2,7 +2,7 @@
 
 ## Phase 5: Dashboards (2026-10-31)
 
-Status: built on branch `phase-5-dashboards`, not merged. Tests pass and all four charts were viewed on the simulator. Release build installed on the iPhone 15; Rupesh confirmed the date and month pickers and the pie chart on the iPhone. The grey month highlight was removed at Rupesh's request. The fix for the Day-wise spillover below awaits confirmation.
+Status: built on branch `phase-5-dashboards` and merged to `main` by Rupesh (PR #7). A force-push dropped the merge from `main`; Rupesh restored it in `f7b583f`. Tests pass. Rupesh reported the device checks below passed on the iPhone 15 (2026-10-31).
 
 ### What was built
 - `lib/domain/dashboards.dart`: period totals, daily and weekly buckets, daily average and budget pie slices, in pure Dart.
@@ -26,6 +26,7 @@ Status: built on branch `phase-5-dashboards`, not merged. Tests pass and all fou
 - Simulator (iPhone 18 Pro, iOS 27.2): temporary build opening on Dashboards, with 14 months seeded directly in the database. Day-wise average 1,006.45 = 31,200 / 31; date-range average 1,040.00 = 31,200 / 30; a 20,000 override showed "Over salary by ₹11,200.00" with the ring. Neither tapping nor the pie legend was viewed there; `simctl` cannot tap, so those are covered by widget tests only. The temporary changes and the simulator data were reverted.
 
 ### What to verify on the device
+Nothing outstanding. Rupesh confirmed date and month pickers, the pie chart, tapping a month for its amounts, and Day-wise following salary-day dates. On the spillover fix, Rupesh reported "daywise is not hitting zero line", read here as bars no longer crossing it; on the simulator they end exactly on the line. Scrolling back and "Shown by week" were not named individually.
 1. Dashboards tab: bars for the last 12 months. Tap a month: exact amounts appear under the chart. Drag right to scroll further back if you have older data.
 2. Pick a month in the app bar: day-wise and pie change. Day-wise bars and average look right.
 3. Date range: defaults to the last 30 days. Pick more than 90 days: "Shown by week".
