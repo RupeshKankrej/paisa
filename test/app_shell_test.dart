@@ -1,3 +1,5 @@
+import 'package:drift/drift.dart' show DatabaseConnection;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,9 +12,17 @@ void main() {
     tester,
   ) async {
     var drains = 0;
+    final db = AppDatabase(
+      DatabaseConnection(
+        NativeDatabase.memory(),
+        closeStreamsSynchronously: true,
+      ),
+    );
+    addTearDown(db.close);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          databaseProvider.overrideWithValue(db),
           inboxDrainProvider.overrideWithValue(() async => drains++),
           trackedSendersProvider.overrideWith((ref) => Stream.value(const [])),
           importedCountProvider.overrideWith((ref) => Stream.value(0)),
@@ -53,5 +63,8 @@ void main() {
     await tester.tap(tab('Categories'));
     await tester.pumpAndSettle();
     expect(find.text('Food'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
   });
 }

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import '../core/month_key.dart';
 import '../domain/models.dart';
 
 part 'database.g.dart';
@@ -135,6 +136,60 @@ class AppDatabase extends _$AppDatabase {
               (l) => OrderingTerm.desc(l.id),
             ]))
           .watch();
+
+  /// Newest first.
+  // shortcut: calendar months only, Phase 4 replaces the bounds with Period.
+  Stream<List<TransactionRow>> watchTransactions(String month) =>
+      (select(transactions)
+            ..where(
+              (t) =>
+                  t.occurredAt.isBiggerOrEqualValue(MonthKey.start(month)) &
+                  t.occurredAt.isSmallerThanValue(
+                    MonthKey.start(MonthKey.shift(month, 1)),
+                  ),
+            )
+            ..orderBy([
+              (t) => OrderingTerm.desc(t.occurredAt),
+              (t) => OrderingTerm.desc(t.id),
+            ]))
+          .watch();
+
+  /// Oldest and newest transaction dates; both null when there are none.
+  Stream<(DateTime?, DateTime?)> watchTransactionBounds() {
+    final first = transactions.occurredAt.min();
+    final last = transactions.occurredAt.max();
+    return (selectOnly(transactions)..addColumns([first, last]))
+        .map((row) => (row.read(first), row.read(last)))
+        .watchSingle();
+  }
+
+  Future<void> addTransaction(TransactionsCompanion row) =>
+      into(transactions).insert(row);
+
+  Future<void> updateTransaction(int id, TransactionsCompanion changes) =>
+      (update(transactions)..where((t) => t.id.equals(id))).write(
+        changes.copyWith(updatedAt: Value(DateTime.now())),
+      );
+
+  /// ingest_log is left alone, so a deleted SMS is not imported again.
+  Future<void> deleteTransaction(int id) =>
+      (delete(transactions)..where((t) => t.id.equals(id))).go();
+
+  Future<void> restoreTransaction(TransactionRow row) =>
+      into(transactions).insert(row);
+
+  /// Colour comes from a fixed palette, as the sheet only asks for a name.
+  Future<int> addCategory(String name) => transaction(() async {
+    final count = await categories.count().getSingle();
+    return into(categories).insert(
+      CategoriesCompanion.insert(
+        name: name,
+        color: _seedCategories[count % _seedCategories.length].color.value,
+        icon: 'category',
+        sortOrder: count,
+      ),
+    );
+  });
 }
 
 final _seedSender = TrackedSendersCompanion.insert(
@@ -145,19 +200,21 @@ final _seedSender = TrackedSendersCompanion.insert(
 
 final _seedCategories =
     [
-      ('Food', 0xFFE57373, 'restaurant'),
-      ('Travel', 0xFF64B5F6, 'directions_car'),
-      ('Rent', 0xFF8D6E63, 'home'),
-      ('Bills', 0xFFFFB74D, 'receipt_long'),
-      ('Shopping', 0xFFBA68C8, 'shopping_bag'),
-      ('Health', 0xFF81C784, 'favorite'),
-      ('Entertainment', 0xFF4DB6AC, 'movie'),
-      ('Other', 0xFF90A4AE, 'category'),
-    ].indexed.map(
-      (e) => CategoriesCompanion.insert(
-        name: e.$2.$1,
-        color: e.$2.$2,
-        icon: e.$2.$3,
-        sortOrder: e.$1,
-      ),
-    );
+          ('Food', 0xFFE57373, 'restaurant'),
+          ('Travel', 0xFF64B5F6, 'directions_car'),
+          ('Rent', 0xFF8D6E63, 'home'),
+          ('Bills', 0xFFFFB74D, 'receipt_long'),
+          ('Shopping', 0xFFBA68C8, 'shopping_bag'),
+          ('Health', 0xFF81C784, 'favorite'),
+          ('Entertainment', 0xFF4DB6AC, 'movie'),
+          ('Other', 0xFF90A4AE, 'category'),
+        ].indexed
+        .map(
+          (e) => CategoriesCompanion.insert(
+            name: e.$2.$1,
+            color: e.$2.$2,
+            icon: e.$2.$3,
+            sortOrder: e.$1,
+          ),
+        )
+        .toList();

@@ -20,6 +20,7 @@ abstract final class Money {
     final rupees = match?[1]?.replaceAll(',', '') ?? '';
     final fraction = match?[2] ?? '';
     if (match == null || (rupees.isEmpty && fraction.isEmpty)) return null;
+    if (rupees.length > 15) return null; // would overflow int paise
     return int.parse(rupees.isEmpty ? '0' : rupees) * 100 +
         int.parse(fraction.padRight(2, '0'));
   }

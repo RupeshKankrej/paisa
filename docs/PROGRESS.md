@@ -1,5 +1,45 @@
 # Progress
 
+## Phase 3: Expenses screen (2026-10-31)
+
+Status: built on branch `phase-3-expenses`, not merged. Tests pass and the list was checked on the simulator. Acceptance on the iPhone (SPEC 5.2 to 5.4) is still to be confirmed by Rupesh.
+
+### What was built
+- `lib/features/expenses/expenses_screen.dart`: list grouped by day, uncategorised rows at 50% opacity with a hint, All / Expenses / Income chips, swipe-left delete with a 5-second undo, FAB. Long-press opens the edit sheet.
+- `lib/features/expenses/transaction_sheet.dart`: one sheet for add and edit, with an expandable "from SMS" section showing the raw text.
+- `lib/features/budgets/category_picker.dart`: grid, search and "New category". `CategoryAvatar` holds the icon-name mapping.
+- `lib/app/month_picker.dart`: the dropdown Home will reuse in Phase 4.
+- `MonthKey.start` and `MonthKey.range`. No schema change.
+
+### Decisions
+- The month picker lists the oldest transaction month through the newest, always including the current month.
+- After a save, the screen moves to the saved row's month and clears a filter that would hide it, so a saved row never seems to vanish.
+- "New category" asks only for a name. The colour cycles through the seed palette and the icon is the generic one.
+- A new manual row uses the chosen date with the current time. An edit keeps the original time.
+- Deleting another row while an undo is showing ends the earlier undo; that delete becomes final.
+- Credits show a leading `+` on the amount, so colour is not the only signal.
+- `Money.tryParse` now returns null above 15 rupee digits. It used to throw or overflow, and the amount field now takes typed input.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 73 passed.
+- Removing `persist: false` makes the snackbar test fail: Flutter otherwise keeps a snackbar with an action up indefinitely.
+- Simulator (iPhone 18 Pro, iOS 27.2): messages seeded through the inbox appear grouped by day, dimmed, with long titles cut and Indian grouping. Only the list was viewed; `simctl` cannot tap, so gestures and sheets are covered by widget tests only.
+
+### What to verify on the device
+1. Expenses tab: real messages grouped by day, newest first, uncategorised rows dimmed.
+2. Tap a row: picker opens, search filters, choosing saves and undims. "New category" creates and assigns.
+3. Swipe left: red background, row goes, Undo restores it. Without Undo the snackbar goes after 5 seconds and the row stays gone after a force-quit.
+4. Delete an SMS row, send the same SMS text again: it does not come back.
+5. FAB: decimal keypad appears, the sheet stays above it, amount and category are required, the row saves.
+6. Long-press an SMS row: amount and date editable, "from SMS" expands to the raw text.
+7. Chips filter; the month dropdown switches months.
+
+### Open issues and setup notes
+- Months are calendar months only, in `watchTransactions`. Phase 4 replaces this with `Period`.
+- The undo snackbar sits over the FAB for its 5 seconds, by reading of Flutter's nested-scaffold behaviour; not seen on a screen yet.
+- The selected month is set when the tab is first built, so leaving the app open across a month end keeps the old month until changed.
+- Free-team install expires about 2026-11-06.
+
 ## Phase 2: Parser + ingest (2026-10-31)
 
 Status: built on branch `phase-2-parser-ingest` (from `phase-1-foundation`), not merged. Acceptance tests pass. On the iPhone, Rupesh confirmed a test SMS in the debit format raised Imported messages, and one with different wording reached Unparsed messages. Rupesh also confirmed a real HDFC message parsed correctly and an added sender survives a force-quit.
