@@ -272,6 +272,78 @@ struct ExpensesLayout: View {
   }
 }
 
+/// Spent, remaining and the salary bar: the original widget's figures.
+struct Figures: View {
+  let summary: Summary
+
+  private var over: Bool { (summary.remainingPaise ?? 0) < 0 }
+
+  var body: some View {
+    Tile {
+      VStack(alignment: .leading, spacing: 3) {
+        Text(monthLabel(summary.month)).font(.caption2).foregroundStyle(.secondary)
+        Spacer(minLength: 0)
+        Text("Spent").font(.caption).foregroundStyle(.secondary)
+        Text(moneyShort(summary.spentPaise))
+          .font(.headline).foregroundStyle(.white).minimumScaleFactor(0.5).lineLimit(1)
+        Text("Remaining").font(.caption).foregroundStyle(.secondary)
+        Text(summary.remainingPaise.map(moneyShort) ?? "—")
+          .font(.headline).foregroundStyle(over ? .red : .white)
+          .minimumScaleFactor(0.5).lineLimit(1)
+        if let salary = summary.salaryPaise {
+          // A zero salary with any spend reads as full, as on the Budget ring.
+          let share = salary > 0 ? min(Double(summary.spentPaise) / Double(salary), 1) : 1
+          GeometryReader { size in
+            ZStack(alignment: .leading) {
+              Capsule().fill(.white.opacity(0.14))
+              Capsule().fill(over ? .red : accent).frame(width: size.size.width * share)
+            }
+          }
+          .frame(height: 5)
+          .padding(.top, 4)
+        }
+      }
+      .padding(14)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+  }
+}
+
+struct TopCategories: View {
+  let categories: [Summary.TopCategory]
+
+  var body: some View {
+    Tile {
+      VStack(alignment: .leading, spacing: 6) {
+        ForEach(categories, id: \.name) { category in
+          HStack(spacing: 6) {
+            Circle()
+              .fill(
+                Color(
+                  red: Double(category.color >> 16 & 0xFF) / 255,
+                  green: Double(category.color >> 8 & 0xFF) / 255,
+                  blue: Double(category.color & 0xFF) / 255)
+              )
+              .frame(width: 8, height: 8)
+            Text(category.name).font(.caption).foregroundStyle(.white).lineLimit(1)
+            Spacer(minLength: 4)
+            Text(moneyShort(category.spentPaise))
+              .font(.caption).foregroundStyle(.secondary)
+              .minimumScaleFactor(0.6).lineLimit(1)
+          }
+        }
+        Spacer(minLength: 0)
+        Link(destination: URL(string: "paisa://add")!) {
+          Label("Add expense", systemImage: "plus")
+            .font(.caption.weight(.semibold)).foregroundStyle(accent)
+        }
+      }
+      .padding(14)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+    }
+  }
+}
+
 // MARK: - Widgets
 
 /// The shared dark card, whichever layout sits on it. In iOS 26's Clear and
@@ -314,10 +386,36 @@ struct OverviewView: View {
   }
 }
 
-// Keeps the first widget's kind, so one already on the home screen stays there.
+struct SpentView: View {
+  @Environment(\.widgetFamily) private var family
+  let entry: Entry
+
+  var body: some View {
+    Card(summary: entry.summary) { summary in
+      HStack(spacing: 5) {
+        Figures(summary: summary)
+        if family == .systemMedium { TopCategories(categories: summary.topCategories) }
+      }
+    }
+  }
+}
+
+// The original widget's kind, so one already on the home screen stays this one.
 struct PaisaWidget: Widget {
   var body: some WidgetConfiguration {
     StaticConfiguration(kind: "PaisaWidget", provider: Provider()) { entry in
+      SpentView(entry: entry)
+    }
+    .configurationDisplayName("Spent and remaining")
+    .description("Spent and remaining this month, with top categories.")
+    .contentMarginsDisabled()
+    .supportedFamilies([.systemSmall, .systemMedium])
+  }
+}
+
+struct PaisaLeftWidget: Widget {
+  var body: some WidgetConfiguration {
+    StaticConfiguration(kind: "PaisaLeftWidget", provider: Provider()) { entry in
       OverviewView(entry: entry)
     }
     .configurationDisplayName("Left this month")
@@ -355,6 +453,7 @@ struct PaisaExpensesWidget: Widget {
 struct PaisaWidgets: WidgetBundle {
   var body: some Widget {
     PaisaWidget()
+    PaisaLeftWidget()
     PaisaCategoriesWidget()
     PaisaExpensesWidget()
   }

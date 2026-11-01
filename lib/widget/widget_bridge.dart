@@ -9,6 +9,7 @@ Future<void> publishWidgetSummary(String json) async {
   await _channel.invokeMethod<void>('write', json);
   for (final kind in const [
     'PaisaWidget',
+    'PaisaLeftWidget',
     'PaisaCategoriesWidget',
     'PaisaExpensesWidget',
   ]) {

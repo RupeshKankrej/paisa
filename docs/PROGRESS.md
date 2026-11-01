@@ -12,7 +12,7 @@ Status: built on branch `phase-12-polish-release` (from `main`), not merged. Tes
 - `ios/ShareExt/`: Share Extension, bundle ID `com.rupeshkankrej.paisa.ShareExt`. `Inbox` moved to `ios/Runner/Inbox.swift` so both targets compile it. Shared rows save with `source = share`.
 - App icon: a blue-to-green ₹ on the Activity header's fade. Version 1.0.0+1. `ITSAppUsesNonExemptEncryption` is false.
 
-- Widgets, from Rupesh's screenshot (SPEC 6 updated): a dark card of rounded tiles, in three widgets. Left this month (small, medium), Quick categories (medium), Month's expenses (medium). The JSON gains `daily_spent_paise` and `quick_categories`. New links: `paisa://add?type=income`, `paisa://add?category=<id>`, `paisa://dashboards`.
+- Widgets, from Rupesh's screenshot (SPEC 6 updated): a dark card of rounded tiles, in four widgets. Spent and remaining, the original, restyled (small, medium), Left this month (small, medium), Quick categories (medium), Month's expenses (medium). The JSON gains `daily_spent_paise` and `quick_categories`. New links: `paisa://add?type=income`, `paisa://add?category=<id>`, `paisa://dashboards`.
 - Export for AI analysis (`ai_export.dart`, SPEC 5.10): a Markdown file with instructions, monthly totals, category spend against limits, and every transaction.
 
 ### Decisions
@@ -27,7 +27,7 @@ Status: built on branch `phase-12-polish-release` (from `main`), not merged. Tes
 - The screenshot's scan and mic buttons have no features behind them, so those tiles open Activity and Analytics (see BACKLOG).
 - On the widgets, + adds income and − adds an expense, read from the screenshot. Quick categories are the first four expense categories, in the Categories screen's order.
 - The ring's arc shows spend against salary, as the screenshot shows only an empty track at zero spend. Red when over salary. With no salary it shows Spent, with no arc.
-- The first widget keeps its kind, so one already on the home screen stays and takes the new look. The old medium's top categories are gone; the JSON still carries them.
+- Spent and remaining keeps the original kind, so one already on the home screen stays that widget and takes the new look. Rupesh asked to keep it. Left this month has a new kind, `PaisaLeftWidget`.
 - The card is fixed dark in light mode too, as in the screenshot. This replaces Phase 11's translucent fill, so in the default home-screen style it is no longer see-through.
 - The AI file leaves out raw SMS text, ref numbers and account numbers, but keeps names and notes, which analysis needs. It leaves the phone only where Rupesh shares it.
 - The Quanto CSV is gitignored, as the repo is public and it holds real finances. Three tests use it and skip when it is missing.
@@ -46,7 +46,7 @@ Status: built on branch `phase-12-polish-release` (from `main`), not merged. Tes
 4. Export month to Excel and all months: open in Numbers or Excel. Amounts are numbers with Indian grouping, total row bold. With salary day on, the file name has dates.
 5. Export CSV and JSON: both open, and the CSV matches Quanto's columns.
 6. Restore from backup with the step 2 file: the transaction count is right, and the app returns to that state. A non-backup file is refused.
-8. Widgets: long-press the home screen and add all three, compared with the screenshot. Figures match the Budget tab, and adding an expense updates them. + opens the sheet on Income, − on Expense, a category tile on that category, and the other two open Activity and Analytics. Also try iOS's Clear and Tinted styles.
+8. Widgets: long-press the home screen and add all four, compared with the screenshot. Figures match the Budget tab, and adding an expense updates them. + opens the sheet on Income, − on Expense, a category tile on that category, and the other two open Activity and Analytics. Also try iOS's Clear and Tinted styles.
 9. Export for AI analysis: attach the file to an AI assistant and judge the answer.
 7. Select an HDFC message's text, Share → Paisa: an alert appears. Open the app: the row appears, unless its fingerprint is already logged.
 
