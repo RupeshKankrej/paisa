@@ -159,7 +159,7 @@ Date formats to support: `DD/MM/YY`, `DD-MMM-YY`, `DD-MM-YY`. Two-digit years ma
 ### 5.2 Expenses screen
 
 - Month selector in the app bar (dropdown; default current month; same component as Home).
-- List grouped by day, newest first. Each row: category icon/colour (or a grey placeholder), counterparty, amount (debits red-ish, credits green-ish), time.
+- List grouped by day, newest first. Each row, as in reference 01 (Rupesh, Phase 11): emoji on a soft rounded square (or a grey placeholder), counterparty, amount (debits plain, credits green with a plus, paise only when there are some). No time.
 - **Uncategorised rows are rendered at 50% opacity** with a "Tap to categorise" hint. They still count in all totals.
 - Tap or long-press any row, categorised or not → edit sheet (5.4), where its category is chosen from the strip or the category grid sheet (5.14).
 - **Swipe left** → red delete background → on release, delete with a 5-second undo snackbar. Deleting an SMS-sourced expense keeps its `ingest_log` fingerprint so it is not re-imported.

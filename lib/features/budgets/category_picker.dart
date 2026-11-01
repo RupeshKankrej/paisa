@@ -14,13 +14,34 @@ import '../../core/theme/motion.dart';
 /// Icon tile: an emoji on surface with a border in the category's colour, or a
 /// grey placeholder when there is no category.
 class CategoryAvatar extends StatelessWidget {
-  const CategoryAvatar(this.category, {super.key});
+  const CategoryAvatar(this.category, {super.key, this.plain = false});
 
   final Category? category;
+
+  /// Activity's look: a soft rounded square with no colour border (reference 01).
+  final bool plain;
 
   @override
   Widget build(BuildContext context) {
     final category = this.category;
+    if (plain) {
+      return Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: context.palette.textPrimary.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(AppRadii.iconTile),
+        ),
+        child: category == null
+            ? const Icon(Icons.help_outline, color: Colors.grey, size: 20)
+            : Text(
+                category.emoji,
+                style: const TextStyle(fontSize: 20),
+                semanticsLabel: '',
+              ),
+      );
+    }
     return Container(
       width: 44,
       height: 44,

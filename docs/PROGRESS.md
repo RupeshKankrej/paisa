@@ -17,6 +17,7 @@ Status: built on branch `phase-11-motion-glass` (from `main`), not merged. Tests
   - Sheets use an ease-out curve (320 ms up, 220 ms down).
 - Analytics bars are gradients, as Rupesh asked: faint at the axis, full colour at the far end (income vs expenses, income left, day-wise). A negative income-left bar runs the other way. The legend swatches stay solid.
 - Rupesh found tapping a month on the income vs expenses and income left cards did nothing. fl_chart's touch only finds bars, so labels and gaps were dead. The whole column of a month now selects it, using equal slots across the plot. The amount axis does not select.
+- Activity rows match reference 01, as Rupesh asked (SPEC 5.2 updated): a soft rounded emoji tile, no time, plain debit amounts, larger and lighter day cards, and `Money.short` on rows and day totals, which drops only empty paise and never rounds. Credits stay green with a plus, uncategorised rows stay dimmed with their hint. The Analytics day sheet shares these rows; other screens keep the coloured circle.
 - Haptics: FAB, Allocate Confirm, keypad arrow and Done, category Save and Add, quick add, both swipe-deletes, reorder.
 - `paisa/accessibility` channel in `AppDelegate.swift`, for Reduce Transparency. It is read at launch and on resume.
 - Widget: `containerBackground(.fill.tertiary)` in place of the opaque background.

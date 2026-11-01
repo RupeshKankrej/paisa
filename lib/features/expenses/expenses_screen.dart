@@ -243,20 +243,28 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
           Card(
             key: ValueKey(row.id),
             margin: const EdgeInsets.symmetric(horizontal: 16),
+            // Raised in dark, as in reference 01; light's surface is already
+            // clear of the page.
+            color: Theme.of(context).brightness == Brightness.dark
+                ? context.palette.surfaceRaised
+                : null,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(
                 top: i == 0
-                    ? const Radius.circular(AppRadii.card)
+                    ? const Radius.circular(AppRadii.dayCard)
                     : Radius.zero,
                 bottom: i == day.length - 1
-                    ? const Radius.circular(AppRadii.card)
+                    ? const Radius.circular(AppRadii.dayCard)
                     : Radius.zero,
               ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (i > 0) const Divider(),
+                if (i > 0)
+                  Divider(
+                    color: context.palette.textPrimary.withValues(alpha: 0.06),
+                  ),
                 FadeSlideIn(
                   index: index++,
                   child: SwipeToDelete(
@@ -363,8 +371,8 @@ String dayLabel(DateTime day) =>
 /// A day's spend, or its income with a plus when nothing was spent.
 String dayTotal(List<TransactionRow> rows) {
   final spent = sumPaise(spendOf(rows).values);
-  if (spent > 0) return Money.format(spent);
-  return '+${Money.format(sumPaise(rows.map((r) => r.amountPaise)))}';
+  if (spent > 0) return Money.short(spent);
+  return '+${Money.short(sumPaise(rows.map((r) => r.amountPaise)))}';
 }
 
 class TransactionTile extends StatelessWidget {
@@ -393,22 +401,28 @@ class TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final time = MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(row.occurredAt),
-      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-    );
     final uncategorised = row.categoryId == null;
     final credit = row.type == TransactionType.credit;
+    final text = TextStyle(
+      fontSize: 17,
+      fontWeight: FontWeight.w400,
+      color: context.palette.textPrimary,
+    );
     final tile = ListTile(
-      leading: CategoryAvatar(category),
-      title: Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(uncategorised ? '$time · Tap to categorise' : time),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      horizontalTitleGap: 13,
+      minTileHeight: 57,
+      leading: CategoryAvatar(category, plain: true),
+      title: Text(
+        _title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text,
+      ),
+      subtitle: uncategorised ? const Text('Tap to categorise') : null,
       trailing: Text(
-        '${credit ? '+' : ''}${Money.format(row.amountPaise)}',
-        style: TextStyle(
-          color: credit ? AppColors.income : AppColors.debit,
-          fontWeight: FontWeight.w600,
-        ),
+        '${credit ? '+' : ''}${Money.short(row.amountPaise)}',
+        style: credit ? text.copyWith(color: AppColors.income) : text,
       ),
       onTap: onTap,
       onLongPress: onLongPress,

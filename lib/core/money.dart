@@ -11,6 +11,11 @@ abstract final class Money {
     return '${paise < 0 ? '-' : ''}₹$grouped.$fraction';
   }
 
+  /// Like [format], without paise when there are none: ₹54, but ₹54.50. Nothing
+  /// is rounded, so a row never shows less than it is.
+  static String short(int paise) =>
+      format(paise).replaceFirst(RegExp(r'\.00$'), '');
+
   static String _group(String rupees) =>
       rupees.replaceAllMapped(_lakhGroups, (m) => '${m[1]},');
 
