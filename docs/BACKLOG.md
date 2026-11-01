@@ -36,3 +36,6 @@
 - Collapse snackbars and keep swipe-back under iOS Reduce Motion.
 - Update SPEC 5.15: edge refraction shader, flat nav on `surfaceRaised`, and that the iPhone 15 is 60 Hz.
 - Per-row list items for the day sheet and other long lists if they ever get long; only Activity has them.
+- Excel export from an overflow menu on Activity (SPEC 5.10): reference 01 has no such menu, so export is in Settings only.
+- Shared text with no tracked pattern is logged `ignored` and shows nothing; the Share Extension cannot read tracked senders from SQLite to warn at share time.
+- Remove the old Phase 11 `Documents/perf.txt` from the iPhone.

@@ -225,6 +225,8 @@ Workbook layout:
 
 File name: `Paisa_<YYYY-MM>.xlsx` (or `Paisa_<start>_<end>.xlsx` when the period is salary-day based, see 5.11). Amounts are written as numbers, not strings, so Excel can sum them. A "Export all months" option writes one workbook with a sheet per month.
 
+**CSV (Rupesh, Phase 12).** Export and import use the Quanto columns: Date (`DD/MM/YYYY`), Amount (thousands grouping, two decimals), Category, Name, Account, Type (`Expense`/`Income`). Import previews before writing, creates missing categories by type, saves rows as `source = manual`, and skips rows already present (same day, amount, type and name, counted, so identical rows in one file are kept and a repeat import adds nothing).
+
 ### 5.11 Month boundary: calendar or salary day
 
 Settings → Month boundary: a toggle between **Calendar month** (1st to last day, the default) and **Salary day to salary day**, with a day-of-month picker (1–31) that appears when the second option is chosen. Changing the toggle or the day re-computes every screen immediately; stored transactions are untouched.

@@ -10,10 +10,14 @@ import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/models.dart';
 import '../budgets/manage_categories_screen.dart';
+import 'data_section.dart';
 import '../../app/glass.dart';
 
 // Rupesh's salary usually lands on the 28th (SPEC 5.1 sample).
 const _defaultSalaryDay = 28;
+
+/// Matches pubspec.yaml; a test holds them together.
+const appVersion = '1.0.0';
 
 const _appearanceLabels = {
   ThemeMode.system: 'System',
@@ -89,6 +93,7 @@ class SettingsScreen extends ConsumerWidget {
     final salary = ref.watch(salaryAmountsProvider).value?[null];
     final salaryDay = ref.watch(salaryDayProvider).value;
     final mode = ref.watch(themeModeProvider).value ?? ThemeMode.system;
+    final data = DataActions(context, ref);
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
@@ -184,6 +189,59 @@ class SettingsScreen extends ConsumerWidget {
               'Only messages containing a tracked pattern are read.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+          ),
+          const _SectionTitle('Data'),
+          GroupedCard(
+            children: [
+              _Row(
+                icon: Icons.table_chart_outlined,
+                title: 'Export month to Excel',
+                onTap: data.exportMonth,
+              ),
+              _Row(
+                icon: Icons.table_view_outlined,
+                title: 'Export all months to Excel',
+                onTap: data.exportAllMonths,
+              ),
+              _Row(
+                icon: Icons.description_outlined,
+                title: 'Export CSV',
+                onTap: data.exportCsvFile,
+              ),
+              _Row(
+                icon: Icons.data_object,
+                title: 'Export JSON',
+                onTap: data.exportJsonFile,
+              ),
+              _Row(
+                icon: Icons.file_upload_outlined,
+                title: 'Import CSV',
+                onTap: data.importCsv,
+              ),
+              _Row(
+                icon: Icons.backup_outlined,
+                title: 'Back up',
+                onTap: data.backup,
+              ),
+              _Row(
+                icon: Icons.settings_backup_restore,
+                title: 'Restore from backup',
+                onTap: data.restore,
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(32, 8, 32, 0),
+            child: Text(
+              csvFormatNote,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          const _SectionTitle('About'),
+          GroupedCard(
+            children: [
+              _Row(icon: Icons.info_outline, title: 'Paisa', value: appVersion),
+            ],
           ),
         ],
       ),

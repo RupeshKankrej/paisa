@@ -10,7 +10,7 @@ class RunnerTests: XCTestCase {
     let multiline = "Sent Rs.120.00\nFrom HDFC Bank A/C *2703 \"quoted\""
 
     try Inbox.append(multiline, to: url, now: Date(timeIntervalSince1970: 0))
-    try Inbox.append("second", to: url)
+    try Inbox.append("second", to: url, source: "share")
 
     let lines = try String(contentsOf: url, encoding: .utf8).split(separator: "\n")
     XCTAssertEqual(lines.count, 2)
@@ -18,6 +18,7 @@ class RunnerTests: XCTestCase {
       JSONSerialization.jsonObject(with: Data(lines[0].utf8)) as? [String: String])
     XCTAssertEqual(
       first, ["text": multiline, "received_at": "1970-01-01T00:00:00Z", "source": "intent"])
+    XCTAssertTrue(lines[1].contains("\"source\":\"share\""))
   }
 
   func testClaimKeepsUnackedLinesAndNewArrivals() throws {

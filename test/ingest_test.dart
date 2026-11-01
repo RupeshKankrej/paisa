@@ -49,6 +49,18 @@ void main() {
     expect(await statuses(), [IngestStatus.parsed, IngestStatus.parsed]);
   });
 
+  test('a shared message keeps its source', () async {
+    await ingestInbox(
+      db,
+      jsonEncode({
+        'text': debitSample,
+        'received_at': '2026-10-30T10:15:30Z',
+        'source': 'share',
+      }),
+    );
+    expect((await rows()).single.source, TransactionSource.share);
+  });
+
   test('the same message delivered twice creates one transaction', () async {
     await ingestInbox(db, line(debitSample));
     await ingestInbox(db, line(debitSample));

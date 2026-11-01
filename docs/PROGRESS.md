@@ -1,5 +1,49 @@
 # Progress
 
+## Phase 12: Polish + release (2026-11-01)
+
+Status: built on branch `phase-12-polish-release` (from `main`), not merged. Tests pass and the release build includes the extension. TestFlight is not done: it needs the paid Apple Developer Program. Rupesh asked for "Phase 0" with export/import; Phase 0 was already done, and Rupesh then chose Phase 12 and CSV import with dedup.
+
+### What was built
+- `lib/domain/quanto_csv.dart`: Quanto CSV reader and writer, and counted dedup, in pure Dart.
+- `lib/features/settings/workbook.dart`: monthly Excel (Expenses, Income, Summary) and all months (one sheet per period), SPEC 5.10.
+- `lib/features/settings/data_transfer.dart`: CSV, JSON, import plan and apply, backup, restore.
+- `lib/features/settings/data_section.dart` and Settings: Data section (7 rows) and About.
+- `ios/ShareExt/`: Share Extension, bundle ID `com.rupeshkankrej.paisa.ShareExt`. `Inbox` moved to `ios/Runner/Inbox.swift` so both targets compile it. Shared rows save with `source = share`.
+- App icon: a blue-to-green ₹ on the Activity header's fade. Version 1.0.0+1. `ITSAppUsesNonExemptEncryption` is false.
+
+### Decisions
+- CSV import was not in SPEC; added to 5.10 as Rupesh decided.
+- The dedup key leaves out the category, so recategorising an imported row does not import it again. A real row with the same day, amount, type and name as an existing one is skipped; the preview shows the skipped count.
+- Imported rows get 12:00, as the file has only dates. CSV export drops time, note and ref no, as the format has no columns for them. JSON and backup keep them.
+- JSON leaves out `ingest_log`, which can hold unrelated message text. Backup and restore include it, so deleted SMS rows stay deleted.
+- Restore upgrades and checks a temporary copy, then replaces all tables in one transaction, so a failure leaves live data as it was. Newer or non-Paisa files are refused. The confirmation offers Back up first.
+- CSV names starting with `=`, `+`, `-` or `@` get a leading `'` on export, removed on import, so a bank message cannot run as a spreadsheet formula.
+- Picking an export month also changes the app-wide month, as the sheet always does (SPEC 5.13).
+- Excel export is in Settings only (see BACKLOG).
+- The Quanto CSV is gitignored, as the repo is public and it holds real finances. Three tests use it and skip when it is missing.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: all passed, including the real 155-row file read, rewritten and imported twice.
+- Swift `RunnerTests` on the simulator: passed.
+- `flutter build ios --release` signed with the free team; `ShareExt.appex` is embedded with the App Group entitlement.
+- Workbooks were checked by decoding them in tests, not opened in Excel or Numbers. The share sheet, file picker, Share Extension and icon have not been used on a device.
+
+### What to verify on the device
+1. Force-quit and open: data is intact, and the new icon shows.
+2. Settings → Back up: save to Files. Do this first.
+3. Import CSV: pick the Quanto file. The preview should show 155 new, minus any already there, and the new categories. Import, check May to September, then import again: 0 new.
+4. Export month to Excel and all months: open in Numbers or Excel. Amounts are numbers with Indian grouping, total row bold. With salary day on, the file name has dates.
+5. Export CSV and JSON: both open, and the CSV matches Quanto's columns.
+6. Restore from backup with the step 2 file: the transaction count is right, and the app returns to that state. A non-backup file is refused.
+7. Select an HDFC message's text, Share → Paisa: an alert appears. Open the app: the row appears, unless its fingerprint is already logged.
+
+### Open issues and setup notes
+- TestFlight: needs a paid team in Xcode, an App Store Connect record, then `flutter build ipa`. SPEC acceptance is not met until then.
+- Text with no tracked pattern shared to the extension is ignored silently (see BACKLOG).
+- Importing adds new categories such as "Subscription" beside any "Subscriptions", as names must match exactly.
+- This install uses one more bundle ID of the free team's weekly 10.
+
 ## Phase 11: Motion + Liquid Glass (2026-11-01)
 
 Status: built on branch `phase-11-motion-glass` (from `main`), not merged. Tests pass. The frame budget was measured on the iPhone 15. Rupesh has not yet viewed the glass, motion or widget on the phone, so the list below is open.

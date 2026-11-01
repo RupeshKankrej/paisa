@@ -18,7 +18,7 @@ Future<void> ingestInbox(AppDatabase db, String jsonl) async {
   }
 }
 
-({String text, DateTime receivedAt})? _decode(String line) {
+({String text, DateTime receivedAt, bool shared})? _decode(String line) {
   final Object? json;
   try {
     json = jsonDecode(line);
@@ -27,7 +27,13 @@ Future<void> ingestInbox(AppDatabase db, String jsonl) async {
   }
   if (json case {'text': String text, 'received_at': String receivedAt}) {
     final parsed = DateTime.tryParse(receivedAt);
-    if (parsed != null) return (text: text, receivedAt: parsed);
+    if (parsed != null) {
+      return (
+        text: text,
+        receivedAt: parsed,
+        shared: json['source'] == 'share',
+      );
+    }
   }
   return null;
 }
@@ -101,7 +107,9 @@ Future<void> _ingestLine(AppDatabase db, String line) async {
           accountLast4: Value(parsed.accountLast4),
           bank: Value(bank),
           refNo: Value(parsed.refNo),
-          source: TransactionSource.sms,
+          source: decoded.shared
+              ? TransactionSource.share
+              : TransactionSource.sms,
           rawText: Value(raw),
         ),
       );
