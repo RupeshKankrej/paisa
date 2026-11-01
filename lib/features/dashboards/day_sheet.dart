@@ -10,16 +10,15 @@ import '../../domain/budget.dart';
 import '../../domain/models.dart';
 import '../expenses/expenses_screen.dart';
 import '../expenses/transaction_sheet.dart';
+import '../../app/glass.dart';
 
 /// One day's expenses, from a tap on the Analytics calendar. Rows edit and
 /// swipe-delete as on Activity.
 Future<void> showDaySheet(BuildContext context, DateTime day) =>
-    showModalBottomSheet<void>(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
+    showAppSheet<void>(
+      context,
       useSafeArea: true,
-      backgroundColor: context.palette.bg, // so the card stands out on it
+      color: context.palette.bg, // so the card stands out on it
       builder: (_) => _DaySheet(day),
     );
 

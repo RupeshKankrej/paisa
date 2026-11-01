@@ -8,17 +8,40 @@ import '../../domain/categories.dart';
 import '../../domain/models.dart';
 import 'category_edit_sheet.dart';
 import 'manage_categories_screen.dart';
+import '../../app/glass.dart';
+import '../../core/theme/motion.dart';
 
 /// Icon tile: an emoji on surface with a border in the category's colour, or a
 /// grey placeholder when there is no category.
 class CategoryAvatar extends StatelessWidget {
-  const CategoryAvatar(this.category, {super.key});
+  const CategoryAvatar(this.category, {super.key, this.plain = false});
 
   final Category? category;
+
+  /// Activity's look: a soft rounded square with no colour border (reference 01).
+  final bool plain;
 
   @override
   Widget build(BuildContext context) {
     final category = this.category;
+    if (plain) {
+      return Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: context.palette.textPrimary.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(AppRadii.iconTile),
+        ),
+        child: category == null
+            ? const Icon(Icons.help_outline, color: Colors.grey, size: 20)
+            : Text(
+                category.emoji,
+                style: const TextStyle(fontSize: 20),
+                semanticsLabel: '',
+              ),
+      );
+    }
     return Container(
       width: 44,
       height: 44,
@@ -100,19 +123,15 @@ class CategoryTypeSegment extends StatelessWidget {
 
 /// The category grid sheet (SPEC 5.14). Returns the choice, or null if dismissed.
 Future<Category?> showCategoryPicker(BuildContext context, CategoryType type) =>
-    showModalBottomSheet<Category>(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
+    showAppSheet<Category>(
+      context,
       builder: (_) => _CategoryGridSheet(type: type, multiSelect: false),
     );
 
 /// The same grid with multi-select. Each tap applies at once.
 Future<void> showCategoryFilter(BuildContext context, CategoryType type) =>
-    showModalBottomSheet<void>(
-      context: context,
-      useRootNavigator: true,
-      isScrollControlled: true,
+    showAppSheet<void>(
+      context,
       builder: (_) => _CategoryGridSheet(type: type, multiSelect: true),
     );
 
@@ -207,24 +226,29 @@ class _CategoryGridSheetState extends ConsumerState<_CategoryGridSheet> {
                 crossAxisSpacing: 8,
                 childAspectRatio: 0.85,
                 children: [
-                  for (final c in pickableCategories(all, _type))
-                    _Tile(
-                      emoji: c.emoji,
-                      name: c.name,
-                      outline: widget.multiSelect && filterMatches(filter, c.id)
-                          ? Color(c.color)
-                          : null,
-                      selected: widget.multiSelect
-                          ? filterMatches(filter, c.id)
-                          : null,
-                      onTap: widget.multiSelect
-                          ? () => db.setCategoryFilter(
-                              toggleFilter(filter, c.id, [
-                                for (final a in all)
-                                  if (!a.isArchived) a.id,
-                              ]),
-                            )
-                          : () => Navigator.of(context).pop(c),
+                  for (final (i, c) in pickableCategories(all, _type).indexed)
+                    FadeSlideIn(
+                      key: ValueKey(c.id),
+                      index: i,
+                      child: _Tile(
+                        emoji: c.emoji,
+                        name: c.name,
+                        outline:
+                            widget.multiSelect && filterMatches(filter, c.id)
+                            ? Color(c.color)
+                            : null,
+                        selected: widget.multiSelect
+                            ? filterMatches(filter, c.id)
+                            : null,
+                        onTap: widget.multiSelect
+                            ? () => db.setCategoryFilter(
+                                toggleFilter(filter, c.id, [
+                                  for (final a in all)
+                                    if (!a.isArchived) a.id,
+                                ]),
+                              )
+                            : () => Navigator.of(context).pop(c),
+                      ),
                     ),
                   AddNewTile(onTap: () => _addNew(filter)),
                 ],

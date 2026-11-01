@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'motion.dart';
 import 'tokens.dart';
 
 final _chipShape = RoundedRectangleBorder(
@@ -20,6 +21,12 @@ ThemeData _build(Brightness brightness, AppPalette p, ColorScheme base) =>
     ThemeData(
       brightness: brightness,
       extensions: [p],
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.iOS: ReducibleIosTransitions(),
+          TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+        },
+      ),
       colorScheme: base.copyWith(
         primary: p.accent,
         onPrimary: p.bg,

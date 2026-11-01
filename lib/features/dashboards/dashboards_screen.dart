@@ -17,6 +17,7 @@ import '../../domain/categories.dart';
 import '../../domain/dashboards.dart';
 import '../../domain/models.dart';
 import 'day_sheet.dart';
+import '../../core/theme/motion.dart';
 
 const _spentColor = AppColors.expense;
 const _incomeColor = AppColors.income;
@@ -250,6 +251,14 @@ Widget _swipeCard(String card, int months, Widget child) => MonthSwipe(
   ),
 );
 
+/// Faint at the axis, full colour at the bar's far end, which is the bottom of
+/// a bar that goes [down].
+LinearGradient _barGradient(Color color, {bool down = false}) => LinearGradient(
+  begin: down ? Alignment.topCenter : Alignment.bottomCenter,
+  end: down ? Alignment.bottomCenter : Alignment.topCenter,
+  colors: [color.withValues(alpha: 0.3), color],
+);
+
 bool _hasData(List<MonthTotal> totals) =>
     totals.any((t) => t.spent != 0 || t.income != 0);
 
@@ -277,59 +286,76 @@ class _WindowBars extends ConsumerWidget {
     final selected = _cardMonth(ref, card);
     final keys = [for (final t in totals) t.key];
     final span = max(maxY, -minY);
-    return SizedBox(
-      height: _chartHeight,
-      child: BarChart(
-        BarChartData(
-          minY: minY,
-          maxY: maxY,
-          alignment: BarChartAlignment.spaceAround,
-          borderData: FlBorderData(show: false),
-          gridData: const FlGridData(show: false),
-          titlesData: _titles(
-            right: SideTitles(
-              showTitles: true,
-              reservedSize: _axisWidth,
-              // Labels fall on multiples from zero; an end that is not one would
-              // get its own label, right beside the nearest multiple.
-              interval: span / 2,
-              maxIncluded: maxY == span,
-              minIncluded: minY == 0 || -minY == span,
-              getTitlesWidget: (value, meta) => _AxisText(axisLabel(value)),
-            ),
-            bottom: SideTitles(
-              showTitles: true,
-              reservedSize: 32,
-              getTitlesWidget: (value, meta) {
-                final i = value.toInt();
-                return Container(
-                  margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
+    // The whole column of a month selects it, label included. The chart's own
+    // touch only finds the bars, which leaves the labels and gaps dead.
+    return LayoutBuilder(
+      builder: (context, constraints) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapUp: (details) {
+          final plot = constraints.maxWidth - _axisWidth;
+          if (details.localPosition.dx >= plot) return;
+          final index = details.localPosition.dx ~/ (plot / keys.length);
+          ref.read(cardMonthProvider(card).notifier).state = keys[index];
+        },
+        child: SizedBox(
+          height: _chartHeight,
+          child: Entrance(
+            replayKey: keys.first,
+            builder: (context, grow, _) => BarChart(
+              duration: Duration.zero, // the bars follow the entrance directly
+              BarChartData(
+                minY: minY,
+                maxY: maxY,
+                alignment: BarChartAlignment.spaceAround,
+                borderData: FlBorderData(show: false),
+                gridData: const FlGridData(show: false),
+                titlesData: _titles(
+                  right: SideTitles(
+                    showTitles: true,
+                    reservedSize: _axisWidth,
+                    // Labels fall on multiples from zero; an end that is not one would
+                    // get its own label, right beside the nearest multiple.
+                    interval: span / 2,
+                    maxIncluded: maxY == span,
+                    minIncluded: minY == 0 || -minY == span,
+                    getTitlesWidget: (value, meta) =>
+                        _AxisText(axisLabel(value)),
                   ),
-                  decoration: BoxDecoration(
-                    color: keys[i] == selected
-                        ? context.palette.surfaceRaised
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
+                  bottom: SideTitles(
+                    showTitles: true,
+                    reservedSize: 32,
+                    getTitlesWidget: (value, meta) {
+                      final i = value.toInt();
+                      return Container(
+                        margin: const EdgeInsets.only(top: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: keys[i] == selected
+                              ? context.palette.surfaceRaised
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: _AxisText(windowLabel(keys, i)),
+                      );
+                    },
                   ),
-                  child: _AxisText(windowLabel(keys, i)),
-                );
-              },
+                ),
+                barTouchData: BarTouchData(enabled: false),
+                barGroups: [
+                  for (final group in groups)
+                    group.copyWith(
+                      barRods: [
+                        for (final rod in group.barRods)
+                          rod.copyWith(toY: rod.toY * grow),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ),
-          barTouchData: BarTouchData(
-            handleBuiltInTouches: false,
-            allowTouchBarBackDraw: true,
-            touchCallback: (event, response) {
-              final index = response?.spot?.touchedBarGroupIndex;
-              if (event is FlTapUpEvent && index != null) {
-                ref.read(cardMonthProvider(card).notifier).state = keys[index];
-              }
-            },
-          ),
-          barGroups: groups,
         ),
       ),
     );
@@ -350,15 +376,9 @@ class _IncomeExpensesCard extends ConsumerWidget {
     ).toDouble();
     BarChartRodData rod(int paise, Color color) => BarChartRodData(
       toY: paise.toDouble(),
-      color: color,
+      gradient: _barGradient(color),
       width: 14,
       borderRadius: BorderRadius.circular(6),
-      // Lets a tap above a short bar still select its period.
-      backDrawRodData: BackgroundBarChartRodData(
-        show: true,
-        toY: top,
-        color: Colors.transparent,
-      ),
     );
     Widget legend(String label, Color color, int paise) => Expanded(
       child: Column(
@@ -517,13 +537,10 @@ class _IncomeLeftCard extends ConsumerWidget {
                         BarChartRodData(
                           toY: value,
                           width: 30,
-                          color: value < 0 ? AppColors.debit : _incomeColor,
+                          gradient: value < 0
+                              ? _barGradient(AppColors.debit, down: true)
+                              : _barGradient(_incomeColor),
                           borderRadius: BorderRadius.circular(8),
-                          backDrawRodData: BackgroundBarChartRodData(
-                            show: true,
-                            toY: top,
-                            color: Colors.transparent,
-                          ),
                         ),
                     ],
                   ),
@@ -740,6 +757,7 @@ class _DayWiseCard extends ConsumerWidget {
               SizedBox(
                 height: _chartHeight,
                 child: BarChart(
+                  duration: context.motion(const Duration(milliseconds: 150)),
                   BarChartData(
                     minY: 0,
                     maxY: days.map((d) => d.paise).reduce(max) * 1.1,
@@ -781,7 +799,7 @@ class _DayWiseCard extends ConsumerWidget {
                           barRods: [
                             BarChartRodData(
                               toY: day.paise.toDouble(),
-                              color: _spentColor,
+                              gradient: _barGradient(_spentColor),
                               width: 5,
                               borderRadius: BorderRadius.zero,
                             ),
@@ -864,6 +882,7 @@ class _DateRangeCardState extends ConsumerState<_DateRangeCard> {
               SizedBox(
                 height: _chartHeight,
                 child: LineChart(
+                  duration: context.motion(const Duration(milliseconds: 150)),
                   LineChartData(
                     minX: 0,
                     // A one-day range still needs a non-zero width.
@@ -954,6 +973,9 @@ class _BudgetPieCard extends ConsumerWidget {
                     alignment: Alignment.center,
                     children: [
                       PieChart(
+                        duration: context.motion(
+                          const Duration(milliseconds: 150),
+                        ),
                         PieChartData(
                           centerSpaceRadius: 0,
                           sectionsSpace: 0,

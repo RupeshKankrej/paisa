@@ -82,6 +82,10 @@ abstract final class AppColors {
 
 abstract final class AppRadii {
   static const card = 20.0;
+
+  /// Activity's day cards and their icon tiles (references 01, 02).
+  static const dayCard = 28.0;
+  static const iconTile = 10.0;
   static const chip = 16.0;
   static const round = 999.0;
 }

@@ -146,7 +146,9 @@ struct PaisaWidgetView: View {
         Text("Open Paisa to see this month").font(.caption).foregroundStyle(.secondary)
       }
     }
-    .containerBackground(.background, for: .widget)
+    // A translucent system fill, which iOS 26 swaps for glass in its Clear and
+    // Tinted home-screen styles. An opaque background would not read as glass.
+    .containerBackground(.fill.tertiary, for: .widget)
     .widgetURL(URL(string: "paisa://expenses"))
   }
 }

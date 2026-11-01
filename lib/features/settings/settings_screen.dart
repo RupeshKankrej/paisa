@@ -10,6 +10,7 @@ import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/models.dart';
 import '../budgets/manage_categories_screen.dart';
+import '../../app/glass.dart';
 
 // Rupesh's salary usually lands on the 28th (SPEC 5.1 sample).
 const _defaultSalaryDay = 28;
@@ -57,9 +58,9 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     ThemeMode current,
   ) async {
-    final picked = await showModalBottomSheet<ThemeMode>(
-      context: context,
-      useRootNavigator: true,
+    final picked = await showAppSheet<ThemeMode>(
+      context,
+      isScrollControlled: false,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

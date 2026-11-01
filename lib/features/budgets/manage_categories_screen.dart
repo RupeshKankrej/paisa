@@ -9,6 +9,9 @@ import '../../domain/categories.dart';
 import '../../domain/models.dart';
 import 'category_edit_sheet.dart';
 import 'category_picker.dart';
+import '../../core/theme/motion.dart';
+
+import 'package:flutter/services.dart';
 
 /// The Categories screen (SPEC 5.14), behind the pencils and Settings.
 class ManageCategoriesScreen extends ConsumerStatefulWidget {
@@ -37,6 +40,7 @@ class _ManageCategoriesScreenState
       confirmDeleteCategory(context, ref.read(databaseProvider), category);
 
   void _reorder(List<Category> rows, int from, int to) {
+    HapticFeedback.selectionClick();
     final ids = [for (final c in rows) c.id];
     final id = ids.removeAt(from);
     ids.insert(to, id);
@@ -44,14 +48,17 @@ class _ManageCategoriesScreenState
     ref.read(databaseProvider).reorderCategories(ids);
   }
 
-  void _addSuggestion(QuickAdd add, int index) => ref
-      .read(databaseProvider)
-      .addCategory(
-        name: add.name,
-        type: _type,
-        emoji: add.emoji,
-        color: categoryColors[index % categoryColors.length],
-      );
+  void _addSuggestion(QuickAdd add, int index) {
+    HapticFeedback.mediumImpact();
+    ref
+        .read(databaseProvider)
+        .addCategory(
+          name: add.name,
+          type: _type,
+          emoji: add.emoji,
+          color: categoryColors[index % categoryColors.length],
+        );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -132,6 +139,10 @@ class _ManageCategoriesScreenState
                         Dismissible(
                           key: ValueKey('dismiss-${c.id}'),
                           direction: DismissDirection.endToStart,
+                          movementDuration: context.motion(),
+                          resizeDuration: context.reduceMotion
+                              ? null
+                              : const Duration(milliseconds: 300),
                           background: Container(
                             color: AppColors.delete,
                             alignment: Alignment.centerRight,
@@ -143,6 +154,7 @@ class _ManageCategoriesScreenState
                           ),
                           confirmDismiss: (_) => confirmDismissCategory(c),
                           onDismissed: (_) {
+                            HapticFeedback.mediumImpact();
                             setState(() => _dismissed.add(c.id));
                             ref.read(databaseProvider).deleteCategory(c.id);
                           },

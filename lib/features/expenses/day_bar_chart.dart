@@ -7,6 +7,7 @@ import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../domain/dashboards.dart';
 import '../../domain/models.dart';
+import '../../core/theme/motion.dart';
 
 /// The Activity header's faint bars, one per day of the period (SPEC 5.12).
 class DayBarChart extends StatelessWidget {
@@ -31,73 +32,77 @@ class DayBarChart extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: SizedBox(
         height: 180,
-        child: BarChart(
-          BarChartData(
-            maxY: maxY,
-            minY: 0,
-            alignment: BarChartAlignment.spaceBetween,
-            gridData: const FlGridData(show: false),
-            borderData: FlBorderData(show: false),
-            barTouchData: BarTouchData(enabled: false),
-            titlesData: FlTitlesData(
-              topTitles: const AxisTitles(),
-              leftTitles: const AxisTitles(),
-              rightTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 48,
-                  interval: maxY,
-                  getTitlesWidget: (value, meta) => Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      value == 0 || peak == 0 ? '0' : Money.compact(peak),
+        child: Entrance(
+          replayKey: period.start,
+          builder: (context, grow, _) => BarChart(
+            duration: Duration.zero, // the bars follow the entrance directly
+            BarChartData(
+              maxY: maxY,
+              minY: 0,
+              alignment: BarChartAlignment.spaceBetween,
+              gridData: const FlGridData(show: false),
+              borderData: FlBorderData(show: false),
+              barTouchData: BarTouchData(enabled: false),
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(),
+                leftTitles: const AxisTitles(),
+                rightTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 48,
+                    interval: maxY,
+                    getTitlesWidget: (value, meta) => Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        value == 0 || peak == 0 ? '0' : Money.compact(peak),
+                        style: caption,
+                      ),
+                    ),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 24,
+                    // Bar charts ask for every bar's title and ignore `interval`.
+                    getTitlesWidget: (value, meta) => Text(
+                      value.toInt() % 7 == 0
+                          ? '${days[value.toInt()].start.day}'
+                          : '',
                       style: caption,
                     ),
                   ),
                 ),
               ),
-              bottomTitles: AxisTitles(
-                sideTitles: SideTitles(
-                  showTitles: true,
-                  reservedSize: 24,
-                  // Bar charts ask for every bar's title and ignore `interval`.
-                  getTitlesWidget: (value, meta) => Text(
-                    value.toInt() % 7 == 0
-                        ? '${days[value.toInt()].start.day}'
-                        : '',
-                    style: caption,
-                  ),
-                ),
-              ),
-            ),
-            barGroups: [
-              for (final (i, day) in days.indexed)
-                BarChartGroupData(
-                  x: i,
-                  barRods: [
-                    BarChartRodData(
-                      toY: day.paise.toDouble(),
-                      width: 6,
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          context.palette.textPrimary.withValues(alpha: 0.15),
-                          context.palette.textPrimary.withValues(alpha: 0.7),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(3),
-                      backDrawRodData: BackgroundBarChartRodData(
-                        show: true,
-                        toY: maxY,
-                        color: context.palette.textPrimary.withValues(
-                          alpha: 0.05,
+              barGroups: [
+                for (final (i, day) in days.indexed)
+                  BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(
+                        toY: day.paise * grow,
+                        width: 6,
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            context.palette.textPrimary.withValues(alpha: 0.15),
+                            context.palette.textPrimary.withValues(alpha: 0.7),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(3),
+                        backDrawRodData: BackgroundBarChartRodData(
+                          show: true,
+                          toY: maxY,
+                          color: context.palette.textPrimary.withValues(
+                            alpha: 0.05,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-            ],
+                    ],
+                  ),
+              ],
+            ),
           ),
         ),
       ),

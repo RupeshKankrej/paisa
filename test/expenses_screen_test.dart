@@ -13,6 +13,7 @@ import 'package:paisa/core/theme/app_theme.dart';
 import 'package:paisa/data/database.dart';
 import 'package:paisa/data/providers.dart';
 import 'package:paisa/domain/models.dart';
+import 'package:paisa/features/expenses/day_bar_chart.dart';
 import 'package:paisa/features/expenses/expenses_screen.dart';
 import 'package:paisa/features/ingest/ingest.dart';
 
@@ -480,7 +481,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(TransactionTile),
-        matching: find.text('+₹50.00'),
+        matching: find.text('+₹50'),
       ),
       findsOneWidget,
     );
@@ -576,7 +577,11 @@ void main() {
     expect(data.barGroups, hasLength(last));
     expect(data.barGroups[now.day - 1].barRods.single.toY, 5000);
     expect(data.maxY, 5000, reason: 'the credit does not set the scale');
-    expect(find.text('₹50'), findsOneWidget, reason: 'the top axis label');
+    expect(
+      find.descendant(of: find.byType(DayBarChart), matching: find.text('₹50')),
+      findsOneWidget,
+      reason: 'the top axis label',
+    );
     expect(find.text('8'), findsOneWidget, reason: 'a label every 7 days');
     expect(find.text('2'), findsNothing);
   });
@@ -593,7 +598,7 @@ void main() {
     );
     final debit = row(TransactionType.debit, 10000);
     final credit = row(TransactionType.credit, 5000);
-    expect(dayTotal([debit, credit]), '₹100.00');
-    expect(dayTotal([credit]), '+₹50.00');
+    expect(dayTotal([debit, credit]), '₹100');
+    expect(dayTotal([credit]), '+₹50');
   });
 }

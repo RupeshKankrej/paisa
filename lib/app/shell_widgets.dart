@@ -1,13 +1,17 @@
 import 'dart:math';
-import 'dart:ui';
+import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/money.dart';
+import '../core/theme/motion.dart';
 import '../core/theme/tokens.dart';
 import '../features/expenses/transaction_sheet.dart';
+import 'glass.dart';
 import 'month_picker.dart';
 
 const _navHeight = 64.0;
@@ -38,14 +42,16 @@ class _SettingsButton extends StatelessWidget {
   const _SettingsButton();
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: IconButton(
-      tooltip: 'Settings',
-      style: IconButton.styleFrom(
-        backgroundColor: context.palette.textPrimary.withValues(alpha: 0.12),
+  Widget build(BuildContext context) => StayPut(
+    child: Center(
+      child: GlassSurface(
+        borderRadius: BorderRadius.circular(AppRadii.round),
+        child: IconButton(
+          tooltip: 'Settings',
+          icon: Icon(Icons.settings, color: context.palette.textPrimary),
+          onPressed: () => context.push('/settings'),
+        ),
       ),
-      icon: Icon(Icons.settings, color: context.palette.textPrimary),
-      onPressed: () => context.push('/settings'),
     ),
   );
 }
@@ -77,24 +83,37 @@ class _AddFabState extends ConsumerState<AddFab> with WidgetsBindingObserver {
   void didChangeMetrics() => setState(() {});
 
   @override
-  Widget build(BuildContext context) => Padding(
-    // A Scaffold strips safe-area insets from its FAB, so ask the view. Less 16,
-    // the margin the Scaffold already leaves below a FAB.
-    padding: EdgeInsets.only(
-      bottom:
-          max(
-            MediaQueryData.fromView(View.of(context)).viewPadding.bottom,
-            _navGap,
-          ) +
-          _navHeight +
-          12 -
-          16,
-    ),
-    child: FloatingActionButton(
-      heroTag: null, // one per tab, all alive in the shell's IndexedStack
-      tooltip: 'Add transaction',
-      onPressed: () => openTransactionSheet(context, ref),
-      child: const Icon(Icons.add),
+  Widget build(BuildContext context) => StayPut(
+    child: Padding(
+      // A Scaffold strips safe-area insets from its FAB, so ask the view. Less 16,
+      // the margin the Scaffold already leaves below a FAB.
+      padding: EdgeInsets.only(
+        bottom:
+            max(
+              MediaQueryData.fromView(View.of(context)).viewPadding.bottom,
+              _navGap,
+            ) +
+            _navHeight +
+            12 -
+            16,
+      ),
+      child: GlassSurface(
+        borderRadius: BorderRadius.circular(AppRadii.round),
+        color: context.palette.accent,
+        opacity: 0.78,
+        child: FloatingActionButton(
+          heroTag: null, // one per tab, all alive in the shell's IndexedStack
+          tooltip: 'Add transaction',
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          highlightElevation: 0,
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            openTransactionSheet(context, ref);
+          },
+          child: const Icon(Icons.add),
+        ),
+      ),
     ),
   );
 }
@@ -110,11 +129,27 @@ class HeroAmount extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 16),
     child: FittedBox(
       fit: BoxFit.scaleDown,
-      child: Text(
-        Money.format(paise),
+      child: CountUpMoney(
+        paise,
         style: Theme.of(context).textTheme.displayLarge,
       ),
     ),
+  );
+}
+
+/// An amount that counts to its new value when it changes (SPEC 5.15).
+class CountUpMoney extends StatelessWidget {
+  const CountUpMoney(this.paise, {super.key, this.style});
+
+  final int paise;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<int>(
+    tween: IntTween(end: paise),
+    duration: context.motion(),
+    curve: Curves.easeOut,
+    builder: (context, value, _) => Text(Money.format(value), style: style),
   );
 }
 
@@ -160,10 +195,12 @@ class GroupedCard extends StatelessWidget {
   );
 }
 
-typedef PillNavItem = ({IconData icon, String label});
+typedef PillNavItem = ({IconData icon, IconData selectedIcon, String label});
 
-/// The floating bottom nav (SPEC 5.12).
-class PillNavBar extends StatelessWidget {
+/// The floating bottom nav (SPEC 5.12). Its selector is a lens that lifts out of
+/// the bar while it travels, follows a drag along the bar and springs to a tab
+/// (SPEC 5.15).
+class PillNavBar extends StatefulWidget {
   const PillNavBar({
     super.key,
     required this.items,
@@ -176,55 +213,255 @@ class PillNavBar extends StatelessWidget {
   final ValueChanged<int> onSelected;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
-    minimum: const EdgeInsets.fromLTRB(16, 0, 16, _navGap),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadii.round),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Container(
-          height: _navHeight,
-          padding: const EdgeInsets.all(4),
-          color: context.palette.surfaceRaised.withValues(alpha: 0.85),
-          child: Row(
-            children: [
-              for (final (i, item) in items.indexed)
-                Expanded(
-                  child: _PillNavButton(
-                    item: item,
-                    selected: i == selectedIndex,
-                    onTap: () => onSelected(i),
-                  ),
-                ),
-            ],
-          ),
+  State<PillNavBar> createState() => _PillNavBarState();
+}
+
+class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
+  static const _inset = 14.0; // the selector overhangs its tab at the ends
+  static const _padding = 4.0;
+
+  // Quick and with no bounce: reference 27 crosses a tab in about 100 ms.
+  static const _spring = SpringDescription(
+    mass: 1,
+    stiffness: 420,
+    damping: 40,
+  );
+
+  /// The selector's position in tabs, so 1.5 is halfway from the second to the third.
+  late final _position = AnimationController.unbounded(
+    vsync: this,
+    value: widget.selectedIndex.toDouble(),
+  );
+
+  // Up at once, down slowly: the lens clears into the pill after it has arrived.
+  late final _lift = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 90),
+    reverseDuration: const Duration(milliseconds: 280),
+  );
+
+  // A finger on it swells it past the bar; a tap stays level with the bar.
+  late final _hold = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 120),
+  );
+  late int _target;
+  var _dragging = false;
+  var _slot = 1.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _target = widget.selectedIndex;
+    _position.addListener(() {
+      if (!_dragging &&
+          _lift.status != AnimationStatus.reverse &&
+          (_position.value - _target).abs() < 0.04) {
+        _lift.reverse();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(PillNavBar old) {
+    super.didUpdateWidget(old);
+    if (widget.selectedIndex != _target && !_dragging) {
+      _glideTo(widget.selectedIndex);
+    }
+  }
+
+  @override
+  void dispose() {
+    _position.dispose();
+    _lift.dispose();
+    _hold.dispose();
+    super.dispose();
+  }
+
+  void _glideTo(int index, {double velocity = 0}) {
+    _target = index;
+    if (context.reduceMotion) {
+      _position.value = index.toDouble();
+      _lift.value = 0;
+      return;
+    }
+    _lift.forward();
+    _position.animateWith(
+      SpringSimulation(_spring, _position.value, index.toDouble(), velocity),
+    );
+  }
+
+  void _dragStart(DragStartDetails _) {
+    _dragging = true;
+    _position.stop();
+    _lift.forward();
+    _hold.forward();
+  }
+
+  void _dragUpdate(DragUpdateDetails details) {
+    _position.value = (_position.value + details.delta.dx / _slot).clamp(
+      -0.25,
+      widget.items.length - 0.75,
+    );
+  }
+
+  void _dragEnd(DragEndDetails details) {
+    _dragging = false;
+    _hold.reverse();
+    final velocity = details.velocity.pixelsPerSecond.dx / _slot;
+    // A flick carries on to where it would land, as a scroll does.
+    final index = (_position.value + velocity * 0.12).round().clamp(
+      0,
+      widget.items.length - 1,
+    );
+    _glideTo(index, velocity: velocity);
+    if (index != widget.selectedIndex) widget.onSelected(index);
+  }
+
+  void _dragCancel() {
+    _dragging = false;
+    _hold.reverse();
+    _glideTo(widget.selectedIndex);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = widget.items;
+    final reduced = context.reduceMotion;
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, _navGap),
+      child: SizedBox(
+        height: _navHeight,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            _slot = (constraints.maxWidth - _inset * 2) / items.length;
+            return GestureDetector(
+              onHorizontalDragStart: reduced ? null : _dragStart,
+              onHorizontalDragUpdate: reduced ? null : _dragUpdate,
+              onHorizontalDragEnd: reduced ? null : _dragEnd,
+              onHorizontalDragCancel: reduced ? null : _dragCancel,
+              child: AnimatedBuilder(
+                animation: Listenable.merge([_position, _lift, _hold]),
+                builder: (context, _) {
+                  final lift = Curves.easeOut.transform(_lift.value);
+                  final hold = Curves.easeOut.transform(_hold.value);
+                  final center = _inset + _slot * (_position.value + 0.5);
+                  // It stretches along its travel and thins, like a drop.
+                  final stretch = (_position.velocity.abs() * 0.015).clamp(
+                    0.0,
+                    0.12,
+                  );
+                  final restHeight = _navHeight - _padding * 2;
+                  final liftedHeight = lerpDouble(
+                    _navHeight * 1.03,
+                    _navHeight * 1.22,
+                    hold,
+                  )!;
+                  final width =
+                      lerpDouble(_slot * 1.2, _slot * 1.5, lift)! *
+                      (1 + stretch);
+                  final height =
+                      lerpDouble(restHeight, liftedHeight, lift)! *
+                      (1 - stretch / 2);
+                  Positioned place(Widget child) => Positioned(
+                    left: center - width / 2,
+                    top: (_navHeight - height) / 2,
+                    width: width,
+                    height: height,
+                    child: IgnorePointer(child: child),
+                  );
+                  final lit = _position.value.round();
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        // The whole bar swells a little as the lens lifts.
+                        child: Transform.scale(
+                          scaleX: 1 + 0.02 * lift,
+                          child: GlassSurface(
+                            borderRadius: BorderRadius.circular(AppRadii.round),
+                            // Flat, plain surface would match the cards and the
+                            // pill would vanish.
+                            color: context.palette.surfaceRaised,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                place(
+                                  DecoratedBox(
+                                    key: const Key('nav-pill'),
+                                    decoration: BoxDecoration(
+                                      color: context.palette.bg.withValues(
+                                        alpha: 0.85 * (1 - lift),
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadii.round,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: _inset,
+                                    vertical: _padding,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      for (final (i, item) in items.indexed)
+                                        Expanded(
+                                          child: _PillNavButton(
+                                            item: item,
+                                            selected: i == widget.selectedIndex,
+                                            lit: i == lit,
+                                            onTap: () => widget.onSelected(i),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Above the bar, so it bends the icons and overhangs.
+                      if (lift > 0) place(GlassLens(strength: lift)),
+                    ],
+                  );
+                },
+              ),
+            );
+          },
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _PillNavButton extends StatelessWidget {
   const _PillNavButton({
     required this.item,
     required this.selected,
+    required this.lit,
     required this.onTap,
   });
 
   final PillNavItem item;
   final bool selected;
+
+  /// Under the selector now, which during a drag is not yet [selected].
+  final bool lit;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = selected
+    final color = lit
         ? context.palette.textPrimary
         : context.palette.textSecondary;
     return Semantics(
       button: true,
       selected: selected,
       child: Material(
-        color: selected ? context.palette.bg : Colors.transparent,
+        color: Colors.transparent, // the selector sits behind
         borderRadius: BorderRadius.circular(AppRadii.round),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -232,7 +469,7 @@ class _PillNavButton extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(item.icon, color: color, size: 24),
+              Icon(lit ? item.selectedIcon : item.icon, color: color, size: 24),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(

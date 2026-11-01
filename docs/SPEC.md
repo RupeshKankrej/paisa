@@ -159,7 +159,7 @@ Date formats to support: `DD/MM/YY`, `DD-MMM-YY`, `DD-MM-YY`. Two-digit years ma
 ### 5.2 Expenses screen
 
 - Month selector in the app bar (dropdown; default current month; same component as Home).
-- List grouped by day, newest first. Each row: category icon/colour (or a grey placeholder), counterparty, amount (debits red-ish, credits green-ish), time.
+- List grouped by day, newest first. Each row, as in reference 01 (Rupesh, Phase 11): emoji on a soft rounded square (or a grey placeholder), counterparty, amount (debits plain, credits green with a plus, paise only when there are some). No time.
 - **Uncategorised rows are rendered at 50% opacity** with a "Tap to categorise" hint. They still count in all totals.
 - Tap or long-press any row, categorised or not → edit sheet (5.4), where its category is chosen from the strip or the category grid sheet (5.14).
 - **Swipe left** → red delete background → on release, delete with a 5-second undo snackbar. Deleting an SMS-sourced expense keeps its `ingest_log` fingerprint so it is not re-imported.
@@ -302,7 +302,7 @@ References `11-category-grid.png` to `16-categories-income.png`. Categories are 
 
 ### 5.15 Motion and Liquid Glass
 
-**Motion.** Sheets slide up with a drag handle and dim the page behind; bottom-nav selection animates the pill (200 ms, ease-out); hero numbers count up on period change (200 ms); category tiles and list rows fade-and-slide in on first appearance (staggered 20 ms, capped at 10 items); swipe-delete reveals a red background and the card springs back on cancel; haptics on FAB, Confirm, Add, swipe-delete and reorder. All motion checks `MediaQuery.disableAnimations` / iOS Reduce Motion and collapses to instant transitions when set.
+**Motion.** Sheets slide up with a drag handle and dim the page behind; reference `27-ui-animation.mp4` sets the feel (Rupesh, Phase 11). The bottom-nav selector is a clear glass lens: on a tap it crosses to the tab in about 100 ms with no bounce, level with the bar, then clears slowly into the dark resting pill while the bar swells slightly; under a finger it follows along the bar and swells past it, and the tab changes on release. Changing tab slides the pages sideways (320 ms) while the nav, FAB and settings button stay still. The Summary and Budget rings draw themselves clockwise on entering the tab; a month change only recolours them. Bars grow from zero on entering a tab and on a month change. A month swipe moves the header 1:1 with the finger and carries it off the side, and the next month comes in from the other; hero numbers count up on period change (200 ms); category tiles and list rows fade-and-slide in on first appearance (staggered 20 ms, capped at 10 items); swipe-delete reveals a red background and the card springs back on cancel; haptics on FAB, Confirm, Add, swipe-delete and reorder. All motion checks `MediaQuery.disableAnimations` / iOS Reduce Motion and collapses to instant transitions when set.
 
 **Liquid Glass.** iOS 26 introduces Liquid Glass; Flutter's own Cupertino widgets do not yet render it (tracking issue flutter/flutter#170310), so the app ships a hand-built glass surface and swaps to native where it pays off:
 

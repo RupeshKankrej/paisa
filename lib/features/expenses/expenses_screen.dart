@@ -14,6 +14,10 @@ import '../../domain/models.dart';
 import '../budgets/category_picker.dart';
 import 'day_bar_chart.dart';
 import 'transaction_sheet.dart';
+import '../../app/glass.dart';
+import '../../core/theme/motion.dart';
+
+import 'package:flutter/services.dart';
 
 const _filters = [
   ('All', ExpenseFilter.all),
@@ -94,29 +98,30 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
         body: ListView(
           padding: listClearance(context),
           children: [
-            MonthSwipe(
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // Fills the gap above the header when iOS bounces the list.
-                  Positioned(
-                    key: Key('header-overscroll-fill'),
-                    left: 0,
-                    right: 0,
-                    top: -2000,
-                    height: 2000,
-                    child: ColoredBox(color: context.palette.heroTop),
-                  ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [context.palette.heroTop, context.palette.bg],
-                      ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Fills the gap above the header when iOS bounces the list.
+                Positioned(
+                  key: Key('header-overscroll-fill'),
+                  left: 0,
+                  right: 0,
+                  top: -2000,
+                  height: 2000,
+                  child: ColoredBox(color: context.palette.heroTop),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [context.palette.heroTop, context.palette.bg],
                     ),
-                    child: Padding(
-                      padding: EdgeInsets.only(top: belowFloatingBar(context)),
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.only(top: belowFloatingBar(context)),
+                    // Inside the gradient, so only the figures follow a swipe.
+                    child: MonthSwipe(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -136,8 +141,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             SingleChildScrollView(
@@ -147,34 +152,43 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                 spacing: 8,
                 children: [
                   // First, so an active filter is never scrolled out of sight.
-                  ChoiceChip(
-                    label: Text(filterLabel(categoryFilter)),
-                    selected: categoryFilter != null,
-                    onSelected: (_) =>
-                        showCategoryFilter(context, CategoryType.expense),
+                  GlassChip(
+                    child: ChoiceChip(
+                      label: Text(filterLabel(categoryFilter)),
+                      selected: categoryFilter != null,
+                      onSelected: (_) =>
+                          showCategoryFilter(context, CategoryType.expense),
+                    ),
                   ),
                   for (final (label, filter) in _filters)
-                    ChoiceChip(
-                      label: Text(label),
-                      selected: selected == filter,
-                      onSelected: (_) =>
-                          ref.read(expenseFilterProvider.notifier).state =
-                              filter,
+                    GlassChip(
+                      child: ChoiceChip(
+                        label: Text(label),
+                        selected: selected == filter,
+                        onSelected: (_) =>
+                            ref.read(expenseFilterProvider.notifier).state =
+                                filter,
+                      ),
                     ),
                 ],
               ),
             ),
-            transactions.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(48),
-                child: Center(child: CircularProgressIndicator()),
-              ),
-              error: (error, _) => Padding(
-                padding: const EdgeInsets.all(48),
-                child: Center(
-                  child: Text('Could not load transactions: $error'),
+            // Spread into the ListView, so only days near the screen are built.
+            ...transactions.when(
+              loading: () => const [
+                Padding(
+                  padding: EdgeInsets.all(48),
+                  child: Center(child: CircularProgressIndicator()),
                 ),
-              ),
+              ],
+              error: (error, _) => [
+                Padding(
+                  padding: const EdgeInsets.all(48),
+                  child: Center(
+                    child: Text('Could not load transactions: $error'),
+                  ),
+                ),
+              ],
               data: (rows) => _list(narrowed(rows), categories, selected),
             ),
           ],
@@ -183,7 +197,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
     );
   }
 
-  Widget _list(
+  List<Widget> _list(
     List<TransactionRow> rows,
     Map<int, Category> categories,
     ExpenseFilter filter,
@@ -192,10 +206,12 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       (r) => !_dismissed.contains(r.id) && filter.matches(r.type, r.categoryId),
     );
     if (visible.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(48),
-        child: Center(child: Text('Nothing here for this month')),
-      );
+      return const [
+        Padding(
+          padding: EdgeInsets.all(48),
+          child: Center(child: Text('Nothing here for this month')),
+        ),
+      ];
     }
     final days = <List<TransactionRow>>[];
     for (final row in visible) {
@@ -206,50 +222,77 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
       days.last.add(row);
     }
     final caption = Theme.of(context).textTheme.bodySmall;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final day in days) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Row(
-              spacing: 8,
-              children: [
-                Expanded(
-                  child: Text(dayLabel(day.first.occurredAt), style: caption),
-                ),
-                Text(dayTotal(day), style: caption),
-              ],
-            ),
-          ),
-          GroupedCard(
+    var index = 0;
+    return [
+      for (final day in days) ...[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            spacing: 8,
             children: [
-              for (final row in day)
-                SwipeToDelete(
-                  key: ValueKey(row.id),
-                  onDismissed: () => _delete(row),
-                  child: TransactionTile(
-                    row: row,
-                    category: categories[row.categoryId],
-                    onTap: () => openTransactionSheet(
-                      context,
-                      ref,
-                      row,
-                      () => _delete(row),
-                    ),
-                    onLongPress: () => openTransactionSheet(
-                      context,
-                      ref,
-                      row,
-                      () => _delete(row),
+              Expanded(
+                child: Text(dayLabel(day.first.occurredAt), style: caption),
+              ),
+              Text(dayTotal(day), style: caption),
+            ],
+          ),
+        ),
+        // One list item per row, not per day: building a busy day's whole card
+        // as it scrolled in dropped frames on the iPhone 15.
+        for (final (i, row) in day.indexed)
+          Card(
+            key: ValueKey(row.id),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            // Raised in dark, as in reference 01; light's surface is already
+            // clear of the page.
+            color: Theme.of(context).brightness == Brightness.dark
+                ? context.palette.surfaceRaised
+                : null,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(
+                top: i == 0
+                    ? const Radius.circular(AppRadii.dayCard)
+                    : Radius.zero,
+                bottom: i == day.length - 1
+                    ? const Radius.circular(AppRadii.dayCard)
+                    : Radius.zero,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (i > 0)
+                  Divider(
+                    color: context.palette.textPrimary.withValues(alpha: 0.06),
+                  ),
+                FadeSlideIn(
+                  index: index++,
+                  child: SwipeToDelete(
+                    key: ValueKey(row.id),
+                    onDismissed: () => _delete(row),
+                    child: TransactionTile(
+                      row: row,
+                      category: categories[row.categoryId],
+                      onTap: () => openTransactionSheet(
+                        context,
+                        ref,
+                        row,
+                        () => _delete(row),
+                      ),
+                      onLongPress: () => openTransactionSheet(
+                        context,
+                        ref,
+                        row,
+                        () => _delete(row),
+                      ),
                     ),
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
-        ],
       ],
-    );
+    ];
   }
 }
 
@@ -270,13 +313,21 @@ class SwipeToDelete extends StatelessWidget {
   Widget build(BuildContext context) => Dismissible(
     key: key!,
     direction: DismissDirection.endToStart,
+    movementDuration: context.motion(),
+    // Null removes the row without the collapse animation.
+    resizeDuration: context.reduceMotion
+        ? null
+        : const Duration(milliseconds: 300),
     background: Container(
       color: Colors.red,
       alignment: Alignment.centerRight,
       padding: const EdgeInsets.only(right: 24),
       child: const Icon(Icons.delete, color: Colors.white),
     ),
-    onDismissed: (_) => onDismissed(),
+    onDismissed: (_) {
+      HapticFeedback.mediumImpact();
+      onDismissed();
+    },
     child: child,
   );
 }
@@ -320,8 +371,8 @@ String dayLabel(DateTime day) =>
 /// A day's spend, or its income with a plus when nothing was spent.
 String dayTotal(List<TransactionRow> rows) {
   final spent = sumPaise(spendOf(rows).values);
-  if (spent > 0) return Money.format(spent);
-  return '+${Money.format(sumPaise(rows.map((r) => r.amountPaise)))}';
+  if (spent > 0) return Money.short(spent);
+  return '+${Money.short(sumPaise(rows.map((r) => r.amountPaise)))}';
 }
 
 class TransactionTile extends StatelessWidget {
@@ -350,22 +401,28 @@ class TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final time = MaterialLocalizations.of(context).formatTimeOfDay(
-      TimeOfDay.fromDateTime(row.occurredAt),
-      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
-    );
     final uncategorised = row.categoryId == null;
     final credit = row.type == TransactionType.credit;
+    final text = TextStyle(
+      fontSize: 17,
+      fontWeight: FontWeight.w400,
+      color: context.palette.textPrimary,
+    );
     final tile = ListTile(
-      leading: CategoryAvatar(category),
-      title: Text(_title, maxLines: 1, overflow: TextOverflow.ellipsis),
-      subtitle: Text(uncategorised ? '$time · Tap to categorise' : time),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+      horizontalTitleGap: 13,
+      minTileHeight: 57,
+      leading: CategoryAvatar(category, plain: true),
+      title: Text(
+        _title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: text,
+      ),
+      subtitle: uncategorised ? const Text('Tap to categorise') : null,
       trailing: Text(
-        '${credit ? '+' : ''}${Money.format(row.amountPaise)}',
-        style: TextStyle(
-          color: credit ? AppColors.income : AppColors.debit,
-          fontWeight: FontWeight.w600,
-        ),
+        '${credit ? '+' : ''}${Money.short(row.amountPaise)}',
+        style: credit ? text.copyWith(color: AppColors.income) : text,
       ),
       onTap: onTap,
       onLongPress: onLongPress,

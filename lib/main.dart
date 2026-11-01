@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'app/glass.dart';
 import 'app/router.dart';
 import 'core/theme/app_theme.dart';
 import 'data/providers.dart';
@@ -26,6 +27,7 @@ class _PaisaAppState extends ConsumerState<PaisaApp> {
       onResume: () {
         _drainInbox();
         ref.invalidate(widgetSummaryProvider);
+        ref.invalidate(glassProvider);
       },
     );
     _drainInbox();

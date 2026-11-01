@@ -6,6 +6,8 @@ import '../core/month_key.dart';
 import '../core/period.dart';
 import '../core/theme/tokens.dart';
 import '../data/providers.dart';
+import 'glass.dart';
+import '../core/theme/motion.dart';
 
 String _currentKey(WidgetRef ref) =>
     Period.containing(DateTime.now(), ref.read(salaryDayProvider).value).key;
@@ -30,12 +32,8 @@ class MonthPicker extends ConsumerWidget {
     final caption = Theme.of(context).textTheme.bodySmall;
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadii.chip),
-      onTap: () => showModalBottomSheet<void>(
-        context: context,
-        useRootNavigator: true,
-        isScrollControlled: true,
-        builder: (_) => const _MonthSheet(),
-      ),
+      onTap: () =>
+          showAppSheet<void>(context, builder: (_) => const _MonthSheet()),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Column(
@@ -251,27 +249,91 @@ class MonthSwipe extends ConsumerStatefulWidget {
   ConsumerState<MonthSwipe> createState() => _MonthSwipeState();
 }
 
-class _MonthSwipeState extends ConsumerState<MonthSwipe> {
+class _MonthSwipeState extends ConsumerState<MonthSwipe>
+    with SingleTickerProviderStateMixin {
   static const _minDistance = 32.0;
-  var _distance = 0.0;
+  static const _flick = 300.0;
 
-  void _end() {
-    if (_distance.abs() < _minDistance) return;
+  var _distance = 0.0;
+  var _leaving = false;
+
+  // Where the content is, in points: it stays under the finger, then carries on
+  // off the side while the next month comes in from the other (reference 27).
+  late final _shift = AnimationController.unbounded(vsync: this);
+
+  @override
+  void dispose() {
+    _shift.dispose();
+    super.dispose();
+  }
+
+  void _settle() => _shift.animateTo(
+    0,
+    duration: const Duration(milliseconds: 280),
+    curve: Curves.easeOutCubic,
+  );
+
+  String _next(double direction) => MonthKey.shift(
+    ref.read(widget.picked ?? pickedMonthProvider) ?? _currentKey(ref),
+    direction > 0 ? -widget.months : widget.months,
+  );
+
+  bool _blocked(double direction) =>
+      direction < 0 && _next(direction).compareTo(_currentKey(ref)) > 0;
+
+  void _update(DragUpdateDetails details) {
+    if (_leaving) return;
+    _distance += details.delta.dx;
+    if (context.reduceMotion) return;
+    // There is nothing past the current period, so it only gives a little.
+    _shift.value = _blocked(_distance) ? _distance * 0.25 : _distance;
+  }
+
+  Future<void> _end(DragEndDetails details) async {
+    if (_leaving) return;
+    final velocity = details.primaryVelocity ?? 0;
+    final moved = _distance.abs() >= _minDistance || velocity.abs() >= _flick;
+    final direction = _distance != 0 ? _distance : velocity;
+    if (!moved || direction == 0 || _blocked(direction)) {
+      _settle();
+      return;
+    }
     final picked = widget.picked ?? pickedMonthProvider;
-    final next = MonthKey.shift(
-      ref.read(picked) ?? _currentKey(ref),
-      _distance > 0 ? -widget.months : widget.months,
+    final next = _next(direction);
+    if (context.reduceMotion) {
+      ref.read(picked.notifier).state = next;
+      return;
+    }
+    final side = direction.sign * MediaQuery.sizeOf(context).width;
+    _leaving = true;
+    await _shift.animateTo(
+      side,
+      duration: const Duration(milliseconds: 130),
+      curve: Curves.easeIn,
     );
-    if (_distance < 0 && next.compareTo(_currentKey(ref)) > 0) return;
+    if (!mounted) return;
+    _leaving = false;
     ref.read(picked.notifier).state = next;
+    _shift.value = -side;
+    _settle();
   }
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     behavior: HitTestBehavior.translucent,
-    onHorizontalDragStart: (_) => _distance = 0,
-    onHorizontalDragUpdate: (details) => _distance += details.delta.dx,
-    onHorizontalDragEnd: (_) => _end(),
-    child: widget.child,
+    onHorizontalDragStart: (_) {
+      if (!_leaving) _distance = 0;
+    },
+    onHorizontalDragUpdate: _update,
+    onHorizontalDragEnd: _end,
+    onHorizontalDragCancel: () {
+      if (!_leaving) _settle();
+    },
+    child: AnimatedBuilder(
+      animation: _shift,
+      builder: (context, child) =>
+          Transform.translate(offset: Offset(_shift.value, 0), child: child),
+      child: widget.child,
+    ),
   );
 }

@@ -31,3 +31,4 @@ density and feel with our own widgets. Do not copy logos, icons or the seasonal 
 | 24-category-swipe-delete.png | Categories screen, swipe-left reveals delete | 9 |
 | 25-category-delete-confirm.png | Delete confirmation sheet (ours moves transactions to Uncategorised, never deletes them) | 9 |
 | 26-category-edit-sheet.png | Tap a category: edit sheet with Delete / Save | 9 |
+| 27-ui-animation.mp4 | Screen recording of the motion to match: nav lens, sliding tabs, ring and bar entrances, month swipe (5.15). The FAB's expanding menu and the ghosts are not ours | 11 |

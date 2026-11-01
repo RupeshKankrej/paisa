@@ -2,6 +2,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:paisa/core/money.dart';
 
 void main() {
+  test('short drops only empty paise', () {
+    expect(Money.short(5400), '₹54');
+    expect(Money.short(5450), '₹54.50');
+    expect(Money.short(5), '₹0.05');
+    expect(Money.short(0), '₹0');
+    expect(Money.short(15545300), '₹1,55,453');
+    expect(Money.short(-200000), '-₹2,000');
+  });
+
   group('format', () {
     for (final (paise, expected) in [
       (0, '₹0.00'),
