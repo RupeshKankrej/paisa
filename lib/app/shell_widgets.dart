@@ -42,13 +42,15 @@ class _SettingsButton extends StatelessWidget {
   const _SettingsButton();
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: GlassSurface(
-      borderRadius: BorderRadius.circular(AppRadii.round),
-      child: IconButton(
-        tooltip: 'Settings',
-        icon: Icon(Icons.settings, color: context.palette.textPrimary),
-        onPressed: () => context.push('/settings'),
+  Widget build(BuildContext context) => StayPut(
+    child: Center(
+      child: GlassSurface(
+        borderRadius: BorderRadius.circular(AppRadii.round),
+        child: IconButton(
+          tooltip: 'Settings',
+          icon: Icon(Icons.settings, color: context.palette.textPrimary),
+          onPressed: () => context.push('/settings'),
+        ),
       ),
     ),
   );
@@ -81,34 +83,36 @@ class _AddFabState extends ConsumerState<AddFab> with WidgetsBindingObserver {
   void didChangeMetrics() => setState(() {});
 
   @override
-  Widget build(BuildContext context) => Padding(
-    // A Scaffold strips safe-area insets from its FAB, so ask the view. Less 16,
-    // the margin the Scaffold already leaves below a FAB.
-    padding: EdgeInsets.only(
-      bottom:
-          max(
-            MediaQueryData.fromView(View.of(context)).viewPadding.bottom,
-            _navGap,
-          ) +
-          _navHeight +
-          12 -
-          16,
-    ),
-    child: GlassSurface(
-      borderRadius: BorderRadius.circular(AppRadii.round),
-      color: context.palette.accent,
-      opacity: 0.78,
-      child: FloatingActionButton(
-        heroTag: null, // one per tab, all alive in the shell's IndexedStack
-        tooltip: 'Add transaction',
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        highlightElevation: 0,
-        onPressed: () {
-          HapticFeedback.lightImpact();
-          openTransactionSheet(context, ref);
-        },
-        child: const Icon(Icons.add),
+  Widget build(BuildContext context) => StayPut(
+    child: Padding(
+      // A Scaffold strips safe-area insets from its FAB, so ask the view. Less 16,
+      // the margin the Scaffold already leaves below a FAB.
+      padding: EdgeInsets.only(
+        bottom:
+            max(
+              MediaQueryData.fromView(View.of(context)).viewPadding.bottom,
+              _navGap,
+            ) +
+            _navHeight +
+            12 -
+            16,
+      ),
+      child: GlassSurface(
+        borderRadius: BorderRadius.circular(AppRadii.round),
+        color: context.palette.accent,
+        opacity: 0.78,
+        child: FloatingActionButton(
+          heroTag: null, // one per tab, all alive in the shell's IndexedStack
+          tooltip: 'Add transaction',
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          highlightElevation: 0,
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            openTransactionSheet(context, ref);
+          },
+          child: const Icon(Icons.add),
+        ),
       ),
     ),
   );
@@ -191,7 +195,7 @@ class GroupedCard extends StatelessWidget {
   );
 }
 
-typedef PillNavItem = ({IconData icon, String label});
+typedef PillNavItem = ({IconData icon, IconData selectedIcon, String label});
 
 /// The floating bottom nav (SPEC 5.12). Its selector is a lens that lifts out of
 /// the bar while it travels, follows a drag along the bar and springs to a tab
@@ -213,11 +217,14 @@ class PillNavBar extends StatefulWidget {
 }
 
 class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
+  static const _inset = 14.0; // the selector overhangs its tab at the ends
   static const _padding = 4.0;
+
+  // Quick and with no bounce: reference 27 crosses a tab in about 100 ms.
   static const _spring = SpringDescription(
     mass: 1,
-    stiffness: 320,
-    damping: 26,
+    stiffness: 420,
+    damping: 40,
   );
 
   /// The selector's position in tabs, so 1.5 is halfway from the second to the third.
@@ -225,9 +232,18 @@ class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
     vsync: this,
     value: widget.selectedIndex.toDouble(),
   );
+
+  // Up at once, down slowly: the lens clears into the pill after it has arrived.
   late final _lift = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 160),
+    duration: const Duration(milliseconds: 90),
+    reverseDuration: const Duration(milliseconds: 280),
+  );
+
+  // A finger on it swells it past the bar; a tap stays level with the bar.
+  late final _hold = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 120),
   );
   late int _target;
   var _dragging = false;
@@ -237,6 +253,13 @@ class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _target = widget.selectedIndex;
+    _position.addListener(() {
+      if (!_dragging &&
+          _lift.status != AnimationStatus.reverse &&
+          (_position.value - _target).abs() < 0.04) {
+        _lift.reverse();
+      }
+    });
   }
 
   @override
@@ -251,6 +274,7 @@ class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
   void dispose() {
     _position.dispose();
     _lift.dispose();
+    _hold.dispose();
     super.dispose();
   }
 
@@ -262,24 +286,16 @@ class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
       return;
     }
     _lift.forward();
-    _position
-        .animateWith(
-          SpringSimulation(
-            _spring,
-            _position.value,
-            index.toDouble(),
-            velocity,
-          ),
-        )
-        .then((_) {
-          if (mounted && !_dragging) _lift.reverse();
-        });
+    _position.animateWith(
+      SpringSimulation(_spring, _position.value, index.toDouble(), velocity),
+    );
   }
 
   void _dragStart(DragStartDetails _) {
     _dragging = true;
     _position.stop();
     _lift.forward();
+    _hold.forward();
   }
 
   void _dragUpdate(DragUpdateDetails details) {
@@ -291,6 +307,7 @@ class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
 
   void _dragEnd(DragEndDetails details) {
     _dragging = false;
+    _hold.reverse();
     final velocity = details.velocity.pixelsPerSecond.dx / _slot;
     // A flick carries on to where it would land, as a scroll does.
     final index = (_position.value + velocity * 0.12).round().clamp(
@@ -303,6 +320,7 @@ class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
 
   void _dragCancel() {
     _dragging = false;
+    _hold.reverse();
     _glideTo(widget.selectedIndex);
   }
 
@@ -316,27 +334,34 @@ class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
         height: _navHeight,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            _slot = (constraints.maxWidth - _padding * 2) / items.length;
+            _slot = (constraints.maxWidth - _inset * 2) / items.length;
             return GestureDetector(
               onHorizontalDragStart: reduced ? null : _dragStart,
               onHorizontalDragUpdate: reduced ? null : _dragUpdate,
               onHorizontalDragEnd: reduced ? null : _dragEnd,
               onHorizontalDragCancel: reduced ? null : _dragCancel,
               child: AnimatedBuilder(
-                animation: Listenable.merge([_position, _lift]),
+                animation: Listenable.merge([_position, _lift, _hold]),
                 builder: (context, _) {
                   final lift = Curves.easeOut.transform(_lift.value);
-                  final center = _padding + _slot * (_position.value + 0.5);
+                  final hold = Curves.easeOut.transform(_hold.value);
+                  final center = _inset + _slot * (_position.value + 0.5);
                   // It stretches along its travel and thins, like a drop.
-                  final stretch = (_position.velocity.abs() * 0.04).clamp(
+                  final stretch = (_position.velocity.abs() * 0.015).clamp(
                     0.0,
-                    0.2,
+                    0.12,
                   );
                   final restHeight = _navHeight - _padding * 2;
+                  final liftedHeight = lerpDouble(
+                    _navHeight * 1.03,
+                    _navHeight * 1.22,
+                    hold,
+                  )!;
                   final width =
-                      lerpDouble(_slot, _slot * 1.3, lift)! * (1 + stretch);
+                      lerpDouble(_slot * 1.2, _slot * 1.5, lift)! *
+                      (1 + stretch);
                   final height =
-                      lerpDouble(restHeight, _navHeight * 1.22, lift)! *
+                      lerpDouble(restHeight, liftedHeight, lift)! *
                       (1 - stretch / 2);
                   Positioned place(Widget child) => Positioned(
                     left: center - width / 2,
@@ -350,44 +375,51 @@ class _PillNavBarState extends State<PillNavBar> with TickerProviderStateMixin {
                     clipBehavior: Clip.none,
                     children: [
                       Positioned.fill(
-                        child: GlassSurface(
-                          borderRadius: BorderRadius.circular(AppRadii.round),
-                          // Flat, plain surface would match the cards and the
-                          // pill would vanish.
-                          color: context.palette.surfaceRaised,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              place(
-                                DecoratedBox(
-                                  key: const Key('nav-pill'),
-                                  decoration: BoxDecoration(
-                                    color: context.palette.bg.withValues(
-                                      alpha: 0.7 * (1 - lift),
-                                    ),
-                                    borderRadius: BorderRadius.circular(
-                                      AppRadii.round,
+                        // The whole bar swells a little as the lens lifts.
+                        child: Transform.scale(
+                          scaleX: 1 + 0.02 * lift,
+                          child: GlassSurface(
+                            borderRadius: BorderRadius.circular(AppRadii.round),
+                            // Flat, plain surface would match the cards and the
+                            // pill would vanish.
+                            color: context.palette.surfaceRaised,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                place(
+                                  DecoratedBox(
+                                    key: const Key('nav-pill'),
+                                    decoration: BoxDecoration(
+                                      color: context.palette.bg.withValues(
+                                        alpha: 0.85 * (1 - lift),
+                                      ),
+                                      borderRadius: BorderRadius.circular(
+                                        AppRadii.round,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.all(_padding),
-                                child: Row(
-                                  children: [
-                                    for (final (i, item) in items.indexed)
-                                      Expanded(
-                                        child: _PillNavButton(
-                                          item: item,
-                                          selected: i == widget.selectedIndex,
-                                          lit: i == lit,
-                                          onTap: () => widget.onSelected(i),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: _inset,
+                                    vertical: _padding,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      for (final (i, item) in items.indexed)
+                                        Expanded(
+                                          child: _PillNavButton(
+                                            item: item,
+                                            selected: i == widget.selectedIndex,
+                                            lit: i == lit,
+                                            onTap: () => widget.onSelected(i),
+                                          ),
                                         ),
-                                      ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -437,7 +469,7 @@ class _PillNavButton extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(item.icon, color: color, size: 24),
+              Icon(lit ? item.selectedIcon : item.icon, color: color, size: 24),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(

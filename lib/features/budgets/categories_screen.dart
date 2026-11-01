@@ -260,20 +260,26 @@ class _Donut extends StatelessWidget {
         children: [
           SizedBox.square(
             dimension: _size,
-            child: PieChart(
-              duration: context.motion(const Duration(milliseconds: 150)),
-              PieChartData(
-                centerSpaceRadius: _hole,
-                sectionsSpace: slices.length > 1 ? 6 : 0,
-                startDegreeOffset: -90,
-                pieTouchData: PieTouchData(enabled: false),
-                sections: slices.isEmpty
-                    ? [section(context.palette.surfaceRaised, 1)]
-                    : [
-                        for (final (color, paise) in slices)
-                          section(color, paise.toDouble()),
-                      ],
+            // Draws itself on entering the tab; a month change only recolours.
+            child: Entrance(
+              duration: const Duration(milliseconds: 650),
+              child: PieChart(
+                duration: context.motion(const Duration(milliseconds: 250)),
+                PieChartData(
+                  centerSpaceRadius: _hole,
+                  sectionsSpace: slices.length > 1 ? 6 : 0,
+                  startDegreeOffset: -90,
+                  pieTouchData: PieTouchData(enabled: false),
+                  sections: slices.isEmpty
+                      ? [section(context.palette.surfaceRaised, 1)]
+                      : [
+                          for (final (color, paise) in slices)
+                            section(color, paise.toDouble()),
+                        ],
+                ),
               ),
+              builder: (_, progress, child) =>
+                  SweepReveal(progress: progress, child: child!),
             ),
           ),
           if (salary != null) ...[

@@ -199,17 +199,20 @@ class _SalaryRing extends ConsumerWidget {
           children: [
             SizedBox.square(
               dimension: _size,
-              child: CircularProgressIndicator(
-                key: const Key('salary-left-ring'),
-                value: remaining == null || salary == 0
-                    ? 0
-                    : (remaining / salary!).clamp(0.0, 1.0),
-                strokeWidth: 24,
-                strokeCap: StrokeCap.round,
-                color: context.palette.textSecondary,
-                backgroundColor: over
-                    ? AppColors.delete
-                    : context.palette.surfaceRaised,
+              child: Entrance(
+                duration: const Duration(milliseconds: 650),
+                builder: (context, progress, _) => CircularProgressIndicator(
+                  key: const Key('salary-left-ring'),
+                  value: remaining == null || salary == 0
+                      ? 0
+                      : (remaining / salary!).clamp(0.0, 1.0) * progress,
+                  strokeWidth: 24,
+                  strokeCap: StrokeCap.round,
+                  color: context.palette.textSecondary,
+                  backgroundColor: over
+                      ? AppColors.delete
+                      : context.palette.surfaceRaised,
+                ),
               ),
             ),
             SizedBox(

@@ -252,11 +252,13 @@ class MonthSwipe extends ConsumerStatefulWidget {
 class _MonthSwipeState extends ConsumerState<MonthSwipe>
     with SingleTickerProviderStateMixin {
   static const _minDistance = 32.0;
+  static const _flick = 300.0;
 
-  // How far the content follows the finger, and where the next month enters.
-  static const _maxShift = 48.0;
   var _distance = 0.0;
+  var _leaving = false;
 
+  // Where the content is, in points: it stays under the finger, then carries on
+  // off the side while the next month comes in from the other (reference 27).
   late final _shift = AnimationController.unbounded(vsync: this);
 
   @override
@@ -267,41 +269,66 @@ class _MonthSwipeState extends ConsumerState<MonthSwipe>
 
   void _settle() => _shift.animateTo(
     0,
-    duration: context.motion(),
+    duration: const Duration(milliseconds: 280),
     curve: Curves.easeOutCubic,
   );
 
+  String _next(double direction) => MonthKey.shift(
+    ref.read(widget.picked ?? pickedMonthProvider) ?? _currentKey(ref),
+    direction > 0 ? -widget.months : widget.months,
+  );
+
+  bool _blocked(double direction) =>
+      direction < 0 && _next(direction).compareTo(_currentKey(ref)) > 0;
+
   void _update(DragUpdateDetails details) {
+    if (_leaving) return;
     _distance += details.delta.dx;
     if (context.reduceMotion) return;
-    _shift.value = (_distance * 0.4).clamp(-_maxShift, _maxShift);
+    // There is nothing past the current period, so it only gives a little.
+    _shift.value = _blocked(_distance) ? _distance * 0.25 : _distance;
   }
 
-  void _end() {
-    if (_distance.abs() >= _minDistance) {
-      final picked = widget.picked ?? pickedMonthProvider;
-      final next = MonthKey.shift(
-        ref.read(picked) ?? _currentKey(ref),
-        _distance > 0 ? -widget.months : widget.months,
-      );
-      if (_distance > 0 || next.compareTo(_currentKey(ref)) <= 0) {
-        ref.read(picked.notifier).state = next;
-        // The new month comes in from the side the finger left.
-        if (!context.reduceMotion) {
-          _shift.value = -_shift.value.sign * _maxShift;
-        }
-      }
+  Future<void> _end(DragEndDetails details) async {
+    if (_leaving) return;
+    final velocity = details.primaryVelocity ?? 0;
+    final moved = _distance.abs() >= _minDistance || velocity.abs() >= _flick;
+    final direction = _distance != 0 ? _distance : velocity;
+    if (!moved || direction == 0 || _blocked(direction)) {
+      _settle();
+      return;
     }
+    final picked = widget.picked ?? pickedMonthProvider;
+    final next = _next(direction);
+    if (context.reduceMotion) {
+      ref.read(picked.notifier).state = next;
+      return;
+    }
+    final side = direction.sign * MediaQuery.sizeOf(context).width;
+    _leaving = true;
+    await _shift.animateTo(
+      side,
+      duration: const Duration(milliseconds: 130),
+      curve: Curves.easeIn,
+    );
+    if (!mounted) return;
+    _leaving = false;
+    ref.read(picked.notifier).state = next;
+    _shift.value = -side;
     _settle();
   }
 
   @override
   Widget build(BuildContext context) => GestureDetector(
     behavior: HitTestBehavior.translucent,
-    onHorizontalDragStart: (_) => _distance = 0,
+    onHorizontalDragStart: (_) {
+      if (!_leaving) _distance = 0;
+    },
     onHorizontalDragUpdate: _update,
-    onHorizontalDragEnd: (_) => _end(),
-    onHorizontalDragCancel: _settle,
+    onHorizontalDragEnd: _end,
+    onHorizontalDragCancel: () {
+      if (!_leaving) _settle();
+    },
     child: AnimatedBuilder(
       animation: _shift,
       builder: (context, child) =>

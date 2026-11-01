@@ -112,9 +112,9 @@ void main() {
           valueListenable: tab,
           builder: (_, selected, _) => PillNavBar(
             items: const [
-              (icon: Icons.home, label: 'A'),
-              (icon: Icons.star, label: 'B'),
-              (icon: Icons.add, label: 'C'),
+              (icon: Icons.home, selectedIcon: Icons.home, label: 'A'),
+              (icon: Icons.star, selectedIcon: Icons.star, label: 'B'),
+              (icon: Icons.add, selectedIcon: Icons.add, label: 'C'),
             ],
             selectedIndex: selected,
             onSelected: onSelected ?? (_) {},
@@ -252,6 +252,92 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('inner'), findsOneWidget);
     expect(tester.layers.whereType<BackdropFilterLayer>(), hasLength(1));
+  });
+
+  testWidgets('an entrance runs from 0 to 1, replays on its key, and is 1 when '
+      'reduced', (tester) async {
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final key = ValueNotifier(0);
+    var progress = 0.0;
+    final app = _app(
+      ValueListenableBuilder(
+        valueListenable: key,
+        builder: (_, value, _) => Entrance(
+          replayKey: value,
+          builder: (_, p, _) {
+            progress = p;
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+    await tester.pumpWidget(app);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(progress, inExclusiveRange(0, 1));
+    await tester.pumpAndSettle();
+    expect(progress, 1);
+
+    key.value = 1;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(progress, lessThan(1));
+    await tester.pumpAndSettle();
+
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(reduceMotion: true);
+    key.value = 2;
+    await tester.pump();
+    await tester.pump();
+    expect(progress, 1);
+    expect(tester.hasRunningAnimations, isFalse);
+  });
+
+  testWidgets('a month swipe carries off, then the next month comes in', (
+    tester,
+  ) async {
+    final container = ProviderContainer(
+      overrides: [glassProvider.overrideWith((ref) async => null)],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(
+          home: Scaffold(
+            body: MonthSwipe(child: SizedBox(height: 100, child: Text('hero'))),
+          ),
+        ),
+      ),
+    );
+    final start = tester.getTopLeft(find.text('hero')).dx;
+    final before = container.read(pickedMonthProvider);
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('hero')),
+    );
+    await gesture.moveBy(const Offset(20, 0));
+    await gesture.moveBy(const Offset(40, 0));
+    await tester.pump();
+    // Under the finger, past the drag slop already taken off.
+    expect(tester.getTopLeft(find.text('hero')).dx, greaterThan(start + 30));
+    await gesture.up();
+    await tester.pump();
+    expect(
+      container.read(pickedMonthProvider),
+      before,
+    ); // not until it has left
+    await tester.pumpAndSettle();
+    expect(container.read(pickedMonthProvider), isNot(before));
+    expect(tester.getTopLeft(find.text('hero')).dx, start);
+
+    // The current period has nothing after it, so a left swipe only gives a bit.
+    container.read(pickedMonthProvider.notifier).state = null;
+    await tester.pump();
+    final picked = container.read(pickedMonthProvider);
+    await tester.drag(find.text('hero'), const Offset(-200, 0));
+    await tester.pumpAndSettle();
+    expect(container.read(pickedMonthProvider), picked);
+    expect(tester.getTopLeft(find.text('hero')).dx, start);
   });
 
   testWidgets('a swipe moves the content with the finger, then settles', (

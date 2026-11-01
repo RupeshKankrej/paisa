@@ -280,58 +280,70 @@ class _WindowBars extends ConsumerWidget {
     final span = max(maxY, -minY);
     return SizedBox(
       height: _chartHeight,
-      child: BarChart(
-        duration: context.motion(const Duration(milliseconds: 150)),
-        BarChartData(
-          minY: minY,
-          maxY: maxY,
-          alignment: BarChartAlignment.spaceAround,
-          borderData: FlBorderData(show: false),
-          gridData: const FlGridData(show: false),
-          titlesData: _titles(
-            right: SideTitles(
-              showTitles: true,
-              reservedSize: _axisWidth,
-              // Labels fall on multiples from zero; an end that is not one would
-              // get its own label, right beside the nearest multiple.
-              interval: span / 2,
-              maxIncluded: maxY == span,
-              minIncluded: minY == 0 || -minY == span,
-              getTitlesWidget: (value, meta) => _AxisText(axisLabel(value)),
+      child: Entrance(
+        replayKey: keys.first,
+        builder: (context, grow, _) => BarChart(
+          duration: Duration.zero, // the bars follow the entrance directly
+          BarChartData(
+            minY: minY,
+            maxY: maxY,
+            alignment: BarChartAlignment.spaceAround,
+            borderData: FlBorderData(show: false),
+            gridData: const FlGridData(show: false),
+            titlesData: _titles(
+              right: SideTitles(
+                showTitles: true,
+                reservedSize: _axisWidth,
+                // Labels fall on multiples from zero; an end that is not one would
+                // get its own label, right beside the nearest multiple.
+                interval: span / 2,
+                maxIncluded: maxY == span,
+                minIncluded: minY == 0 || -minY == span,
+                getTitlesWidget: (value, meta) => _AxisText(axisLabel(value)),
+              ),
+              bottom: SideTitles(
+                showTitles: true,
+                reservedSize: 32,
+                getTitlesWidget: (value, meta) {
+                  final i = value.toInt();
+                  return Container(
+                    margin: const EdgeInsets.only(top: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: keys[i] == selected
+                          ? context.palette.surfaceRaised
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: _AxisText(windowLabel(keys, i)),
+                  );
+                },
+              ),
             ),
-            bottom: SideTitles(
-              showTitles: true,
-              reservedSize: 32,
-              getTitlesWidget: (value, meta) {
-                final i = value.toInt();
-                return Container(
-                  margin: const EdgeInsets.only(top: 6),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: keys[i] == selected
-                        ? context.palette.surfaceRaised
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: _AxisText(windowLabel(keys, i)),
-                );
+            barTouchData: BarTouchData(
+              handleBuiltInTouches: false,
+              allowTouchBarBackDraw: true,
+              touchCallback: (event, response) {
+                final index = response?.spot?.touchedBarGroupIndex;
+                if (event is FlTapUpEvent && index != null) {
+                  ref.read(cardMonthProvider(card).notifier).state =
+                      keys[index];
+                }
               },
             ),
+            barGroups: [
+              for (final group in groups)
+                group.copyWith(
+                  barRods: [
+                    for (final rod in group.barRods)
+                      rod.copyWith(toY: rod.toY * grow),
+                  ],
+                ),
+            ],
           ),
-          barTouchData: BarTouchData(
-            handleBuiltInTouches: false,
-            allowTouchBarBackDraw: true,
-            touchCallback: (event, response) {
-              final index = response?.spot?.touchedBarGroupIndex;
-              if (event is FlTapUpEvent && index != null) {
-                ref.read(cardMonthProvider(card).notifier).state = keys[index];
-              }
-            },
-          ),
-          barGroups: groups,
         ),
       ),
     );

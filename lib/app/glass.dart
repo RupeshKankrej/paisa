@@ -340,7 +340,11 @@ Future<T?> showAppSheet<T>(
       showDragHandle: false, // drawn on the glass, which sits inside the sheet
       sheetAnimationStyle: context.reduceMotion
           ? AnimationStyle.noAnimation
-          : null,
+          : const AnimationStyle(
+              curve: Curves.easeOutCubic,
+              duration: Duration(milliseconds: 320),
+              reverseDuration: Duration(milliseconds: 220),
+            ),
       builder: (sheet) => GlassSurface(
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AppRadii.card),
