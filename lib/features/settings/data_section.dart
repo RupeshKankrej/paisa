@@ -10,6 +10,7 @@ import '../../app/month_picker.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
 import '../../domain/quanto_csv.dart';
+import 'ai_export.dart';
 import 'data_transfer.dart';
 import 'workbook.dart';
 
@@ -107,6 +108,12 @@ class DataActions {
   Future<void> exportJsonFile() => _share(
     'Paisa_${_stamp(DateTime.now())}.json',
     (f) async => f.writeAsString(await exportJson(_db, DateTime.now())),
+  );
+
+  Future<void> exportForAi() => _share(
+    'Paisa_for_AI_${_stamp(DateTime.now())}.md',
+    (f) async =>
+        f.writeAsString(aiReport(await _workbookData(), DateTime.now())),
   );
 
   Future<void> backup() => _share(

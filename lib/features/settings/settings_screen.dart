@@ -214,6 +214,11 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: data.exportJsonFile,
               ),
               _Row(
+                icon: Icons.auto_awesome_outlined,
+                title: 'Export for AI analysis',
+                onTap: data.exportForAi,
+              ),
+              _Row(
                 icon: Icons.file_upload_outlined,
                 title: 'Import CSV',
                 onTap: data.importCsv,

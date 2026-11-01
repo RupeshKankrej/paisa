@@ -39,3 +39,4 @@
 - Excel export from an overflow menu on Activity (SPEC 5.10): reference 01 has no such menu, so export is in Settings only.
 - Shared text with no tracked pattern is logged `ignored` and shows nothing; the Share Extension cannot read tracked senders from SQLite to warn at share time.
 - Remove the old Phase 11 `Documents/perf.txt` from the iPhone.
+- Receipt scan and voice entry: the scan and mic buttons on the reference widget. No such features exist, so those slots open Activity and Analytics.

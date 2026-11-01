@@ -12,6 +12,8 @@ String widgetSummaryJson({
   required int? salary,
   required Map<int, ({String name, int color})> categories,
   required DateTime now,
+  List<int> dailySpent = const [],
+  List<({int id, String name, String emoji})> quickCategories = const [],
 }) {
   final spent = sumPaise(spend.values);
   final top = [
@@ -29,6 +31,12 @@ String widgetSummaryJson({
     'top_categories': [
       for (final c in top.take(3))
         {'name': c.name, 'color': c.color, 'spent_paise': c.paise},
+    ],
+    // One per day of the period, for the widget's bars.
+    'daily_spent_paise': dailySpent,
+    'quick_categories': [
+      for (final c in quickCategories)
+        {'id': c.id, 'name': c.name, 'emoji': c.emoji},
     ],
     'updated_at': now.toUtc().toIso8601String(),
   });

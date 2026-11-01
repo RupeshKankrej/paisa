@@ -23,8 +23,13 @@ final router = GoRouter(
           routes: [
             GoRoute(
               path: '/expenses',
-              builder: (context, state) =>
-                  ExpensesScreen(addRequest: state.uri.queryParameters['add']),
+              builder: (context, state) => ExpensesScreen(
+                addRequest: state.uri.queryParameters['add'],
+                addIncome: state.uri.queryParameters['type'] == 'income',
+                addCategory: int.tryParse(
+                  state.uri.queryParameters['category'] ?? '',
+                ),
+              ),
             ),
           ],
         ),
@@ -45,9 +50,17 @@ final router = GoRouter(
 /// tap opens the sheet again.
 String? widgetLink(Uri uri) {
   if (uri.scheme != 'paisa') return null;
-  return uri.host == 'add'
-      ? '/expenses?add=${DateTime.now().microsecondsSinceEpoch}'
-      : '/expenses';
+  return switch (uri.host) {
+    'add' => Uri(
+      path: '/expenses',
+      queryParameters: {
+        ...uri.queryParameters,
+        'add': '${DateTime.now().microsecondsSinceEpoch}',
+      },
+    ).toString(),
+    'dashboards' => '/dashboards',
+    _ => '/expenses',
+  };
 }
 
 StatefulShellBranch _tab(String path, Widget screen) => StatefulShellBranch(

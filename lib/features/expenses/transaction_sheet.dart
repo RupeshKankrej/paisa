@@ -25,11 +25,14 @@ Future<SavedTransaction?> showTransactionSheet(
   BuildContext context, {
   TransactionRow? existing,
   VoidCallback? onDelete,
+  TransactionType? startType,
+  int? startCategory,
 }) => showAppSheet<SavedTransaction>(
   context,
   useSafeArea: true,
   color: context.palette.bg, // so the keys and chips stand out on it
-  builder: (_) => _TransactionSheet(existing, onDelete),
+  builder: (_) =>
+      _TransactionSheet(existing, onDelete, startType, startCategory),
 );
 
 /// Opens the sheet unless one is already up, then shows the saved row, which may
@@ -39,6 +42,8 @@ Future<void> openTransactionSheet(
   WidgetRef ref, [
   TransactionRow? row,
   VoidCallback? onDelete,
+  TransactionType? startType,
+  int? startCategory,
 ]) async {
   final open = ref.read(transactionSheetOpenProvider.notifier);
   if (open.state) return;
@@ -47,6 +52,8 @@ Future<void> openTransactionSheet(
     context,
     existing: row,
     onDelete: onDelete,
+    startType: startType,
+    startCategory: startCategory,
   ).whenComplete(() => open.state = false);
   if (saved == null || !context.mounted) return;
   ref.read(pickedMonthProvider.notifier).state = Period.containing(
@@ -65,10 +72,17 @@ Future<void> openTransactionSheet(
 }
 
 class _TransactionSheet extends ConsumerStatefulWidget {
-  const _TransactionSheet(this.existing, this.onDelete);
+  const _TransactionSheet(
+    this.existing,
+    this.onDelete,
+    this.startType,
+    this.startCategory,
+  );
 
   final TransactionRow? existing;
   final VoidCallback? onDelete;
+  final TransactionType? startType;
+  final int? startCategory;
 
   @override
   ConsumerState<_TransactionSheet> createState() => _TransactionSheetState();
@@ -103,8 +117,8 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
     _amount = existing == null ? '' : Money.keypadText(existing.amountPaise);
     _title = existing?.counterparty ?? '';
     _note = existing?.note ?? '';
-    _type = existing?.type ?? TransactionType.debit;
-    _categoryId = _stripFirst = existing?.categoryId;
+    _type = existing?.type ?? widget.startType ?? TransactionType.debit;
+    _categoryId = _stripFirst = existing?.categoryId ?? widget.startCategory;
     _date = existing?.occurredAt ?? DateTime.now();
     _error = null;
   }

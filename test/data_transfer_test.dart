@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:paisa/data/database.dart';
 import 'package:paisa/domain/models.dart';
 import 'package:paisa/domain/quanto_csv.dart';
+import 'package:paisa/features/settings/ai_export.dart';
 import 'package:paisa/features/settings/data_transfer.dart';
 import 'package:paisa/features/settings/settings_screen.dart' show appVersion;
 import 'package:paisa/features/settings/workbook.dart';
@@ -444,6 +445,63 @@ void main() {
         ),
       );
     });
+  });
+
+  test('AI report: figures add up, and private fields stay out', () async {
+    final food = (await db.select(db.categories).get()).firstWhere(
+      (c) => c.name == 'Food',
+    );
+    Future<void> add(
+      int paise,
+      DateTime at,
+      TransactionType type, {
+      int? category,
+      String? name,
+    }) => db.addTransaction(
+      TransactionsCompanion.insert(
+        type: type,
+        amountPaise: paise,
+        occurredAt: at,
+        source: TransactionSource.sms,
+        categoryId: Value(category),
+        counterparty: Value(name),
+        rawText: const Value('RAW SMS TEXT'),
+        refNo: const Value('630329677868'),
+        accountLast4: const Value('2703'),
+      ),
+    );
+    await add(
+      12050,
+      DateTime(2026, 10, 2),
+      TransactionType.debit,
+      category: food.id,
+      name: 'Lunch, big',
+    );
+    await add(5000, DateTime(2026, 10, 3), TransactionType.debit);
+    await add(10000000, DateTime(2026, 9, 28), TransactionType.credit);
+    await db.setSalary(null, 10000000);
+    await db.setBudget(food.id, null, 500000);
+
+    final report = aiReport((
+      rows: await db.select(db.transactions).get(),
+      categories: await db.watchCategories().first,
+      budgets: await db.watchBudgetAmounts().first,
+      salaries: await db.watchSalaryAmounts().first,
+      salaryDay: null,
+    ), DateTime(2026, 11, 1));
+
+    expect(report, contains('| 2026-10 | 100000 | 0 | 170.50 | 2 |'));
+    expect(report, contains('| 2026-09 | 100000 | 100000 | 0 | 1 |'));
+    expect(report, contains('| 2026-10 | Food | 120.50 | 5000 |'));
+    expect(report, contains('| 2026-10 | Uncategorised | 50 | none |'));
+    expect(report, contains('2026-10-02,expense,120.50,Food,"Lunch, big",'));
+    expect(
+      report.indexOf('2026-09-28,income'),
+      lessThan(report.indexOf('2026-10-02,expense')),
+    );
+    for (final secret in ['RAW SMS', '630329677868', '2703']) {
+      expect(report, isNot(contains(secret)));
+    }
   });
 
   test('appVersion matches pubspec.yaml', () {

@@ -157,6 +157,8 @@ void main() {
       hasLength(1),
     );
 
+    await tester.ensureVisible(find.text('Export CSV'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Export CSV'));
     await settle();
     expect(shared.single, contains('Paisa_Transactions_'));

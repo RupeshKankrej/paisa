@@ -87,7 +87,7 @@ String quantoCsv(Iterable<QuantoRow> rows) {
         _guard(r.name),
         _guard(r.account.isEmpty ? defaultQuantoAccount : r.account),
         r.type == TransactionType.debit ? 'Expense' : 'Income',
-      ].map(_quote).join(','),
+      ].map(csvField).join(','),
     );
   }
   return out.toString();
@@ -172,7 +172,8 @@ String _unguard(String text) =>
     ? text.substring(1)
     : text;
 
-String _quote(String field) => field.contains(RegExp(r'[",\r\n]'))
+/// A CSV field, quoted only when it has to be.
+String csvField(String field) => field.contains(RegExp(r'[",\r\n]'))
     ? '"${field.replaceAll('"', '""')}"'
     : field;
 

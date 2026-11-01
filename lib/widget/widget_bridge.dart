@@ -7,5 +7,11 @@ const _channel = MethodChannel('paisa/widget');
 /// file goes over our own channel and home_widget does the timeline reload.
 Future<void> publishWidgetSummary(String json) async {
   await _channel.invokeMethod<void>('write', json);
-  await HomeWidget.updateWidget(iOSName: 'PaisaWidget');
+  for (final kind in const [
+    'PaisaWidget',
+    'PaisaCategoriesWidget',
+    'PaisaExpensesWidget',
+  ]) {
+    await HomeWidget.updateWidget(iOSName: kind);
+  }
 }

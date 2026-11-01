@@ -103,7 +103,7 @@ paisa/
 | File | Writer | Reader | Shape |
 | --- | --- | --- | --- |
 | `inbox.jsonl` | App Intent, Share Extension | Flutter app (then truncated) | One JSON per line: `{"text": "…", "received_at": "ISO-8601", "source": "intent"}` |
-| `widget_summary.json` | Flutter app | WidgetKit | `{"month": "2026-10", "spent_paise": …, "salary_paise": …, "remaining_paise": …, "top_categories": [...], "updated_at": "…"}` |
+| `widget_summary.json` | Flutter app | WidgetKit | `{"month": "2026-10", "spent_paise": …, "salary_paise": …, "remaining_paise": …, "top_categories": [...], "daily_spent_paise": [...], "quick_categories": [...], "updated_at": "…"}` |
 
 The SQLite file itself stays private to the app in v1; the widget never opens the database.
 
@@ -227,6 +227,8 @@ File name: `Paisa_<YYYY-MM>.xlsx` (or `Paisa_<start>_<end>.xlsx` when the period
 
 **CSV (Rupesh, Phase 12).** Export and import use the Quanto columns: Date (`DD/MM/YYYY`), Amount (thousands grouping, two decimals), Category, Name, Account, Type (`Expense`/`Income`). Import previews before writing, creates missing categories by type, saves rows as `source = manual`, and skips rows already present (same day, amount, type and name, counted, so identical rows in one file are kept and a repeat import adds nothing).
 
+**Export for AI (Rupesh, Phase 12).** A Markdown file to give to any AI assistant: instructions, definitions, per-period totals, per-category spend against limits, then every transaction. Raw SMS text, ref numbers and account numbers are left out.
+
 ### 5.11 Month boundary: calendar or salary day
 
 Settings → Month boundary: a toggle between **Calendar month** (1st to last day, the default) and **Salary day to salary day**, with a day-of-month picker (1–31) that appears when the second option is chosen. Changing the toggle or the day re-computes every screen immediately; stored transactions are untouched.
@@ -342,6 +344,7 @@ References `22-analytics-range.png`, `23-analytics-calendar-range.png`. The Anal
 
 A WidgetKit extension (SwiftUI) that reads `widget_summary.json` from the App Group; it never touches SQLite or the Flutter engine. The Flutter app rewrites the JSON and calls `WidgetCenter.reloadAllTimelines` (via `home_widget`) after every transaction, budget or salary change.
 
+- Three widgets on a dark card of rounded tiles (Rupesh, Phase 12): **Left this month** (small: ring; medium: ring, +, −, Activity, Analytics), **Quick categories** (medium: ring and the first four expense categories), **Month's expenses** (medium: total, day bars, +, −). The ring's arc is spend against salary. + adds income and − adds an expense; a category tile opens the add sheet on it (`paisa://add?type=income`, `paisa://add?category=<id>`, `paisa://dashboards`).
 - Families: `systemSmall` and `systemMedium` in v1; lock-screen (`accessoryRectangular`) is a nice-to-have.
 - Content is still to be decided; the JSON already carries month, spent, salary, remaining, top categories and `updated_at`, so the widget can start as "Spent / Remaining this month" with a progress bar and grow from there without changing the bridge.
 - Tapping the widget deep-links to the Expenses screen (`paisa://expenses`); a secondary small button on the medium family deep-links to the manual-add sheet (`paisa://add`).
