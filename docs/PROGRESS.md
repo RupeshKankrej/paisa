@@ -15,6 +15,7 @@ Status: built on branch `phase-11-motion-glass` (from `main`), not merged. Tests
   - `Entrance`: rings draw in (`SweepReveal` on Summary, the value on Budget), and bars grow on Activity and the two Analytics window cards.
   - `MonthSwipe` moves 1:1 with the finger, carries off the side and brings the next month in. Past the current period it only gives a little.
   - Sheets use an ease-out curve (320 ms up, 220 ms down).
+- Analytics bars are gradients, as Rupesh asked: faint at the axis, full colour at the far end (income vs expenses, income left, day-wise). A negative income-left bar runs the other way. The legend swatches stay solid.
 - Haptics: FAB, Allocate Confirm, keypad arrow and Done, category Save and Add, quick add, both swipe-deletes, reorder.
 - `paisa/accessibility` channel in `AppDelegate.swift`, for Reduce Transparency. It is read at launch and on resume.
 - Widget: `containerBackground(.fill.tertiary)` in place of the opaque background.

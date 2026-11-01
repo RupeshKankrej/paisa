@@ -251,6 +251,14 @@ Widget _swipeCard(String card, int months, Widget child) => MonthSwipe(
   ),
 );
 
+/// Faint at the axis, full colour at the bar's far end, which is the bottom of
+/// a bar that goes [down].
+LinearGradient _barGradient(Color color, {bool down = false}) => LinearGradient(
+  begin: down ? Alignment.topCenter : Alignment.bottomCenter,
+  end: down ? Alignment.bottomCenter : Alignment.topCenter,
+  colors: [color.withValues(alpha: 0.3), color],
+);
+
 bool _hasData(List<MonthTotal> totals) =>
     totals.any((t) => t.spent != 0 || t.income != 0);
 
@@ -364,7 +372,7 @@ class _IncomeExpensesCard extends ConsumerWidget {
     ).toDouble();
     BarChartRodData rod(int paise, Color color) => BarChartRodData(
       toY: paise.toDouble(),
-      color: color,
+      gradient: _barGradient(color),
       width: 14,
       borderRadius: BorderRadius.circular(6),
       // Lets a tap above a short bar still select its period.
@@ -531,7 +539,9 @@ class _IncomeLeftCard extends ConsumerWidget {
                         BarChartRodData(
                           toY: value,
                           width: 30,
-                          color: value < 0 ? AppColors.debit : _incomeColor,
+                          gradient: value < 0
+                              ? _barGradient(AppColors.debit, down: true)
+                              : _barGradient(_incomeColor),
                           borderRadius: BorderRadius.circular(8),
                           backDrawRodData: BackgroundBarChartRodData(
                             show: true,
@@ -796,7 +806,7 @@ class _DayWiseCard extends ConsumerWidget {
                           barRods: [
                             BarChartRodData(
                               toY: day.paise.toDouble(),
-                              color: _spentColor,
+                              gradient: _barGradient(_spentColor),
                               width: 5,
                               borderRadius: BorderRadius.zero,
                             ),
