@@ -114,6 +114,41 @@ void main() {
     expect(find.text('₹700.00'), findsWidgets);
   });
 
+  group('a tap selects its month', () {
+    Future<Rect> chart(WidgetTester tester) async {
+      final last = MonthKey.start(MonthKey.shift(month, -1));
+      await add(30000);
+      await add(5000000, type: TransactionType.credit);
+      await add(70000, at: last);
+      await add(9000000, type: TransactionType.credit, at: last);
+      await pump(tester);
+      return tester.getRect(find.byType(BarChart).first);
+    }
+
+    testWidgets('on the month label', (tester) async {
+      final box = await chart(tester);
+      final slot = (box.width - 44) / 6;
+      await tester.tapAt(Offset(box.right - 44 - slot * 1.5, box.bottom - 12));
+      await settle(tester);
+      expect(find.text('₹90,000.00'), findsWidgets);
+    });
+
+    testWidgets('in the gap beside the bars', (tester) async {
+      final box = await chart(tester);
+      final slot = (box.width - 44) / 6;
+      await tester.tapAt(Offset(box.right - 44 - slot * 1.95, box.center.dy));
+      await settle(tester);
+      expect(find.text('₹90,000.00'), findsWidgets);
+    });
+
+    testWidgets('but not on the amount axis', (tester) async {
+      final box = await chart(tester);
+      await tester.tapAt(Offset(box.right - 10, box.center.dy));
+      await settle(tester);
+      expect(find.text('₹50,000.00'), findsWidgets);
+    });
+  });
+
   testWidgets('each card swipes and selects on its own', (tester) async {
     final older = MonthKey.shift(month, -6);
     await add(123400, at: MonthKey.start(older));
