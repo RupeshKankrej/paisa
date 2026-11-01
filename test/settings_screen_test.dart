@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' show DatabaseConnection;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:paisa/core/theme/tokens.dart';
 import 'package:paisa/data/database.dart';
 import 'package:paisa/data/providers.dart';
+import 'package:paisa/features/settings/data_section.dart';
 import 'package:paisa/features/settings/settings_screen.dart';
 import 'package:paisa/main.dart';
 
@@ -89,6 +92,77 @@ void main() {
       );
       expect(palette().bg, expected.bg);
     }
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
+
+  testWidgets('Import CSV previews, then adds the rows; Export CSV shares', (
+    tester,
+  ) async {
+    final db = AppDatabase(
+      DatabaseConnection(
+        NativeDatabase.memory(),
+        closeStreamsSynchronously: true,
+      ),
+    );
+    addTearDown(db.close);
+    final dir = Directory.systemTemp.createTempSync('paisa_settings');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final csv = File('${dir.path}/in.csv')
+      ..writeAsStringSync(
+        'Date,Amount,Category,Name,Account,Type\n'
+        '01/06/2026,10.00,Parents,Mum,Main account,Expense\n'
+        'bad,10.00,Food,,Main account,Expense\n',
+      );
+    final shared = <String>[];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          filePickerProvider.overrideWithValue((_) async => csv.path),
+          workDirectoryProvider.overrideWithValue(() async => dir),
+          fileSharerProvider.overrideWithValue(
+            (path, _) async => shared.add(path),
+          ),
+        ],
+        child: const MaterialApp(home: SettingsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    Future<void> settle() async {
+      // File reads finish on the real clock, drift's work on the test's.
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+      await tester.pump(const Duration(milliseconds: 400));
+    }
+
+    await tester.scrollUntilVisible(find.text('Import CSV'), 100);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import CSV'));
+    await settle();
+    expect(find.textContaining('1 new'), findsOneWidget);
+    expect(find.textContaining('New categories: Parents'), findsOneWidget);
+    expect(find.textContaining('Unreadable, skipped: line 3'), findsOneWidget);
+
+    await tester.tap(find.text('Import 1'));
+    await settle();
+    expect(
+      await tester.runAsync(() => db.select(db.transactions).get()),
+      hasLength(1),
+    );
+
+    await tester.ensureVisible(find.text('Export CSV'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Export CSV'));
+    await settle();
+    expect(shared.single, contains('Paisa_Transactions_'));
+    expect(File(shared.single).readAsStringSync(), contains('Mum'));
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();

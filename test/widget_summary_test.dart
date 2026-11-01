@@ -35,6 +35,8 @@ void main() {
       'top_categories': [
         {'name': 'Uncategorised', 'color': 0xFF9E9E9E, 'spent_paise': 5000},
       ],
+      'daily_spent_paise': <int>[],
+      'quick_categories': <Object>[],
       'updated_at': '2026-10-31T12:00:00.000Z',
     });
   });
@@ -64,6 +66,12 @@ void main() {
     expect(widgetLink(Uri.parse('paisa://expenses')), '/expenses');
     expect(widgetLink(Uri.parse('paisa://add')), startsWith('/expenses?add='));
     expect(widgetLink(Uri.parse('/home')), isNull);
+    expect(widgetLink(Uri.parse('paisa://dashboards')), '/dashboards');
+    final income = Uri.parse(widgetLink(Uri.parse('paisa://add?type=income'))!);
+    expect(income.queryParameters['type'], 'income');
+    expect(income.queryParameters['add'], isNotNull);
+    final food = Uri.parse(widgetLink(Uri.parse('paisa://add?category=3'))!);
+    expect(food.queryParameters['category'], '3');
   });
 
   test('follows the database for the current period', () async {
@@ -98,6 +106,17 @@ void main() {
     final first = await settled((_) => true);
     expect(first['spent_paise'], 0);
     expect(first['month'], Period.containing(DateTime.now(), null).key);
+    final today = DateTime.now();
+    expect(
+      first['daily_spent_paise'],
+      hasLength(DateTime(today.year, today.month + 1, 0).day),
+    );
+    expect((first['quick_categories'] as List).map((c) => c['name']), [
+      'Housing',
+      'Food',
+      'Groceries',
+      'Utilities',
+    ]);
 
     final now = DateTime.now();
     await db.addTransaction(
@@ -108,10 +127,9 @@ void main() {
         source: TransactionSource.manual,
       ),
     );
-    expect(
-      (await settled((v) => v['spent_paise'] == 12000))['remaining_paise'],
-      isNull,
-    );
+    final spentToday = await settled((v) => v['spent_paise'] == 12000);
+    expect(spentToday['remaining_paise'], isNull);
+    expect((spentToday['daily_spent_paise'] as List)[now.day - 1], 12000);
 
     await db.setSalary(null, 100000);
     final withSalary = await settled((v) => v['remaining_paise'] == 88000);

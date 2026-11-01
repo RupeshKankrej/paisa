@@ -1,5 +1,61 @@
 # Progress
 
+## Phase 12: Polish + release (2026-11-01)
+
+Status: built on branch `phase-12-polish-release` (from `main`), not merged. Tests pass and the release build includes the extension. TestFlight is not done: it needs the paid Apple Developer Program. Rupesh asked for "Phase 0" with export/import; Phase 0 was already done, and Rupesh then chose Phase 12 and CSV import with dedup.
+
+### What was built
+- `lib/domain/quanto_csv.dart`: Quanto CSV reader and writer, and counted dedup, in pure Dart.
+- `lib/features/settings/workbook.dart`: monthly Excel (Expenses, Income, Summary) and all months (one sheet per period), SPEC 5.10.
+- `lib/features/settings/data_transfer.dart`: CSV, JSON, import plan and apply, backup, restore.
+- `lib/features/settings/data_section.dart` and Settings: Data section (7 rows) and About.
+- `ios/ShareExt/`: Share Extension, bundle ID `com.rupeshkankrej.paisa.ShareExt`. `Inbox` moved to `ios/Runner/Inbox.swift` so both targets compile it. Shared rows save with `source = share`.
+- App icon: a blue-to-green ₹ on the Activity header's fade. Version 1.0.0+1. `ITSAppUsesNonExemptEncryption` is false.
+
+- Widgets, from Rupesh's screenshot (SPEC 6 updated): a dark card of rounded tiles, in four widgets. Spent and remaining, the original, restyled (small, medium), Left this month (small, medium), Quick categories (medium), Month's expenses (medium). The JSON gains `daily_spent_paise` and `quick_categories`. New links: `paisa://add?type=income`, `paisa://add?category=<id>`, `paisa://dashboards`.
+- Export for AI analysis (`ai_export.dart`, SPEC 5.10): a Markdown file with instructions, monthly totals, category spend against limits, and every transaction.
+
+### Decisions
+- CSV import was not in SPEC; added to 5.10 as Rupesh decided.
+- The dedup key leaves out the category, so recategorising an imported row does not import it again. A real row with the same day, amount, type and name as an existing one is skipped; the preview shows the skipped count.
+- Imported rows get 12:00, as the file has only dates. CSV export drops time, note and ref no, as the format has no columns for them. JSON and backup keep them.
+- JSON leaves out `ingest_log`, which can hold unrelated message text. Backup and restore include it, so deleted SMS rows stay deleted.
+- Restore upgrades and checks a temporary copy, then replaces all tables in one transaction, so a failure leaves live data as it was. Newer or non-Paisa files are refused. The confirmation offers Back up first.
+- CSV names starting with `=`, `+`, `-` or `@` get a leading `'` on export, removed on import, so a bank message cannot run as a spreadsheet formula.
+- Picking an export month also changes the app-wide month, as the sheet always does (SPEC 5.13).
+- Excel export is in Settings only (see BACKLOG).
+- The screenshot's scan and mic buttons have no features behind them, so those tiles open Activity and Analytics (see BACKLOG).
+- On the widgets, + adds income and − adds an expense, read from the screenshot. Quick categories are the first four expense categories, in the Categories screen's order.
+- The ring's arc shows spend against salary, as the screenshot shows only an empty track at zero spend. Red when over salary. With no salary it shows Spent, with no arc.
+- Spent and remaining keeps the original kind, so one already on the home screen stays that widget and takes the new look. Rupesh asked to keep it. Left this month has a new kind, `PaisaLeftWidget`.
+- The card is fixed dark in light mode too, as in the screenshot. This replaces Phase 11's translucent fill, so in the default home-screen style it is no longer see-through.
+- The AI file leaves out raw SMS text, ref numbers and account numbers, but keeps names and notes, which analysis needs. It leaves the phone only where Rupesh shares it.
+- The Quanto CSV is gitignored, as the repo is public and it holds real finances. Three tests use it and skip when it is missing.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: all passed, including the real 155-row file read, rewritten and imported twice.
+- Swift `RunnerTests` on the simulator: passed.
+- `flutter build ios --release` signed with the free team; `ShareExt.appex` is embedded with the App Group entitlement.
+- Widget layouts were rendered on the Mac from the SwiftUI views with sample data, with links stubbed out. They have not been seen through WidgetKit, on a device or with real data. The category link is covered by a widget test; `+` by a test that the sheet shows Income.
+- Workbooks were checked by decoding them in tests, not opened in Excel or Numbers. The share sheet, file picker, Share Extension and icon have not been used on a device.
+
+### What to verify on the device
+1. Force-quit and open: data is intact, and the new icon shows.
+2. Settings → Back up: save to Files. Do this first.
+3. Import CSV: pick the Quanto file. The preview should show 155 new, minus any already there, and the new categories. Import, check May to September, then import again: 0 new.
+4. Export month to Excel and all months: open in Numbers or Excel. Amounts are numbers with Indian grouping, total row bold. With salary day on, the file name has dates.
+5. Export CSV and JSON: both open, and the CSV matches Quanto's columns.
+6. Restore from backup with the step 2 file: the transaction count is right, and the app returns to that state. A non-backup file is refused.
+8. Widgets: long-press the home screen and add all four, compared with the screenshot. Figures match the Budget tab, and adding an expense updates them. + opens the sheet on Income, − on Expense, a category tile on that category, and the other two open Activity and Analytics. Also try iOS's Clear and Tinted styles.
+9. Export for AI analysis: attach the file to an AI assistant and judge the answer.
+7. Select an HDFC message's text, Share → Paisa: an alert appears. Open the app: the row appears, unless its fingerprint is already logged.
+
+### Open issues and setup notes
+- TestFlight: needs a paid team in Xcode, an App Store Connect record, then `flutter build ipa`. SPEC acceptance is not met until then.
+- Text with no tracked pattern shared to the extension is ignored silently (see BACKLOG).
+- Importing adds new categories such as "Subscription" beside any "Subscriptions", as names must match exactly.
+- This install uses one more bundle ID of the free team's weekly 10.
+
 ## Phase 11: Motion + Liquid Glass (2026-11-01)
 
 Status: built on branch `phase-11-motion-glass` (from `main`), not merged. Tests pass. The frame budget was measured on the iPhone 15. Rupesh has not yet viewed the glass, motion or widget on the phone, so the list below is open.

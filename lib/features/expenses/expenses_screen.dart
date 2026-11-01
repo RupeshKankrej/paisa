@@ -27,10 +27,19 @@ const _filters = [
 ];
 
 class ExpensesScreen extends ConsumerStatefulWidget {
-  const ExpensesScreen({super.key, this.addRequest});
+  const ExpensesScreen({
+    super.key,
+    this.addRequest,
+    this.addIncome = false,
+    this.addCategory,
+  });
 
   /// A new value opens the add sheet (the widget's add link).
   final String? addRequest;
+
+  /// What that sheet starts on, for the widget's + and category buttons.
+  final bool addIncome;
+  final int? addCategory;
 
   @override
   ConsumerState<ExpensesScreen> createState() => _ExpensesScreenState();
@@ -60,8 +69,21 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
   }
 
   void _openSheetAfterFrame() =>
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) openTransactionSheet(context, ref);
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // The widget's copy of the categories can be older than the database.
+        final wanted = widget.addCategory;
+        final categories = wanted == null
+            ? const <Category>[]
+            : await ref.read(databaseProvider).watchCategories().first;
+        if (!mounted) return;
+        openTransactionSheet(
+          context,
+          ref,
+          null,
+          null,
+          widget.addIncome ? TransactionType.credit : null,
+          categories.any((c) => c.id == wanted) ? wanted : null,
+        );
       });
 
   Future<void> _delete(TransactionRow row) async {

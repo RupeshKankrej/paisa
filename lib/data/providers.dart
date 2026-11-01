@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import '../core/period.dart';
 import '../domain/budget.dart';
+import '../domain/dashboards.dart';
 import '../domain/models.dart';
 import '../domain/widget_summary.dart';
 import '../features/ingest/inbox_reader.dart';
@@ -148,13 +149,26 @@ final widgetSummaryProvider = Provider<String?>((ref) {
   final salaries = ref.watch(salaryAmountsProvider).value;
   final categories = ref.watch(categoriesProvider).value;
   if (rows == null || salaries == null || categories == null) return null;
+  final debits = rows.where((r) => r.type == TransactionType.debit);
+  final period = Period.forMonthKey(month, salaryDay.value);
   return widgetSummaryJson(
     month: month,
-    spend: spendByCategory(
-      rows
-          .where((r) => r.type == TransactionType.debit)
-          .map((r) => (r.categoryId, r.amountPaise)),
-    ),
+    spend: spendByCategory(debits.map((r) => (r.categoryId, r.amountPaise))),
+    dailySpent: [
+      for (final day in dailySpend(
+        debits.map((r) => (r.occurredAt, r.amountPaise)),
+        period.start,
+        period.end,
+      ))
+        day.paise,
+    ],
+    quickCategories: [
+      for (final c in pickableCategories(
+        categories,
+        CategoryType.expense,
+      ).take(4))
+        (id: c.id, name: c.name, emoji: c.emoji),
+    ],
     salary: resolveAmount(salaries, month),
     categories: {
       for (final c in categories) c.id: (name: c.name, color: c.color),

@@ -12,6 +12,11 @@ import '../core/theme/motion.dart';
 String _currentKey(WidgetRef ref) =>
     Period.containing(DateTime.now(), ref.read(salaryDayProvider).value).key;
 
+/// Opens the Select date sheet (SPEC 5.13). The choice is app-wide; it is also
+/// returned, or null if the sheet was dismissed.
+Future<String?> showMonthSheet(BuildContext context) =>
+    showAppSheet<String>(context, builder: (_) => const _MonthSheet());
+
 /// The caption that shows the month shared by every screen and opens the
 /// picker sheet (SPEC 5.13).
 class MonthPicker extends ConsumerWidget {
@@ -32,8 +37,7 @@ class MonthPicker extends ConsumerWidget {
     final caption = Theme.of(context).textTheme.bodySmall;
     return InkWell(
       borderRadius: BorderRadius.circular(AppRadii.chip),
-      onTap: () =>
-          showAppSheet<void>(context, builder: (_) => const _MonthSheet()),
+      onTap: () => showMonthSheet(context),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Column(
@@ -169,7 +173,7 @@ class _MonthSheetState extends ConsumerState<_MonthSheet> {
         ? null
         : () {
             ref.read(pickedMonthProvider.notifier).state = key;
-            Navigator.of(context).pop();
+            Navigator.of(context).pop(key);
           },
   );
 }

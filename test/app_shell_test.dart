@@ -137,6 +137,45 @@ void main() {
     // The Expenses link leaves it open too, so typed input is not lost.
     await openLink('paisa://expenses');
     expect(find.byType(BottomSheet), findsOneWidget);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    // The widget's + opens on income.
+    await openLink('paisa://add?type=income');
+    expect(find.text('Income'), findsWidgets);
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pumpAndSettle();
+
+    // A category tile saves into that category; a removed one is just not set.
+    final food = (await tester.runAsync(() => db.select(db.categories).get()))!
+        .firstWhere((c) => c.name == 'Food');
+    Future<void> settle() async {
+      for (var i = 0; i < 5; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      await tester.pumpAndSettle();
+    }
+
+    tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+      'flutter/navigation',
+      const JSONMethodCodec().encodeMethodCall(
+        MethodCall('pushRouteInformation', {
+          'location': 'paisa://add?category=${food.id}',
+        }),
+      ),
+      (_) {},
+    );
+    await settle();
+    await tester.tap(find.text('5'));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.arrow_forward));
+    await settle();
+    final saved = await tester.runAsync(() => db.select(db.transactions).get());
+    expect(saved!.single.categoryId, food.id);
+    expect(saved.single.amountPaise, 500);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();

@@ -19,6 +19,10 @@
 		A1B2C3D42F00000000000001 /* IngestBankMessageIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000002 /* IngestBankMessageIntent.swift */; };
 		A1B2C3D42F00000000000011 /* PaisaWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000010 /* PaisaWidget.swift */; };
 		A1B2C3D42F00000000000013 /* PaisaWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000012 /* PaisaWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A1B2C3D42F00000000000030 /* Inbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000031 /* Inbox.swift */; };
+		A1B2C3D42F00000000000032 /* Inbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000031 /* Inbox.swift */; };
+		A1B2C3D42F00000000000033 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000034 /* ShareViewController.swift */; };
+		A1B2C3D42F00000000000035 /* ShareExt.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000036 /* ShareExt.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -35,6 +39,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = A1B2C3D42F00000000000014;
 			remoteInfo = PaisaWidget;
+		};
+		A1B2C3D42F00000000000037 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A1B2C3D42F00000000000038;
+			remoteInfo = ShareExt;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -56,6 +67,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				A1B2C3D42F00000000000013 /* PaisaWidget.appex in Embed Foundation Extensions */,
+				A1B2C3D42F00000000000035 /* ShareExt.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -86,6 +98,11 @@
 		A1B2C3D42F00000000000012 /* PaisaWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PaisaWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1B2C3D42F00000000000026 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1B2C3D42F00000000000027 /* PaisaWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PaisaWidget.entitlements; sourceTree = "<group>"; };
+		A1B2C3D42F00000000000031 /* Inbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Inbox.swift; sourceTree = "<group>"; };
+		A1B2C3D42F00000000000034 /* ShareViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareViewController.swift; sourceTree = "<group>"; };
+		A1B2C3D42F00000000000036 /* ShareExt.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExt.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D42F00000000000039 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A1B2C3D42F0000000000003A /* ShareExt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExt.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +115,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A1B2C3D42F00000000000017 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D42F0000000000003B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -135,6 +159,7 @@
 				97C146EF1CF9000F007C117D /* Products */,
 				331C8082294A63A400263BE5 /* RunnerTests */,
 				A1B2C3D42F00000000000015 /* PaisaWidget */,
+				A1B2C3D42F0000000000003C /* ShareExt */,
 			);
 			sourceTree = "<group>";
 		};
@@ -144,6 +169,7 @@
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
 				A1B2C3D42F00000000000012 /* PaisaWidget.appex */,
+				A1B2C3D42F00000000000036 /* ShareExt.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -159,6 +185,7 @@
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				A1B2C3D42F00000000000002 /* IngestBankMessageIntent.swift */,
+				A1B2C3D42F00000000000031 /* Inbox.swift */,
 				A1B2C3D42F00000000000003 /* Runner.entitlements */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
@@ -174,6 +201,16 @@
 				A1B2C3D42F00000000000027 /* PaisaWidget.entitlements */,
 			);
 			path = PaisaWidget;
+			sourceTree = "<group>";
+		};
+		A1B2C3D42F0000000000003C /* ShareExt */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D42F00000000000034 /* ShareViewController.swift */,
+				A1B2C3D42F00000000000039 /* Info.plist */,
+				A1B2C3D42F0000000000003A /* ShareExt.entitlements */,
+			);
+			path = ShareExt;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -212,6 +249,7 @@
 			);
 			dependencies = (
 				A1B2C3D42F00000000000021 /* PBXTargetDependency */,
+				A1B2C3D42F0000000000003D /* PBXTargetDependency */,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -236,6 +274,23 @@
 			name = PaisaWidget;
 			productName = PaisaWidget;
 			productReference = A1B2C3D42F00000000000012 /* PaisaWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		A1B2C3D42F00000000000038 /* ShareExt */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1B2C3D42F0000000000003E /* Build configuration list for PBXNativeTarget "ShareExt" */;
+			buildPhases = (
+				A1B2C3D42F0000000000003F /* Sources */,
+				A1B2C3D42F0000000000003B /* Frameworks */,
+				A1B2C3D42F00000000000040 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ShareExt;
+			productName = ShareExt;
+			productReference = A1B2C3D42F00000000000036 /* ShareExt.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -277,6 +332,7 @@
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
 				A1B2C3D42F00000000000014 /* PaisaWidget */,
+				A1B2C3D42F00000000000038 /* ShareExt */,
 			);
 		};
 /* End PBXProject section */
@@ -301,6 +357,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A1B2C3D42F00000000000018 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D42F00000000000040 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -358,6 +421,7 @@
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				A1B2C3D42F00000000000001 /* IngestBankMessageIntent.swift in Sources */,
+				A1B2C3D42F00000000000030 /* Inbox.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 			);
@@ -368,6 +432,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1B2C3D42F00000000000011 /* PaisaWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1B2C3D42F0000000000003F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1B2C3D42F00000000000033 /* ShareViewController.swift in Sources */,
+				A1B2C3D42F00000000000032 /* Inbox.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -383,6 +456,11 @@
 			isa = PBXTargetDependency;
 			target = A1B2C3D42F00000000000014 /* PaisaWidget */;
 			targetProxy = A1B2C3D42F00000000000020 /* PBXContainerItemProxy */;
+		};
+		A1B2C3D42F0000000000003D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A1B2C3D42F00000000000038 /* ShareExt */;
+			targetProxy = A1B2C3D42F00000000000037 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -753,6 +831,70 @@
 			};
 			name = Profile;
 		};
+		A1B2C3D42F00000000000041 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExt/ShareExt.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = TD55H36W7B;
+				INFOPLIST_FILE = ShareExt/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.rupeshkankrej.paisa.ShareExt;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A1B2C3D42F00000000000042 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExt/ShareExt.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = TD55H36W7B;
+				INFOPLIST_FILE = ShareExt/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.rupeshkankrej.paisa.ShareExt;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A1B2C3D42F00000000000043 /* Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ShareExt/ShareExt.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				DEVELOPMENT_TEAM = TD55H36W7B;
+				INFOPLIST_FILE = ShareExt/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.rupeshkankrej.paisa.ShareExt;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -792,6 +934,16 @@
 				A1B2C3D42F00000000000023 /* Debug */,
 				A1B2C3D42F00000000000024 /* Release */,
 				A1B2C3D42F00000000000025 /* Profile */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1B2C3D42F0000000000003E /* Build configuration list for PBXNativeTarget "ShareExt" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1B2C3D42F00000000000041 /* Debug */,
+				A1B2C3D42F00000000000042 /* Release */,
+				A1B2C3D42F00000000000043 /* Profile */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
