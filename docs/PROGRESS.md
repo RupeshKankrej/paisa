@@ -18,6 +18,8 @@ Status: built on branch `phase-13c-keyboard-layout` (from `phase-13b-chip-animat
 ### Checks
 - `flutter analyze`: no issues. `flutter test`: 255 passed. A new test drives the keyboard inset up and down one frame at a time. It checks that the amount and the number pad keep the same y on every frame, that the Name field holds still until the keyboard passes the pad and then moves exactly with its edge, and that nothing moves after it stops.
 - The sheet was rendered with the keyboard down and up: the amount is in the same place, and the chip block's bottom sits on the keyboard's edge (517 pt against 516 pt).
+- iOS simulator (iPhone 18 Pro), real software keyboard, using a temporary `integration_test` that was not committed. It logged every frame. The amount (y 228.9) and keypad (y 576.0) did not move on show or hide. The strip stayed put until the keyboard passed the keypad, then matched `522.5 − (inset − 34 − 264)` to 0.1 pt, and stopped in the frame the keyboard stopped. The screen recording matches. The debug build drew only about 20–30 fps, so smoothness still needs the release build on the iPhone.
+- Installed on the iPhone in place after copying `paisa.sqlite` to `~/Downloads/Paisa_device_backup_20261106_before_13c/`.
 
 ### What to verify on the device
 1. Record keyboard show and hide at 60 fps on the iPhone 15. The amount's y is the same in every frame, and the Name field moves only while the keyboard does, stopping in the same frame.
