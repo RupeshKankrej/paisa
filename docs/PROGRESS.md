@@ -1,5 +1,27 @@
 # Progress
 
+## Phase 13c: Keyboard layout (2026-11-06)
+
+Status: built on branch `phase-13c-keyboard-layout` (from `phase-13b-chip-animation`), not merged. Scope: only the add/edit sheet's layout while the keyboard shows and hides.
+
+### What was built
+- Removed 13b's `AnimatedPadding`. The keyboard inset is read straight from `MediaQuery.viewInsetsOf`, which the engine already moves every frame, so nothing keeps moving after the keyboard stops.
+- The sheet body is a `Stack`: the amount at a fixed 40 pt from the top, the number pad at the bottom, and the chip block (chip rows and category strip) at `max(keypad height, keyboard edge) + 8`. `SafeArea` keeps the home-indicator padding (`maintainBottomViewPadding`), so the bottom edge does not move as the keyboard rises.
+- The raw SMS text under the amount is capped at 4 lines and scrolls inside itself, so it cannot run under the chips.
+- SPEC 5.18 Timing now describes this, replacing the `AnimatedPadding` sentence.
+
+### Decisions
+- The chips beside the field still fade on 13b's single controller, which finishes by 150 ms. They are not on a separate 150 ms `AnimatedOpacity`, because SPEC 5.18 says one controller drives them. They stay in the tree at a fixed height either way.
+- `resizeToAvoidBottomInset` does not apply: the sheet is a modal route with no Scaffold inside.
+- A body shorter than 560 pt (iPhone SE, landscape) cannot fit the fixed layout, so it keeps the previous scrolling layout, with the plain inset. Marked as a `shortcut:` in the code.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 255 passed. A new test drives the keyboard inset up and down one frame at a time. It checks that the amount and the number pad keep the same y on every frame, that the Name field holds still until the keyboard passes the pad and then moves exactly with its edge, and that nothing moves after it stops.
+- The sheet was rendered with the keyboard down and up: the amount is in the same place, and the chip block's bottom sits on the keyboard's edge (517 pt against 516 pt).
+
+### What to verify on the device
+1. Record keyboard show and hide at 60 fps on the iPhone 15. The amount's y is the same in every frame, and the Name field moves only while the keyboard does, stopping in the same frame.
+
 ## Phase 13b: Chip animation (2026-11-06)
 
 Status: built on branch `phase-13b-chip-animation` (from `phase-13-name-note-quick-add`), not merged. Scope: only the Name/Note expand/collapse and the recent-values row.

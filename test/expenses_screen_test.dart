@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:paisa/app/amount_keypad.dart';
 import 'package:paisa/app/month_picker.dart';
 import 'package:paisa/core/month_key.dart';
 import 'package:paisa/core/theme/app_theme.dart';
@@ -729,5 +730,45 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TextField), findsNothing);
     expect(rects(), before);
+  });
+
+  testWidgets('the keyboard moves only the chips, and exactly with its edge', (
+    tester,
+  ) async {
+    await add('Chai', categoryId: 1);
+    await pumpScreen(tester);
+    tester.view.padding = const FakeViewPadding(bottom: 34 * 3);
+    tester.view.viewPadding = const FakeViewPadding(bottom: 34 * 3);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Name'));
+    await tester.pumpAndSettle();
+
+    double y(Finder f) => tester.getRect(f.first).top;
+    final amount = find.byKey(const Key('sheet-amount'));
+    final key1 = find.byKey(const Key('key-1'));
+    final field = find.byType(TextField);
+    final amountY = y(amount), keyY = y(key1), fieldY = y(field);
+    final keypadTop = 34 + AmountKeypad.height; // the keyboard covers it here
+
+    // Up and back down, as the engine reports it: a new inset every frame.
+    final insets = [
+      for (var i = 0; i <= 14; i++) 336.0 * i / 14,
+      for (var i = 13; i >= 0; i--) 336.0 * i / 14,
+    ];
+    for (final inset in insets) {
+      tester.view.viewInsets = FakeViewPadding(bottom: inset * 3);
+      await tester.pump();
+      expect(y(amount), amountY, reason: 'amount at inset $inset');
+      expect(y(key1), keyY, reason: 'keypad at inset $inset');
+      final lift = inset > keypadTop ? inset - keypadTop : 0.0;
+      expect(y(field), closeTo(fieldY - lift, 0.01), reason: 'inset $inset');
+    }
+    // Nothing keeps moving once the keyboard stops.
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(y(field), fieldY);
+    tester.view.resetViewInsets();
+    tester.view.resetPadding();
+    tester.view.resetViewPadding();
   });
 }

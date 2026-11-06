@@ -294,10 +294,97 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
         : null;
     final last4 = existing?.accountLast4;
     final date = Period.shortDate(_date);
+    final hero = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        KeypadAmount(_amount, onChanged: _setAmount),
+        if (_error case final error?)
+          Text(
+            error,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.debit),
+          ),
+        if (_showRawText && rawText != null)
+          SelectableText(
+            rawText,
+            maxLines: 4, // scrolls inside, never under the chips
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+      ],
+    );
+    final chips = AnimatedBuilder(
+      animation: _t,
+      builder: (context, _) {
+        double t(_Field f) => _shown == f ? _t.value : 0;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 4,
+          children: [
+            _withRecents(_Field.name, t(_Field.name), [
+              ActionChip(
+                avatar: const Icon(Icons.calendar_today_outlined, size: 18),
+                label: Text(
+                  _date.year == DateTime.now().year
+                      ? date
+                      : '$date ${_date.year}',
+                ),
+                onPressed: _pickDate,
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.swap_vert, size: 18),
+                label: Text(
+                  _type == TransactionType.debit ? 'Expense' : 'Income',
+                ),
+                onPressed: _toggleType,
+              ),
+              if (rawText != null)
+                ActionChip(
+                  avatar: const Icon(Icons.sms_outlined, size: 18),
+                  label: const Text('from SMS'),
+                  onPressed: () => setState(() => _showRawText = !_showRawText),
+                ),
+            ]),
+            _withRecents(_Field.note, t(_Field.note), [
+              _morphRow(_Field.name, t(_Field.name), [
+                if (last4 != null)
+                  Chip(
+                    avatar: const Icon(Icons.account_balance, size: 18),
+                    label: Text('A/c $last4'),
+                  ),
+              ]),
+            ]),
+            _morphRow(_Field.note, t(_Field.note), const []),
+          ],
+        );
+      },
+    );
+    final keypad = ExcludeSemantics(
+      excluding: _editing != null,
+      child: AmountKeypad(
+        onKey: (key) => _setAmount(Money.keypadPress(_amount, key)),
+        onSubmit: _save,
+      ),
+    );
+    // The body's bottom stays put (maintainBottomViewPadding), so this is the
+    // keyboard's top edge measured from it. The engine already moves the inset
+    // with the keyboard frame by frame; it is used as is, not animated again.
+    final keyboard = math.max(
+      0.0,
+      MediaQuery.viewInsetsOf(context).bottom -
+          math.max(MediaQuery.viewPaddingOf(context).bottom, 16),
+    );
+    final block = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [chips, _categoryStrip()],
+    );
     return FractionallySizedBox(
       heightFactor: 0.97, // leaves a sliver of scrim to tap away on
       child: SafeArea(
         top: false,
+        maintainBottomViewPadding: true,
         minimum: const EdgeInsets.only(bottom: 16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -320,132 +407,60 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
                   ],
                 ),
               ),
-              // Amount and chips scroll together only when the sheet is too
-              // short for them, as in landscape; otherwise the amount centres.
               Expanded(
                 child: LayoutBuilder(
-                  builder: (context, box) => SingleChildScrollView(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: box.maxHeight),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  builder: (context, box) {
+                    // shortcut: an iPhone SE or landscape cannot fit the fixed
+                    // layout, so it keeps the older scrolling one; revisit if
+                    // small screens matter.
+                    if (box.maxHeight < _minStackHeight) {
+                      return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
+                        spacing: 8,
                         children: [
-                          const SizedBox.shrink(),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            spacing: 8,
-                            children: [
-                              KeypadAmount(_amount, onChanged: _setAmount),
-                              if (_error case final error?)
-                                Text(
-                                  error,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                    color: AppColors.debit,
-                                  ),
-                                ),
-                              if (_showRawText && rawText != null)
-                                SelectableText(
-                                  rawText,
-                                  style: Theme.of(context).textTheme.bodySmall,
-                                ),
-                            ],
-                          ),
-                          AnimatedBuilder(
-                            animation: _t,
-                            builder: (context, _) {
-                              double t(_Field f) => _shown == f ? _t.value : 0;
-                              return Column(
+                          Expanded(
+                            child: SingleChildScrollView(
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                                spacing: 4,
-                                children: [
-                                  _withRecents(_Field.name, t(_Field.name), [
-                                    ActionChip(
-                                      avatar: const Icon(
-                                        Icons.calendar_today_outlined,
-                                        size: 18,
-                                      ),
-                                      label: Text(
-                                        _date.year == DateTime.now().year
-                                            ? date
-                                            : '$date ${_date.year}',
-                                      ),
-                                      onPressed: _pickDate,
-                                    ),
-                                    ActionChip(
-                                      avatar: const Icon(
-                                        Icons.swap_vert,
-                                        size: 18,
-                                      ),
-                                      label: Text(
-                                        _type == TransactionType.debit
-                                            ? 'Expense'
-                                            : 'Income',
-                                      ),
-                                      onPressed: _toggleType,
-                                    ),
-                                    if (rawText != null)
-                                      ActionChip(
-                                        avatar: const Icon(
-                                          Icons.sms_outlined,
-                                          size: 18,
-                                        ),
-                                        label: const Text('from SMS'),
-                                        onPressed: () => setState(
-                                          () => _showRawText = !_showRawText,
-                                        ),
-                                      ),
-                                  ]),
-                                  _withRecents(_Field.note, t(_Field.note), [
-                                    _morphRow(_Field.name, t(_Field.name), [
-                                      if (last4 != null)
-                                        Chip(
-                                          avatar: const Icon(
-                                            Icons.account_balance,
-                                            size: 18,
-                                          ),
-                                          label: Text('A/c $last4'),
-                                        ),
-                                    ]),
-                                  ]),
-                                  _morphRow(
-                                    _Field.note,
-                                    t(_Field.note),
-                                    const [],
-                                  ),
-                                ],
-                              );
-                            },
+                                spacing: 8,
+                                children: [hero, block],
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: EdgeInsets.only(
+                              bottom: math.max(
+                                0,
+                                keyboard - AmountKeypad.height,
+                              ),
+                            ),
+                            child: keypad,
                           ),
                         ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              _categoryStrip(),
-              // The sheet is not resized for the keyboard. The keypad stays put
-              // and the keyboard slides over it (reference 28); the padding is
-              // the part of the inset the keypad does not cover, so the strip
-              // and chips move up with a keyboard taller than the keypad.
-              AnimatedPadding(
-                duration: context.motion(const Duration(milliseconds: 250)),
-                curve: const Cubic(0.2, 0.8, 0.2, 1),
-                padding: EdgeInsets.only(
-                  bottom: math.max(
-                    0,
-                    MediaQuery.viewInsetsOf(context).bottom -
-                        math.max(MediaQuery.paddingOf(context).bottom, 16) -
-                        AmountKeypad.height,
-                  ),
-                ),
-                child: ExcludeSemantics(
-                  excluding: _editing != null,
-                  child: AmountKeypad(
-                    onKey: (key) => _setAmount(Money.keypadPress(_amount, key)),
-                    onSubmit: _save,
-                  ),
+                      );
+                    }
+                    // SPEC 5.18: the amount is pinned from the top and the
+                    // keypad from the bottom, so neither moves; the chips sit
+                    // on the keypad, or on the keyboard's edge once it is
+                    // higher, and ride with it 1:1.
+                    return Stack(
+                      children: [
+                        Positioned(
+                          top: _heroTop,
+                          left: 0,
+                          right: 0,
+                          child: hero,
+                        ),
+                        Positioned(left: 0, right: 0, bottom: 0, child: keypad),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: math.max(AmountKeypad.height, keyboard) + 8,
+                          child: block,
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -454,6 +469,13 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
       ),
     );
   }
+
+  /// Where the amount sits below the header; clear of the chips with the
+  /// keyboard up on an iPhone 15.
+  static const _heroTop = 40.0;
+
+  /// Below this the fixed layout would overlap; see the shortcut above.
+  static const _minStackHeight = 560.0;
 
   /// Chips in a row; while [field] opens, its recent values fade in over them.
   /// The chips stay in the tree, so nothing around them moves.
