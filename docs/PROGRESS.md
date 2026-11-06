@@ -1,5 +1,19 @@
 # Progress
 
+## Phase 13e: + button and the keyboard (2026-11-06)
+
+Status: built on branch `phase-13e-fab-keyboard` (from `phase-13d-field-fixes`), not merged.
+
+### What was built
+- The tab shell's `Scaffold` no longer resizes for the keyboard, and the tabs get no bottom inset (`MediaQuery.removeViewInsets`). Before, the shell shrank its body and each tab's `Scaffold` lifted its `AddFab` by the keyboard's height, so the + button rose behind the add sheet. No tab has a text field of its own; sheets and dialogs open on the root navigator and still see the keyboard.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 257 passed. A new test raises a 336 pt inset under the app: without the fix the + button moved from y 460 to 124; with it, it stays.
+
+### What to verify on the device
+1. Open the add sheet, tap Name: the + button behind the sheet does not move.
+2. Settings → Add tracked sender (a dialog) still rises above the keyboard.
+
 ## Phase 13d: Field fixes (2026-11-06)
 
 Status: built on branch `phase-13d-field-fixes` (from `phase-13c-keyboard-layout`), not merged. It covers Rupesh's three reports from the iPhone.

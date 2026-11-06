@@ -213,4 +213,35 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
   });
+
+  testWidgets('the add button stays put when a keyboard comes up', (
+    tester,
+  ) async {
+    addTearDown(tester.view.reset);
+    final db = AppDatabase(
+      DatabaseConnection(
+        NativeDatabase.memory(),
+        closeStreamsSynchronously: true,
+      ),
+    );
+    addTearDown(db.close);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          inboxDrainProvider.overrideWithValue(() async {}),
+          widgetPublisherProvider.overrideWithValue((_) async {}),
+        ],
+        child: const PaisaApp(),
+      ),
+    );
+    await tester.pump();
+    final fab = find.byType(FloatingActionButton);
+    final before = tester.getRect(fab);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 336 * 3);
+    await tester.pump();
+    expect(tester.getRect(fab), before);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+  });
 }
