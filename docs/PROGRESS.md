@@ -34,6 +34,7 @@ Status: built on branch `phase-13-name-note-quick-add`, not merged. The branch s
 6. Open Paisa: both rows are in Activity, with the right type and category.
 
 ### Open issues and setup notes
+- Install mishap: `flutter install` uninstalled the app first, wiping its data on the iPhone. A restore file was rebuilt from the Nov 1 15:40 AI export (328 rows, monthly salaries, Food and Shopping limits); it lacks times of day, raw SMS, category emojis and order. Entries after Nov 1 15:40 need re-sharing from HDFC SMS or re-entry. Install with `flutter run --release` from now on.
 - Not checked yet: whether the name prompt accepts an empty Done, and what Cancel does there. The code saves with no name if the prompt fails.
 - The phone must have been unlocked once since boot for the lock-screen append to work. That is the protection class.
 - "Left this month" reads `widget_summary.json`, which is only as fresh as the last time the app was open, and may be for last period just after a rollover.
