@@ -1,5 +1,43 @@
 # Progress
 
+## Phase 13: Name/note + Quick add (2026-11-06)
+
+Status: built on branch `phase-13-name-note-quick-add`, not merged. The branch starts from `add-readme`, which is one README commit ahead of `main`. Not yet tried on the iPhone.
+
+### What was built
+- `lib/domain/row_title.dart`: `rowTitle()`, giving name, else note, else category, else Expense/Income; first line, 40 characters. Activity and the calendar day sheet (both `TransactionTile`) use it.
+- Ingest: the SMS party now goes into `note`, and `counterparty` stays empty. It also handles `quick_add` lines (SPEC 3.3): `source = manual`, the line's type, `occurred_at` = `received_at`. A category that is missing or of the other type saves uncategorised.
+- Schema 5: `moveSmsPartyToNote()` re-parses `raw_text`. It moves the name into the note only when the note is empty and the name still equals the parsed party.
+- Sheet: Name and Note are chips. Name is on the date/type/account row and Note on the row below, with "from SMS". Tapping one grows it in place (180 ms, none under Reduce Motion) into an outlined field with recent values above it: distinct values for that type, most recent first, up to 10, filtered by prefix. The field collapses on return, on a tap outside, on a recent value, or on a category. Long-pressing a chip clears it. The amount keypad hides while the system keyboard is up. Note grows to 4 lines.
+- `categories.json`: written by the app on launch and on every category change, over the `paisa/widget` channel. `widget_summary.json` and `inbox.jsonl` now use the `completeUntilFirstUserAuthentication` protection class.
+- `ios/Runner/AddExpenseIntent.swift`: `AddExpenseIntent` with these steps: type, amount (zero is asked again), category list plus Skip, name, then a result card showing amount · category, the name, and "₹X left this month". It also has `CategoryEntity`/`CategoryQuery` reading `categories.json`, and `PaisaShortcuts` ("Add expense in Paisa"). `Inbox.appendQuickAdd` writes the line with millisecond time.
+- Settings → Messages → Quick add: Back Tap setup steps.
+
+### Decisions
+- Share rows are migrated too, not only `sms`: they are the same bank text and would otherwise keep the old title.
+- Quick-add lines skip the stale-line check: they are user entries, not SMS. The line fingerprint still stops a crash re-read from inserting twice; the milliseconds keep two equal adds apart.
+- The intent uses the step-by-step flow, not the iOS 26 interactive snippet (see BACKLOG).
+- For income, "left this month" is shown unchanged, as income does not change salary minus spent.
+- Quanto CSV export has only a Name column, so SMS rows now export with a blank name, as stored (SPEC 5.18).
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 253 passed, including the migration (untouched, renamed, has note, manual), quick-add ingest, recent names, and the expanding Name chip.
+- Swift `RunnerTests` on the simulator: passed, including the quick_add line shape.
+- `flutter build ios --simulator`: builds with the intent.
+
+### What to verify on the device
+1. Open the app: old SMS rows you never renamed now show the party as the title, with the party in Note. Rows you renamed keep their name.
+2. A new HDFC SMS: Name is empty, Note holds the party, and the row shows the party.
+3. Edit a row, then tap Name: it grows in place with recent names above. Pick one: it fills and collapses, and the chip shows it. Type a letter: the row filters. Tap a category while it is open: it collapses and the category is picked.
+4. Shortcuts app: "Add expense in Paisa" is listed without setup.
+5. Back Tap: Settings → Accessibility → Touch → Back Tap → Double Tap → "Add expense in Paisa" (or a one-action shortcut). Lock the phone, double-tap the back: Expense/Income, amount, category, name, then the card, all without unlocking. Try one expense and one income. Try amount 0 (it should ask again), and Skip for category and for name (empty Done).
+6. Open Paisa: both rows are in Activity, with the right type and category.
+
+### Open issues and setup notes
+- Not checked yet: whether the name prompt accepts an empty Done, and what Cancel does there. The code saves with no name if the prompt fails.
+- The phone must have been unlocked once since boot for the lock-screen append to work. That is the protection class.
+- "Left this month" reads `widget_summary.json`, which is only as fresh as the last time the app was open, and may be for last period just after a rollover.
+
 ## Phase 12: Polish + release (2026-11-01)
 
 Status: built on branch `phase-12-polish-release` (from `main`), not merged. Tests pass and the release build includes the extension. TestFlight is not done: it needs the paid Apple Developer Program. Rupesh asked for "Phase 0" with export/import; Phase 0 was already done, and Rupesh then chose Phase 12 and CSV import with dedup.

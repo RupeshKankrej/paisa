@@ -25,6 +25,16 @@ const _appearanceLabels = {
   ThemeMode.dark: 'Dark',
 };
 
+// SPEC 5.19: the intent is listed in Shortcuts without setup.
+const _quickAddSteps =
+    'Add an expense or income from the lock screen, without opening Paisa.\n\n'
+    '1. Settings → Accessibility → Touch → Back Tap → Double Tap.\n'
+    '2. Pick "Add expense in Paisa".\n\n'
+    'If it is not listed, make a shortcut in the Shortcuts app with the one '
+    'action "Add expense in Paisa", then pick that shortcut in step 2. '
+    'The Action button works the same way.\n\n'
+    'Entries appear in Activity the next time you open Paisa.';
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -178,6 +188,23 @@ class SettingsScreen extends ConsumerWidget {
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const _UnparsedScreen(),
+                  ),
+                ),
+              ),
+              _Row(
+                icon: Icons.bolt_outlined,
+                title: 'Quick add',
+                onTap: () => showDialog<void>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Quick add'),
+                    content: const Text(_quickAddSteps),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Done'),
+                      ),
+                    ],
                   ),
                 ),
               ),

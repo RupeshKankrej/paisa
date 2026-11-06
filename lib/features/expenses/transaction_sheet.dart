@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/amount_keypad.dart';
 import '../../core/money.dart';
 import '../../core/period.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/tokens.dart';
 import '../../data/database.dart';
 import '../../data/providers.dart';
@@ -88,11 +89,16 @@ class _TransactionSheet extends ConsumerStatefulWidget {
   ConsumerState<_TransactionSheet> createState() => _TransactionSheetState();
 }
 
+enum _Field { name, note }
+
 class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
   final _strip = ScrollController();
+  final _title = TextEditingController();
+  final _note = TextEditingController();
+  // Taps here keep the field open: the field and its recent-values row.
+  final _fieldGroup = Object();
+  _Field? _editing;
   late String _amount;
-  late String _title;
-  late String _note;
   late TransactionType _type;
   late int? _categoryId;
   // Shown first in the strip. Not moved by a tap on the strip, so rows don't jump.
@@ -115,8 +121,9 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
   void _load() {
     final existing = widget.existing;
     _amount = existing == null ? '' : Money.keypadText(existing.amountPaise);
-    _title = existing?.counterparty ?? '';
-    _note = existing?.note ?? '';
+    _title.text = existing?.counterparty ?? '';
+    _note.text = existing?.note ?? '';
+    _editing = null;
     _type = existing?.type ?? widget.startType ?? TransactionType.debit;
     _categoryId = _stripFirst = existing?.categoryId ?? widget.startCategory;
     _date = existing?.occurredAt ?? DateTime.now();
@@ -126,6 +133,8 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
   @override
   void dispose() {
     _strip.dispose();
+    _title.dispose();
+    _note.dispose();
     super.dispose();
   }
 
@@ -146,10 +155,17 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
     _error = null;
   });
 
+  // Picking a category also confirms an open Name or Note (SPEC 5.18).
   void _setCategory(int id) => setState(() {
     _categoryId = id;
     _error = null;
+    _editing = null;
   });
+
+  void _collapse() {
+    if (_editing == null) return;
+    setState(() => _editing = null);
+  }
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -181,18 +197,6 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
     if (_strip.hasClients) _strip.jumpTo(0);
   }
 
-  Future<void> _editText(
-    String label,
-    String value,
-    ValueChanged<String> onSaved,
-  ) async {
-    final text = await showDialog<String>(
-      context: context,
-      builder: (_) => _TextDialog(label, value),
-    );
-    if (text != null) setState(() => onSaved(text));
-  }
-
   void _delete() {
     Navigator.of(context).pop();
     widget.onDelete!();
@@ -213,9 +217,11 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
       type: Value(_type),
       amountPaise: Value(paise),
       occurredAt: Value(_date),
-      counterparty: Value(_title.isEmpty ? null : _title),
+      counterparty: Value(
+        _title.text.trim().isEmpty ? null : _title.text.trim(),
+      ),
       categoryId: Value(_categoryId),
-      note: Value(_note.isEmpty ? null : _note),
+      note: Value(_note.text.trim().isEmpty ? null : _note.text.trim()),
     );
     final existing = widget.existing;
     if (existing == null) {
@@ -289,61 +295,109 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet> {
                   ),
                 ),
               ),
-              Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  ActionChip(
-                    avatar: const Icon(Icons.calendar_today_outlined, size: 18),
-                    label: Text(
-                      _date.year == DateTime.now().year
-                          ? date
-                          : '$date ${_date.year}',
-                    ),
-                    onPressed: _pickDate,
-                  ),
-                  ActionChip(
-                    avatar: const Icon(Icons.swap_vert, size: 18),
-                    label: Text(
-                      _type == TransactionType.debit ? 'Expense' : 'Income',
-                    ),
-                    onPressed: _toggleType,
-                  ),
-                  if (last4 != null)
-                    Chip(
-                      avatar: const Icon(Icons.account_balance, size: 18),
-                      label: Text('A/c $last4'),
-                    ),
-                  _TextChip(
-                    Icons.edit_note,
-                    'Name',
-                    _title,
-                    () => _editText('Name', _title, (t) => _title = t),
-                  ),
-                  _TextChip(
-                    Icons.notes,
-                    'Note',
-                    _note,
-                    () => _editText('Note', _note, (t) => _note = t),
-                  ),
-                  if (rawText != null)
-                    ActionChip(
-                      avatar: const Icon(Icons.sms_outlined, size: 18),
-                      label: const Text('from SMS'),
-                      onPressed: () =>
-                          setState(() => _showRawText = !_showRawText),
-                    ),
-                ],
+              AnimatedSize(
+                duration: context.motion(const Duration(milliseconds: 180)),
+                alignment: Alignment.topCenter,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: 4,
+                  children: [
+                    _row(_Field.name, [
+                      ActionChip(
+                        avatar: const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 18,
+                        ),
+                        label: Text(
+                          _date.year == DateTime.now().year
+                              ? date
+                              : '$date ${_date.year}',
+                        ),
+                        onPressed: _pickDate,
+                      ),
+                      ActionChip(
+                        avatar: const Icon(Icons.swap_vert, size: 18),
+                        label: Text(
+                          _type == TransactionType.debit ? 'Expense' : 'Income',
+                        ),
+                        onPressed: _toggleType,
+                      ),
+                      if (last4 != null)
+                        Chip(
+                          avatar: const Icon(Icons.account_balance, size: 18),
+                          label: Text('A/c $last4'),
+                        ),
+                    ]),
+                    _row(_Field.note, [
+                      if (rawText != null)
+                        ActionChip(
+                          avatar: const Icon(Icons.sms_outlined, size: 18),
+                          label: const Text('from SMS'),
+                          onPressed: () =>
+                              setState(() => _showRawText = !_showRawText),
+                        ),
+                    ]),
+                  ],
+                ),
               ),
               _categoryStrip(),
-              AmountKeypad(
-                onKey: (key) => _setAmount(Money.keypadPress(_amount, key)),
-                onSubmit: _save,
-              ),
+              // The system keyboard is up while a field is open.
+              if (_editing == null)
+                AmountKeypad(
+                  onKey: (key) => _setAmount(Money.keypadPress(_amount, key)),
+                  onSubmit: _save,
+                )
+              else
+                SizedBox(height: MediaQuery.viewInsetsOf(context).bottom),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// A chip row ending in the [field] chip, or that field expanded in its place.
+  Widget _row(_Field field, List<Widget> others) {
+    final controller = field == _Field.name ? _title : _note;
+    final label = field == _Field.name ? 'Name' : 'Note';
+    final icon = field == _Field.name ? Icons.edit_note : Icons.notes;
+    return AnimatedSwitcher(
+      duration: context.motion(const Duration(milliseconds: 180)),
+      child: _editing == field
+          ? _ExpandedField(
+              key: ValueKey(field),
+              icon: icon,
+              label: label,
+              controller: controller,
+              multiline: field == _Field.note,
+              groupId: _fieldGroup,
+              recent:
+                  ref
+                      .watch(
+                        recentTextsProvider((
+                          type: _type,
+                          notes: field == _Field.note,
+                        )),
+                      )
+                      .value ??
+                  const [],
+              onDone: _collapse,
+            )
+          : Wrap(
+              key: ValueKey('$field chips'),
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                ...others,
+                _TextChip(
+                  icon,
+                  label,
+                  controller.text,
+                  onPressed: () => setState(() => _editing = field),
+                  onClear: () => setState(controller.clear),
+                ),
+              ],
+            ),
     );
   }
 
@@ -444,70 +498,152 @@ class _StripItem extends StatelessWidget {
   );
 }
 
-/// Shows [value], or [label] when empty; long values are cut to keep it a chip.
+/// Shows [value]'s first line, or [label] when empty. Long-press clears it.
 class _TextChip extends StatelessWidget {
-  const _TextChip(this.icon, this.label, this.value, this.onPressed);
+  const _TextChip(
+    this.icon,
+    this.label,
+    this.value, {
+    required this.onPressed,
+    required this.onClear,
+  });
 
   final IconData icon;
   final String label;
   final String value;
   final VoidCallback onPressed;
+  final VoidCallback onClear;
 
   @override
-  Widget build(BuildContext context) => ActionChip(
-    avatar: Icon(icon, size: 18),
-    tooltip: label,
-    label: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 140),
-      child: Text(
-        value.isEmpty ? label : value,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: value.isEmpty
-            ? TextStyle(color: context.palette.textSecondary)
-            : null,
+  Widget build(BuildContext context) => Semantics(
+    onLongPressHint: value.isEmpty ? null : 'Clear',
+    child: GestureDetector(
+      onLongPress: value.isEmpty ? null : onClear,
+      child: ActionChip(
+        avatar: Icon(icon, size: 18),
+        tooltip: label,
+        label: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 140),
+          child: Text(
+            value.isEmpty ? label : value.split('\n').first,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: value.isEmpty
+                ? TextStyle(color: context.palette.textSecondary)
+                : null,
+          ),
+        ),
+        onPressed: onPressed,
       ),
     ),
-    onPressed: onPressed,
   );
 }
 
-class _TextDialog extends StatefulWidget {
-  const _TextDialog(this.label, this.initial);
+/// SPEC 5.18 (ref 28): the open field, with recent values above it.
+class _ExpandedField extends StatefulWidget {
+  const _ExpandedField({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.controller,
+    required this.multiline,
+    required this.groupId,
+    required this.recent,
+    required this.onDone,
+  });
 
+  final IconData icon;
   final String label;
-  final String initial;
+  final TextEditingController controller;
+  final bool multiline;
+  final Object groupId;
+  final List<String> recent;
+  final VoidCallback onDone;
 
   @override
-  State<_TextDialog> createState() => _TextDialogState();
+  State<_ExpandedField> createState() => _ExpandedFieldState();
 }
 
-class _TextDialogState extends State<_TextDialog> {
-  late final _text = TextEditingController(text: widget.initial);
-
+class _ExpandedFieldState extends State<_ExpandedField> {
   @override
-  void dispose() {
-    _text.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_changed);
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.label),
-    content: TextField(
-      controller: _text,
-      autofocus: true,
-      textCapitalization: TextCapitalization.sentences,
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.of(context).pop(_text.text.trim()),
-        child: const Text('Done'),
-      ),
-    ],
-  );
+  void dispose() {
+    widget.controller.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final typed = widget.controller.text.trim().toLowerCase();
+    final matches = widget.recent
+        .where(
+          (v) => v.toLowerCase() != typed && v.toLowerCase().startsWith(typed),
+        )
+        .take(10)
+        .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 4,
+      children: [
+        if (matches.isNotEmpty)
+          TapRegion(
+            groupId: widget.groupId,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                spacing: 8,
+                children: [
+                  for (final value in matches)
+                    ActionChip(
+                      label: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 200),
+                        child: Text(
+                          value.split('\n').first,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      onPressed: () {
+                        widget.controller.text = value;
+                        widget.onDone();
+                      },
+                    ),
+                ],
+              ),
+            ),
+          ),
+        TextField(
+          controller: widget.controller,
+          autofocus: true,
+          groupId: widget.groupId,
+          minLines: 1,
+          maxLines: widget.multiline ? 4 : 1,
+          keyboardType: widget.multiline
+              ? TextInputType.multiline
+              : TextInputType.text,
+          textInputAction: widget.multiline
+              ? TextInputAction.newline
+              : TextInputAction.done,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            prefixIcon: Icon(widget.icon, size: 18),
+            hintText: widget.label,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadii.round),
+            ),
+            isDense: true,
+          ),
+          onSubmitted: (_) => widget.onDone(),
+          onTapOutside: (_) => widget.onDone(),
+        ),
+      ],
+    );
+  }
 }

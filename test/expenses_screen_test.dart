@@ -410,8 +410,9 @@ void main() {
     await tester.tap(find.byTooltip('Name'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), ' Lunch ');
-    await tester.tap(find.text('Done'));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNothing, reason: 'collapsed');
     await save(tester);
 
     final row = (await rows()).single;
@@ -600,5 +601,72 @@ void main() {
     final credit = row(TransactionType.credit, 5000);
     expect(dayTotal([debit, credit]), '₹100');
     expect(dayTotal([credit]), '+₹50');
+  });
+
+  testWidgets('Name expands with recent names; picking one fills it', (
+    tester,
+  ) async {
+    await add('Chai', categoryId: 1);
+    await add(
+      'Lunch',
+      categoryId: 1,
+      at: today.subtract(const Duration(days: 1)),
+    );
+    await add('Pay', type: TransactionType.credit, categoryId: 1);
+    await pumpScreen(tester);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+
+    await tester.tap(find.byTooltip('Name'));
+    await settle(tester);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(
+      find.byTooltip('All categories'),
+      findsOneWidget,
+      reason: 'strip stays',
+    );
+    final recent = find.ancestor(
+      of: find.byType(TextField),
+      matching: find.byType(Column),
+    );
+    expect(
+      find.descendant(of: recent.first, matching: find.byType(ActionChip)),
+      findsNWidgets(2),
+      reason: 'expense names only',
+    );
+
+    await tester.enterText(find.byType(TextField), 'l');
+    await tester.pump();
+    expect(
+      find.descendant(of: recent.first, matching: find.text('Chai')),
+      findsNothing,
+    );
+    await tester.tap(
+      find.descendant(of: recent.first, matching: find.text('Lunch')),
+    );
+    await settle(tester);
+    expect(find.byType(TextField), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byType(ActionChip),
+        matching: find.text('Lunch'),
+      ),
+      findsOneWidget,
+      reason: 'the chip shows the name',
+    );
+  });
+
+  testWidgets('an SMS row with no name shows its note', (tester) async {
+    await db.addTransaction(
+      TransactionsCompanion.insert(
+        type: TransactionType.debit,
+        amountPaise: 100,
+        occurredAt: today,
+        note: const Value('MAHESHWARI ENTERPRISES'),
+        source: TransactionSource.sms,
+      ),
+    );
+    await pumpScreen(tester);
+    expect(find.text('MAHESHWARI ENTERPRISES'), findsOneWidget);
   });
 }

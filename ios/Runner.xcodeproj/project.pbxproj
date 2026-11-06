@@ -17,6 +17,7 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A1B2C3D42F00000000000001 /* IngestBankMessageIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000002 /* IngestBankMessageIntent.swift */; };
+		A1B2C3D42F000000000000A0 /* AddExpenseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F000000000000A1 /* AddExpenseIntent.swift */; };
 		A1B2C3D42F00000000000011 /* PaisaWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000010 /* PaisaWidget.swift */; };
 		A1B2C3D42F00000000000013 /* PaisaWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000012 /* PaisaWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1B2C3D42F00000000000030 /* Inbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000000031 /* Inbox.swift */; };
@@ -93,6 +94,7 @@
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1B2C3D42F00000000000002 /* IngestBankMessageIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IngestBankMessageIntent.swift; sourceTree = "<group>"; };
+		A1B2C3D42F000000000000A1 /* AddExpenseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddExpenseIntent.swift; sourceTree = "<group>"; };
 		A1B2C3D42F00000000000003 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
 		A1B2C3D42F00000000000010 /* PaisaWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaisaWidget.swift; sourceTree = "<group>"; };
 		A1B2C3D42F00000000000012 /* PaisaWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PaisaWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -185,6 +187,7 @@
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				A1B2C3D42F00000000000002 /* IngestBankMessageIntent.swift */,
+				A1B2C3D42F000000000000A1 /* AddExpenseIntent.swift */,
 				A1B2C3D42F00000000000031 /* Inbox.swift */,
 				A1B2C3D42F00000000000003 /* Runner.entitlements */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
@@ -421,6 +424,7 @@
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				A1B2C3D42F00000000000001 /* IngestBankMessageIntent.swift in Sources */,
+				A1B2C3D42F000000000000A0 /* AddExpenseIntent.swift in Sources */,
 				A1B2C3D42F00000000000030 /* Inbox.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,

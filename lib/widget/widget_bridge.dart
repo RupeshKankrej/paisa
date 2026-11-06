@@ -16,3 +16,7 @@ Future<void> publishWidgetSummary(String json) async {
     await HomeWidget.updateWidget(iOSName: kind);
   }
 }
+
+/// For the quick-add intent, which cannot open the database.
+Future<void> publishCategories(String json) =>
+    _channel.invokeMethod<void>('writeCategories', json);

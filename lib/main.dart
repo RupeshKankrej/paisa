@@ -39,6 +39,15 @@ class _PaisaAppState extends ConsumerState<PaisaApp> {
             (Object e) => debugPrint('Widget update failed: ${e.runtimeType}'),
           );
     }, fireImmediately: true);
+    ref.listenManual(categoriesJsonProvider, (_, json) {
+      if (json == null) return;
+      ref
+          .read(categoriesPublisherProvider)(json)
+          .catchError(
+            (Object e) =>
+                debugPrint('Categories write failed: ${e.runtimeType}'),
+          );
+    }, fireImmediately: true);
   }
 
   @override

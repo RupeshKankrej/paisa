@@ -43,4 +43,26 @@ class RunnerTests: XCTestCase {
     XCTAssertEqual(try Inbox.claim(from: url), "")
   }
 
+  func testQuickAddLineMatchesSpec() throws {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    try Inbox.appendQuickAdd(
+      type: "debit", amountPaise: 12000, categoryId: 3, name: "Chai", to: url,
+      now: Date(timeIntervalSince1970: 0.123))
+    try Inbox.appendQuickAdd(
+      type: "credit", amountPaise: 100, categoryId: nil, name: nil, to: url)
+
+    let lines = try String(contentsOf: url, encoding: .utf8).split(separator: "\n")
+    let first = try XCTUnwrap(
+      JSONSerialization.jsonObject(with: Data(lines[0].utf8)) as? NSDictionary)
+    XCTAssertEqual(
+      first,
+      [
+        "source": "quick_add", "received_at": "1970-01-01T00:00:00.123Z", "type": "debit",
+        "amount_paise": 12000, "category_id": 3, "name": "Chai",
+      ] as NSDictionary)
+    XCTAssertFalse(lines[1].contains("category_id"))
+    XCTAssertFalse(lines[1].contains("name"))
+  }
 }

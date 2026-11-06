@@ -40,3 +40,4 @@
 - Shared text with no tracked pattern is logged `ignored` and shows nothing; the Share Extension cannot read tracked senders from SQLite to warn at share time.
 - Remove the old Phase 11 `Documents/perf.txt` from the iPhone.
 - Receipt scan and voice entry: the scan and mic buttons on the reference widget. No such features exist, so those slots open Activity and Analytics.
+- iOS 26 interactive snippet for quick add (SPEC 5.19): category chips and Save in one card. Phase 13 uses the step-by-step prompts.

@@ -4,6 +4,7 @@ import 'package:drift_flutter/drift_flutter.dart';
 import '../core/period.dart';
 import '../domain/categories.dart';
 import '../domain/models.dart';
+import '../domain/parser/parser.dart';
 
 part 'database.g.dart';
 
@@ -100,7 +101,7 @@ class AppDatabase extends _$AppDatabase {
     : super(executor ?? driftDatabase(name: 'paisa'));
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -152,9 +153,53 @@ class AppDatabase extends _$AppDatabase {
           ),
         );
       }
+      if (from < 5) await moveSmsPartyToNote();
     },
     beforeOpen: (_) => customStatement('PRAGMA foreign_keys = ON'),
   );
+
+  /// SPEC 5.18: the party moves from name to note, unless the user renamed the
+  /// row or gave it a note. Share rows hold bank SMS text too, so they move.
+  Future<void> moveSmsPartyToNote() async {
+    final rows =
+        await (select(transactions)..where(
+              (t) =>
+                  t.source.isInValues([
+                    TransactionSource.sms,
+                    TransactionSource.share,
+                  ]) &
+                  t.counterparty.isNotNull() &
+                  t.rawText.isNotNull() &
+                  t.bank.isNotNull() &
+                  (t.note.isNull() | t.note.equals('')),
+            ))
+            .get();
+    for (final row in rows) {
+      final parsed = parseMessage(normaliseMessage(row.rawText!), row.bank!);
+      if (parsed?.counterparty != row.counterparty) continue;
+      await (update(transactions)..where((t) => t.id.equals(row.id))).write(
+        TransactionsCompanion(
+          counterparty: const Value(null),
+          note: Value(row.counterparty),
+        ),
+      );
+    }
+  }
+
+  /// Distinct non-blank names (or notes) on rows of [type], most recent first.
+  Stream<List<String>> watchRecentTexts(
+    TransactionType type, {
+    required bool notes,
+  }) {
+    final column = notes ? 'note' : 'counterparty';
+    return customSelect(
+      'SELECT $column AS v FROM transactions '
+      "WHERE type = ? AND TRIM(COALESCE($column, '')) <> '' "
+      'GROUP BY $column ORDER BY MAX(occurred_at) DESC, MAX(id) DESC',
+      variables: [Variable.withString(type.name)],
+      readsFrom: {transactions},
+    ).watch().map((rows) => [for (final r in rows) r.read<String>('v')]);
+  }
 
   /// Archived ones too, as old rows still need their name and colour.
   Stream<List<Category>> watchCategories() => (select(
