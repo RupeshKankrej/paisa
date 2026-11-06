@@ -1,5 +1,130 @@
 # Progress
 
+## Phase 13e: + button and the keyboard (2026-11-06)
+
+Status: built on branch `phase-13e-fab-keyboard` (from `phase-13d-field-fixes`), not merged.
+
+### What was built
+- The tab shell's `Scaffold` no longer resizes for the keyboard, and the tabs get no bottom inset (`MediaQuery.removeViewInsets`). Before, the shell shrank its body and each tab's `Scaffold` lifted its `AddFab` by the keyboard's height, so the + button rose behind the add sheet. No tab has a text field of its own; sheets and dialogs open on the root navigator and still see the keyboard.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 257 passed. A new test raises a 336 pt inset under the app: without the fix the + button moved from y 460 to 124; with it, it stays.
+
+### What to verify on the device
+1. Open the add sheet, tap Name: the + button behind the sheet does not move.
+2. Settings → Add tracked sender (a dialog) still rises above the keyboard.
+
+## Phase 13d: Field fixes (2026-11-06)
+
+Status: built on branch `phase-13d-field-fixes` (from `phase-13c-keyboard-layout`), not merged. It covers Rupesh's three reports from the iPhone.
+
+### What was built
+- **No widening seen:** bringing the keyboard up blocks frames on iOS, so the 220 ms widening ran unseen. The simulator log had an 830 ms gap after the tap. Focus is now requested when the widening finishes, as in reference 28, where the keyboard starts only after the field is wide. Under Reduce Motion it is instant, as before.
+- **Bounce:** the chips no longer ride the keyboard. In reference 28 the field's y is the same with the keyboard up, and the keyboard covers the keypad and half the strip. 13c lifted the chips about 30 pt. The block is now pinned above the keypad.
+- **Clear button:** a ⊗ at the end of the field while it has text. It empties the field and keeps it open. It sits in the field's tap group, because `TextField` treats its suffix as outside, so the tap would otherwise close it. It is sized to the field's 36 pt, so the field does not grow.
+- SPEC 5.18 updated: clear button, focus after widening, nothing moves for the keyboard. This replaces 13c's "chips ride the keyboard" and 13b's "focus in the same frame".
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 256 passed. Updated: across a rising and falling inset, the field's y never changes. New: focus is not given 150 ms into the widening and is given after it; Clear empties the field, keeps it open and focused, and the field's height does not change.
+- iOS simulator with the real keyboard, using a temporary `integration_test` (not committed) that logs every frame, plus a screen recording. On the second open the field widened over 14 frames at 16 ms, from 89 to 370 px, then the keyboard rose. The amount, keypad, strip and field kept the same y on every frame of two opens and closes. Clear worked.
+
+### What to verify on the device
+1. Tap Name: it widens, then the keyboard comes up. Nothing moves; the keyboard covers the keypad and the lower half of the strip.
+2. Type, then tap ⊗: the text clears and the field stays open.
+3. The first open after launching the app may show fewer frames of the widening. In the debug simulator, the first open drew 2 frames and later ones drew all 14. Check whether the release build shows this.
+
+## Phase 13c: Keyboard layout (2026-11-06)
+
+Status: built on branch `phase-13c-keyboard-layout` (from `phase-13b-chip-animation`), not merged. Scope: only the add/edit sheet's layout while the keyboard shows and hides.
+
+### What was built
+- Removed 13b's `AnimatedPadding`. The keyboard inset is read straight from `MediaQuery.viewInsetsOf`, which the engine already moves every frame, so nothing keeps moving after the keyboard stops.
+- The sheet body is a `Stack`: the amount at a fixed 40 pt from the top, the number pad at the bottom, and the chip block (chip rows and category strip) at `max(keypad height, keyboard edge) + 8`. `SafeArea` keeps the home-indicator padding (`maintainBottomViewPadding`), so the bottom edge does not move as the keyboard rises.
+- The raw SMS text under the amount is capped at 4 lines and scrolls inside itself, so it cannot run under the chips.
+- SPEC 5.18 Timing now describes this, replacing the `AnimatedPadding` sentence.
+
+### Decisions
+- The chips beside the field still fade on 13b's single controller, which finishes by 150 ms. They are not on a separate 150 ms `AnimatedOpacity`, because SPEC 5.18 says one controller drives them. They stay in the tree at a fixed height either way.
+- `resizeToAvoidBottomInset` does not apply: the sheet is a modal route with no Scaffold inside.
+- A body shorter than 560 pt (iPhone SE, landscape) cannot fit the fixed layout, so it keeps the previous scrolling layout, with the plain inset. Marked as a `shortcut:` in the code.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 255 passed. A new test drives the keyboard inset up and down one frame at a time. It checks that the amount and the number pad keep the same y on every frame, that the Name field holds still until the keyboard passes the pad and then moves exactly with its edge, and that nothing moves after it stops.
+- The sheet was rendered with the keyboard down and up: the amount is in the same place, and the chip block's bottom sits on the keyboard's edge (517 pt against 516 pt).
+- iOS simulator (iPhone 18 Pro), real software keyboard, using a temporary `integration_test` that was not committed. It logged every frame. The amount (y 228.9) and keypad (y 576.0) did not move on show or hide. The strip stayed put until the keyboard passed the keypad, then matched `522.5 − (inset − 34 − 264)` to 0.1 pt, and stopped in the frame the keyboard stopped. The screen recording matches. The debug build drew only about 20–30 fps, so smoothness still needs the release build on the iPhone.
+- Installed on the iPhone in place after copying `paisa.sqlite` to `~/Downloads/Paisa_device_backup_20261106_before_13c/`.
+
+### What to verify on the device
+1. Record keyboard show and hide at 60 fps on the iPhone 15. The amount's y is the same in every frame, and the Name field moves only while the keyboard does, stopping in the same frame.
+
+## Phase 13b: Chip animation (2026-11-06)
+
+Status: built on branch `phase-13b-chip-animation` (from `phase-13-name-note-quick-add`), not merged. Scope: only the Name/Note expand/collapse and the recent-values row.
+
+### What was built
+- One controller, 220 ms, `Curves.easeOutCubic`, with its flipped curve for closing, so both directions decelerate. It drives the field width, the outline's opacity, the siblings' opacity (gone by 150 ms) and the recent-values row (20 ms behind, fading and rising 6 px).
+- `_MorphRow`, a small render object: the chips beside the field stay where they are and fade, and the field grows from the chip's place to the full row, over them. The row is at least 48 high, so the rows above never move.
+- The field stays mounted while closing, so its outline fades out. It shows one clipped line while it moves; Note becomes multi-line only once fully open.
+- Focus is requested in the same frame as the animation starts, through a `FocusNode` that attaches when the field builds.
+- Keyboard: the sheet is not resized. An `AnimatedPadding` (250 ms, `Cubic(0.2, 0.8, 0.2, 1)`) adds only the part of the inset the number pad does not cover (`AmountKeypad.height`). The pad stays under the keyboard, which is what Rupesh asked for earlier.
+- SPEC 5.18 has the Timing paragraph.
+
+### Decisions
+- The brief said to pad by the whole keyboard inset. That would lift the number pad above the keyboard, which goes against Rupesh's earlier request and reference 28, so only the excess is padded.
+- `resizeToAvoidBottomInset` does not apply: the sheet is a modal route with no Scaffold inside, so it was never resized.
+- Several items in the brief describe the 3:35 PM build, such as siblings removed from the tree and the keypad removed. They were already fixed in `6aaef0f`.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 254 passed, including a new test that steps open and close 16 ms at a time. It checks that the amount, date chip, account chip, Note chip and category strip do not move on any frame, and that the field width only grows on open and only shrinks on close.
+- Frames rendered in a test and checked by eye: no text wraps, and the outline fades with the width.
+
+### What to verify on the device
+1. Record expand and collapse at 60 fps on the iPhone 15, and step through: only the field width and the keyboard should change much between frames. The strip rises by about 56 pt as the keyboard passes the number pad.
+2. A Note with several lines collapses to one line as closing starts. That is a single-frame change in height.
+
+### Open issues
+- With the keyboard up, the amount re-centres in a slightly smaller space, so it rises by about half the strip's lift. This comes from the keyboard, not from expand/collapse.
+
+## Phase 13: Name/note + Quick add (2026-11-06)
+
+Status: built on branch `phase-13-name-note-quick-add`, not merged. The branch starts from `add-readme`, which is one README commit ahead of `main`. Not yet tried on the iPhone.
+
+### What was built
+- `lib/domain/row_title.dart`: `rowTitle()`, giving name, else note, else category, else Expense/Income; first line, 40 characters. Activity and the calendar day sheet (both `TransactionTile`) use it.
+- Ingest: the SMS party now goes into `note`, and `counterparty` stays empty. It also handles `quick_add` lines (SPEC 3.3): `source = manual`, the line's type, `occurred_at` = `received_at`. A category that is missing or of the other type saves uncategorised.
+- Schema 5: `moveSmsPartyToNote()` re-parses `raw_text`. It moves the name into the note only when the note is empty and the name still equals the parsed party.
+- Sheet: Name and Note are chips. Name is on the date/type/account row and Note on the row below, with "from SMS". Tapping one grows it in place (180 ms, none under Reduce Motion) into an outlined field with recent values above it: distinct values for that type, most recent first, up to 10, filtered by prefix. The field collapses on return, on a tap outside, on a recent value, or on a category. Long-pressing a chip clears it. The amount keypad hides while the system keyboard is up. Note grows to 4 lines.
+- `categories.json`: written by the app on launch and on every category change, over the `paisa/widget` channel. `widget_summary.json` and `inbox.jsonl` now use the `completeUntilFirstUserAuthentication` protection class.
+- `ios/Runner/AddExpenseIntent.swift`: `AddExpenseIntent` with these steps: type, amount (zero is asked again), category list plus Skip, name, then a result card showing amount · category, the name, and "₹X left this month". It also has `CategoryEntity`/`CategoryQuery` reading `categories.json`, and `PaisaShortcuts` ("Add expense in Paisa"). `Inbox.appendQuickAdd` writes the line with millisecond time.
+- Settings → Messages → Quick add: Back Tap setup steps.
+- Name/Note animation matched to reference 28, checked frame by frame against the video. The chip widens leftward to full width in 200 ms (ease-out) while the chips beside it slide out left and fade. The recents cross-fade in over the row above. The outline appears and disappears at once. Closing runs in reverse in 300 ms (ease-in-out). The keyboard slides over the keypad, so the layout stays put. Chip rows are now: date, type, from SMS / account, Name / Note. The amount and chips scroll together only when the sheet is too short (landscape).
+
+### Decisions
+- Share rows are migrated too, not only `sms`: they are the same bank text and would otherwise keep the old title.
+- Quick-add lines skip the stale-line check: they are user entries, not SMS. The line fingerprint still stops a crash re-read from inserting twice; the milliseconds keep two equal adds apart.
+- The intent uses the step-by-step flow, not the iOS 26 interactive snippet (see BACKLOG).
+- For income, "left this month" is shown unchanged, as income does not change salary minus spent.
+- Quanto CSV export has only a Name column, so SMS rows now export with a blank name, as stored (SPEC 5.18).
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 253 passed, including the migration (untouched, renamed, has note, manual), quick-add ingest, recent names, and the expanding Name chip.
+- Swift `RunnerTests` on the simulator: passed, including the quick_add line shape.
+- `flutter build ios --simulator`: builds with the intent.
+
+### What to verify on the device
+1. Open the app: old SMS rows you never renamed now show the party as the title, with the party in Note. Rows you renamed keep their name.
+2. A new HDFC SMS: Name is empty, Note holds the party, and the row shows the party.
+3. Edit a row, then tap Name: it widens from the chip as in reference 28, the keyboard covers the keypad, and the category strip stays visible. It grows in place with recent names above. Pick one: it fills and collapses, and the chip shows it. Type a letter: the row filters. Tap a category while it is open: it collapses and the category is picked.
+4. Shortcuts app: "Add expense in Paisa" is listed without setup.
+5. Back Tap: Settings → Accessibility → Touch → Back Tap → Double Tap → "Add expense in Paisa" (or a one-action shortcut). Lock the phone, double-tap the back: Expense/Income, amount, category, name, then the card, all without unlocking. Try one expense and one income. Try amount 0 (it should ask again), and Skip for category and for name (empty Done).
+6. Open Paisa: both rows are in Activity, with the right type and category.
+
+### Open issues and setup notes
+- Install mishap: `flutter install` uninstalled the app first, wiping its data on the iPhone. A restore file was rebuilt from the Nov 1 15:40 AI export (328 rows, monthly salaries, Food and Shopping limits); it lacks times of day, raw SMS, category emojis and order. Entries after Nov 1 15:40 need re-sharing from HDFC SMS or re-entry. Install with `flutter run --release` from now on.
+- Not checked yet: whether the name prompt accepts an empty Done, and what Cancel does there. The code saves with no name if the prompt fails.
+- The phone must have been unlocked once since boot for the lock-screen append to work. That is the protection class.
+- "Left this month" reads `widget_summary.json`, which is only as fresh as the last time the app was open, and may be for last period just after a rollover.
+
 ## Phase 12: Polish + release (2026-11-01)
 
 Status: built on branch `phase-12-polish-release` (from `main`), not merged. Tests pass and the release build includes the extension. TestFlight is not done: it needs the paid Apple Developer Program. Rupesh asked for "Phase 0" with export/import; Phase 0 was already done, and Rupesh then chose Phase 12 and CSV import with dedup.

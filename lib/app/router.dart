@@ -102,9 +102,17 @@ class _TabShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // No tab has a text field of its own; the keyboard only comes with sheets
+    // and dialogs on the root navigator, which read the inset themselves. So
+    // the tabs ignore it, and the + button stays put under an open sheet.
     return Scaffold(
       extendBody: true, // lists scroll under the floating pill
-      body: shell,
+      resizeToAvoidBottomInset: false,
+      body: MediaQuery.removeViewInsets(
+        context: context,
+        removeBottom: true,
+        child: shell,
+      ),
       bottomNavigationBar: PillNavBar(
         items: _navItems,
         selectedIndex: shell.currentIndex,

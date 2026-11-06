@@ -102,7 +102,8 @@ paisa/
 
 | File | Writer | Reader | Shape |
 | --- | --- | --- | --- |
-| `inbox.jsonl` | App Intent, Share Extension | Flutter app (then truncated) | One JSON per line: `{"text": "…", "received_at": "ISO-8601", "source": "intent"}` |
+| `inbox.jsonl` | App Intents, Share Extension | Flutter app (then truncated) | One JSON per line: `{"text": "…", "received_at": "ISO-8601", "source": "intent"}`. Quick add (5.19) writes `{"source": "quick_add", "received_at": "…", "type": "debit", "amount_paise": 12000, "category_id": 3, "name": "…"}` and the reader inserts it like a manual expense |
+| `categories.json` | Flutter app | `AddExpenseIntent` | `[{"id": 3, "name": "Food", "emoji": "🍔", "type": "expense"}, …]` in the user's sort order, archived ones left out; rewritten whenever categories change and on every launch |
 | `widget_summary.json` | Flutter app | WidgetKit | `{"month": "2026-10", "spent_paise": …, "salary_paise": …, "remaining_paise": …, "top_categories": [...], "daily_spent_paise": [...], "quick_categories": [...], "updated_at": "…"}` |
 
 The SQLite file itself stays private to the app in v1; the widget never opens the database.
@@ -126,6 +127,7 @@ Build in this order. Phase 0 is a spike that de-risks the only part we cannot co
 | 10. UI: Budget, Analytics, Settings | Budget screen with per-category budget cards, Add-category picker and keypad sheet with over-salary validation (5.16), allocate sheet; Analytics with 6-period swipe window and amount/percent toggle (5.17), income vs expenses bars, income-left bars, calendar heatmap, grouped Settings list with Categories entry; empty states; light theme variant | Screens 05–09 and 18–23 reproduced; a category budget that would exceed salary cannot be saved; swiping an Analytics card moves only that card; tapping a calendar date lists its expenses, which can be edited and swiped to delete; over-salary pie case from 5.8 still handled; app usable in light and dark |
 | 11. Motion + Liquid Glass | Animation pass (5.15): sheet, tab and month transitions, count-up numbers, haptics, hero chart swipe; Liquid Glass treatment on bottom nav, FAB, chips, sheets and the widget on iOS 26+, flat fallback below; Reduce Motion / Reduce Transparency honoured; frame-time budget checked with DevTools | No dropped frames scrolling Activity with 500 transactions on the iPhone 15; glass surfaces visibly refract content behind them on iOS 26; widget matches the app's glass look |
 | 12. Polish + release | Share Extension, monthly Excel export (5.10) plus CSV/JSON, backup/restore of the SQLite file, app icon, TestFlight build | Installed from TestFlight; export produces a file openable in Numbers/Excel |
+| 13. Name/note + Quick add | SMS party goes into `note`, not the name; row title = name, else note (5.18); one-time migration of existing SMS rows; Name and Note as chips that expand in place into a field with a recent-values row above (5.18); `AddExpenseIntent` App Intent and App Shortcut, run from Shortcuts or Back Tap, with type, amount, category and name prompts and a result card (5.19); `categories.json` in the App Group | A new HDFC SMS lands with an empty name and the party in the note, and the row shows the note; typing a name shows the name instead; old SMS rows the user never renamed are migrated, renamed ones are left alone; tapping the Name chip expands it in place with recent names above it, picking one fills and collapses it, and the chip shows the text afterwards; a Back Tap double-tap on the lock screen adds an expense or an income without unlocking or opening the app, and it appears in Activity on the next launch with the chosen category of the right type |
 
 ### 4.1 Working agreement for Claude Code
 
@@ -141,7 +143,7 @@ Build in this order. Phase 0 is a spike that de-risks the only part we cannot co
 
 **Tracked senders.** Settings lists tracked senders; each has a label, a bank (HDFC in v1; the enum is extensible) and a match rule. A message is parsed only if it matches a tracked sender's rule; everything else is ignored and logged as `ignored`. Default seed: one HDFC rule matching text that contains `HDFC Bank`.
 
-**Parsing pipeline.** `inbox.jsonl` → normalise whitespace → fingerprint (SHA-256 of normalised text) → skip if fingerprint in `ingest_log` → try each template for the matched bank in order → first match wins → insert transaction with `source = sms`, `category_id = NULL` → log `parsed`. No template match → log `failed` and keep `raw_text` so the user can see it under Settings → Unparsed messages and add it manually.
+**Parsing pipeline.** `inbox.jsonl` → normalise whitespace → fingerprint (SHA-256 of normalised text) → skip if fingerprint in `ingest_log` → try each template for the matched bank in order → first match wins → insert transaction with `source = sms`, `category_id = NULL`, the parsed `party` in `note` and `counterparty` (the name) left empty (5.18) → log `parsed`. No template match → log `failed` and keep `raw_text` so the user can see it under Settings → Unparsed messages and add it manually.
 
 **HDFC templates (regex, case-insensitive, multiline).** Capture groups are named.
 
@@ -150,7 +152,7 @@ Build in this order. Phase 0 is a spike that de-risks the only part we cannot co
 | HDFC UPI debit | `Sent Rs.(?<amount>[\d,]+\.?\d*)` · `From HDFC Bank A/C \*(?<last4>\d{4})` · `To (?<party>.+)` · `On (?<date>\d{2}/\d{2}/\d{2})` · `Ref (?<ref>\d+)` | `Sent Rs.120.00 From HDFC Bank A/C *2703 To MAHESHWARI ENTERPRISES On 30/10/26 Ref 630329677868` |
 | HDFC credit | `INR (?<amount>[\d,]+\.?\d*) deposited in HDFC Bank A/c XX(?<last4>\d{4}) on (?<date>\d{2}-[A-Z]{3}-\d{2}) for (?<party>.+?)\.Avl bal` | `Update! INR 1,55,453.00 deposited in HDFC Bank A/c XX2703 on 28-OCT-26 for NEFT Cr-HSBC0560002-DEEL EOR PRIVATE LIMITED-RUPESH KANKREJ-HSBCN30100693396.Avl bal INR 2,44,485.78.` |
 
-Date formats to support: `DD/MM/YY`, `DD-MMM-YY`, `DD-MM-YY`. Two-digit years map to 20YY. Amount strips commas and converts to paise. For credits, `party` keeps the whole NEFT/IMPS descriptor; the UI shows the first 40 characters.
+Date formats to support: `DD/MM/YY`, `DD-MMM-YY`, `DD-MM-YY`. Two-digit years map to 20YY. Amount strips commas and converts to paise. For credits, `party` keeps the whole NEFT/IMPS descriptor; the row title shows the first 40 characters.
 
 **Dedup.** Fingerprint is the primary key. As a second guard, if a new transaction has the same `ref_no`, `amount_paise` and `occurred_at` date as an existing one, treat it as a duplicate. Manual expenses are never deduped. The last processed `received_at` is stored in settings so the inbox reader can also skip stale lines if the file is ever replayed.
 
@@ -159,7 +161,7 @@ Date formats to support: `DD/MM/YY`, `DD-MMM-YY`, `DD-MM-YY`. Two-digit years ma
 ### 5.2 Expenses screen
 
 - Month selector in the app bar (dropdown; default current month; same component as Home).
-- List grouped by day, newest first. Each row, as in reference 01 (Rupesh, Phase 11): emoji on a soft rounded square (or a grey placeholder), counterparty, amount (debits plain, credits green with a plus, paise only when there are some). No time.
+- List grouped by day, newest first. Each row, as in reference 01 (Rupesh, Phase 11): emoji on a soft rounded square (or a grey placeholder), title (5.18: the name, else the note), amount (debits plain, credits green with a plus, paise only when there are some). No time.
 - **Uncategorised rows are rendered at 50% opacity** with a "Tap to categorise" hint. They still count in all totals.
 - Tap or long-press any row, categorised or not → edit sheet (5.4), where its category is chosen from the strip or the category grid sheet (5.14).
 - **Swipe left** → red delete background → on release, delete with a 5-second undo snackbar. Deleting an SMS-sourced expense keeps its `ingest_log` fingerprint so it is not re-imported.
@@ -168,7 +170,7 @@ Date formats to support: `DD/MM/YY`, `DD-MMM-YY`, `DD-MM-YY`. Two-digit years ma
 
 ### 5.3 Manual expense
 
-Bottom sheet with: amount (numeric keypad, required), type (expense/income, default expense), category (required for manual), date (default today), counterparty/title (optional), note (optional). Saves with `source = manual`.
+Bottom sheet with: amount (numeric keypad, required), type (expense/income, default expense), category (required for manual), date (default today), name (optional) and note (optional) as expanding chips with recent-value suggestions (5.18). Saves with `source = manual`.
 
 ### 5.4 Edit expense
 
@@ -340,6 +342,45 @@ References `22-analytics-range.png`, `23-analytics-calendar-range.png`. The Anal
 
 **Calendar card.** Shows its month and year at the top and swipes one month at a time on its own. Tapping a date opens a sheet with a close button, the date as the title ("Friday, 25 Sep"), "Total amount" and that day's expenses. Tapping a row opens the edit sheet (5.4); swiping it left deletes it with the 5-second undo, as on Activity.
 
+### 5.18 Name, note and the row title
+
+Reference `28-expanding-text-field.mp4` (Rupesh, Phase 13): the Name chip expanding into a field with a row of recent names above it.
+
+**Where SMS text goes.** The message's party (`To MAHESHWARI ENTERPRISES`, or a credit's whole NEFT descriptor) is stored in `note`; the name (`counterparty`) stays empty so the user can give it one later. The raw message stays in `raw_text` under "from SMS" (5.4).
+
+**Row title.** Everywhere a transaction is listed (Activity, the calendar day sheet, the widget's lists if any), the title is the name if it is not blank, else the note, else the category name, else "Expense"/"Income". One line, first 40 characters. This rule lives in one pure Dart helper in `lib/domain` with unit tests.
+
+**Migration.** A one-time drift migration moves `counterparty` into `note` for rows with `source = sms` whose `note` is empty and whose `counterparty` still equals the party re-parsed from `raw_text`. Rows the user renamed, or that already have a note, are not touched. Excel/CSV/JSON exports keep their Name and Note columns as stored.
+
+**Name and Note chips (ref 28).** In the add/edit sheet, Name and Note are chips in the chip rows under the hero amount (Name next to the date/account chips, Note on the row below), not rows that open a dialog and not always-open text fields. The chip shows its placeholder in `textSecondary` while empty and the entered text (one line, ellipsised) once set.
+
+Tapping a chip expands it **in place** (180 ms) into a full-width outlined text field with the chip's icon leading and the cursor already in it; the other chips on that row fade out, the keyboard rises, and the sheet scrolls so the field sits just above the keyboard. The category strip stays visible below the field so a category can still be picked without closing it.
+
+Directly above the expanded field a horizontally scrolling row of **recent-value chips** appears: the distinct names (or notes) used on this type of transaction before, most recent first, up to 10, excluding blanks and the current value. Tapping one fills the field and collapses it. Typing filters the row to values that start with the typed text. The row is hidden when there are no matches.
+
+Confirming (the keyboard's return key, tapping outside the field, or picking a category) collapses the field back into a chip showing the text; an empty field collapses to the placeholder. Name is one paragraph; Note allows new lines and collapses to its first line. While the field has text, a clear (⊗) button sits at its end; it empties the field and leaves it open. The collapsed chip's text can also be long-pressed to clear.
+
+Timing. Expand and collapse run 220 ms on Curves.easeOutCubic from one controller that drives the field width, the focus outline, the sibling chips' opacity and the recent-values row together. Sibling chips and rows stay in the widget tree at reduced opacity so the layout never shifts. The sheet does not resize for the keyboard, and nothing in it moves for the keyboard: the amount is pinned from the top, the number pad and the chip block (chip rows and category strip) from the bottom. The keyboard slides over the pad and the lower part of the strip, as in reference 28. Focus, and so the keyboard, is requested once the field has finished widening, as in reference 28; on collapse the keyboard leaves as the field shrinks. Chip and field text is single-line, clipped, never wrapped.
+
+### 5.19 Quick add from Shortcuts and Back Tap
+
+References `29-back-tap-quick-add.mp4`, `30-back-tap-amount-prompt.png` (another app's version; ours should be a step up).
+
+**What the reference shows (ref 29).** From the **lock screen**, a Back Tap double-tap raises a "Back Tap" banner naming the shortcut, then a system dialog "Enter amount" with an Amount field, Cancel and Done, the number pad, and a ± key; Done saves and the dialog disappears without the phone being unlocked. Ours must work the same way from the lock screen, with the steps below in place of the single prompt.
+
+**What it is.** A Swift `AddExpenseIntent` App Intent in the main app target, next to `IngestBankMessageIntent`, with `openAppWhenRun = false`, published through an `AppShortcutsProvider` as "Add expense in Paisa" so it shows in the Shortcuts app without setup. The user binds it to Back Tap (Settings → Accessibility → Touch → Back Tap → Double Tap) or the Action button; if Back Tap does not list App Shortcuts, a one-action shortcut in the user's library works, and Settings → Quick add shows these steps.
+
+**Flow.** The prompts are system dialogs over whatever is on screen, as in ref 30:
+1. **Type**: "Expense or Income?" as two buttons, Expense first and default. This replaces the reference's ± key.
+2. **Amount**: "How much did you spend?" / "How much did you receive?" with the decimal keypad; `₹` in the prompt. Zero or blank is rejected with a re-prompt.
+3. **Category**: the categories of the chosen type from `categories.json`, each "🍔 Food" or "💰 Salary", in the user's order, plus "Skip" (saves uncategorised). Categories are an `AppEntity` with an `EntityQuery` reading the JSON and filtering on `type`.
+4. **Name**: optional, one line, "Skip" leaves it empty.
+5. **Result card** (a SwiftUI snippet in the dialog): "₹120 · 🍔 Food" for an expense or "+₹1,55,453 · 💰 Salary" in `income` green for income, the name if given, and "₹X left this month" from `widget_summary.json` adjusted by this amount. No button to press; it dismisses itself.
+
+On iOS 26+, steps 3–5 may become one interactive snippet (category chips and Save), if the App Intents snippet API allows it without opening the app; otherwise keep the step-by-step flow above.
+
+**Saving.** The intent appends one `quick_add` line to `inbox.jsonl` (3.3) with `received_at` = now; it never opens SQLite. Because the intent runs while the phone is locked, `inbox.jsonl` and `categories.json` are written with file protection `completeUntilFirstUserAuthentication` (not the default `complete`), or the append fails on the lock screen; `widget_summary.json` the same, so the result card can read it. The line's `type` is `debit` or `credit` from step 1. The Flutter inbox reader inserts it on the next launch or resume as `source = manual` with that type, `occurred_at` = `received_at`, never deduped; a `category_id` that no longer exists, or one whose type does not match, saves uncategorised. As with SMS, the widget and totals catch up when the app next opens.
+
 ## 6. iOS home-screen widget
 
 A WidgetKit extension (SwiftUI) that reads `widget_summary.json` from the App Group; it never touches SQLite or the Flutter engine. The Flutter app rewrites the JSON and calls `WidgetCenter.reloadAllTimelines` (via `home_widget`) after every transaction, budget or salary change.
@@ -356,7 +397,7 @@ A WidgetKit extension (SwiftUI) that reads `widget_summary.json` from the App Gr
 
 **AI summary.** A "This month" card that sends an anonymised aggregate (category totals, counts, deltas vs last month, never counterparty names unless the user opts in) to the Claude API and shows a 3–4 sentence summary and one suggestion. Needs an API key stored in the iOS Keychain, a settings toggle, and a cached result per month. Keep the prompt and schema in `features/ai/`.
 
-**Other candidates (backlog, not committed):** multiple accounts and banks, recurring expense detection, iCloud backup of the SQLite file, Siri "add expense" intent, Face ID lock.
+**Other candidates (backlog, not committed):** multiple accounts and banks, recurring expense detection, iCloud backup of the SQLite file, Face ID lock. (The "add expense" intent is now Phase 13, 5.19.)
 
 ## 8. Open questions
 

@@ -32,3 +32,6 @@ density and feel with our own widgets. Do not copy logos, icons or the seasonal 
 | 25-category-delete-confirm.png | Delete confirmation sheet (ours moves transactions to Uncategorised, never deletes them) | 9 |
 | 26-category-edit-sheet.png | Tap a category: edit sheet with Delete / Save | 9 |
 | 27-ui-animation.mp4 | Screen recording of the motion to match: nav lens, sliding tabs, ring and bar entrances, month swipe (5.15). The FAB's expanding menu and the ghosts are not ours | 11 |
+| 28-expanding-text-field.mp4 | Text field that grows line by line as you type; the model for the Name and Note fields (5.18) | 13 |
+| 29-back-tap-quick-add.mp4 | Another app's Back Tap quick add, end to end; ours improves on it (5.19) | 13 |
+| 30-back-tap-amount-prompt.png | That app's amount prompt over the home screen (5.19) | 13 |

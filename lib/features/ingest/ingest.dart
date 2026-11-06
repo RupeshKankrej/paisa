@@ -61,6 +61,13 @@ Future<void> _ingestLine(AppDatabase db, String line) async {
       .getSingle();
   if (seen > 0) return;
 
+  // The fingerprint only guards against re-reading this line after a crash: its
+  // received_at has milliseconds, so two equal quick adds are both kept.
+  if (_decodeQuickAdd(line) case final add?) {
+    await _insertQuickAdd(db, add);
+    return log(IngestStatus.parsed);
+  }
+
   if (decoded == null) return log(IngestStatus.failed, rawText: line);
 
   final last = await (db.select(
@@ -103,7 +110,8 @@ Future<void> _ingestLine(AppDatabase db, String line) async {
             minute: at.minute,
             second: at.second,
           ),
-          counterparty: Value(parsed.counterparty),
+          // SPEC 5.18: the name is left for the user to give.
+          note: Value(parsed.counterparty),
           accountLast4: Value(parsed.accountLast4),
           bank: Value(bank),
           refNo: Value(parsed.refNo),
@@ -114,6 +122,74 @@ Future<void> _ingestLine(AppDatabase db, String line) async {
         ),
       );
   await log(IngestStatus.parsed, refNo: parsed.refNo);
+}
+
+typedef _QuickAdd = ({
+  TransactionType type,
+  int paise,
+  DateTime at,
+  int? categoryId,
+  String? name,
+});
+
+/// A SPEC 5.19 line from the quick-add intent, or null for anything else.
+_QuickAdd? _decodeQuickAdd(String line) {
+  final Object? json;
+  try {
+    json = jsonDecode(line);
+  } on FormatException {
+    return null;
+  }
+  if (json
+      case {
+        'source': 'quick_add',
+        'received_at': String receivedAt,
+        'type': String type,
+        'amount_paise': int paise,
+      }
+      when paise > 0) {
+    final at = DateTime.tryParse(receivedAt);
+    final kind = TransactionType.values.asNameMap()[type];
+    if (at == null || kind == null) return null;
+    final name = switch (json['name']) {
+      final String n when n.trim().isNotEmpty => n.trim(),
+      _ => null,
+    };
+    return (
+      type: kind,
+      paise: paise,
+      at: at.toLocal(),
+      categoryId: switch (json['category_id']) {
+        final int id => id,
+        _ => null,
+      },
+      name: name,
+    );
+  }
+  return null;
+}
+
+/// A deleted category, or one of the other type, saves uncategorised.
+Future<void> _insertQuickAdd(AppDatabase db, _QuickAdd add) async {
+  final wanted = add.type == TransactionType.debit
+      ? CategoryType.expense
+      : CategoryType.income;
+  final id = add.categoryId;
+  final category = id == null
+      ? null
+      : await (db.select(db.categories)
+              ..where((c) => c.id.equals(id) & c.type.equalsValue(wanted)))
+            .getSingleOrNull();
+  await db.addTransaction(
+    TransactionsCompanion.insert(
+      type: add.type,
+      amountPaise: add.paise,
+      occurredAt: add.at,
+      counterparty: Value(add.name),
+      source: TransactionSource.manual,
+      categoryId: Value(category?.id),
+    ),
+  );
 }
 
 Future<Bank?> _matchBank(AppDatabase db, String normalised) async {

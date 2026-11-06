@@ -11,6 +11,7 @@ import '../../data/providers.dart';
 import '../../domain/budget.dart';
 import '../../domain/categories.dart';
 import '../../domain/models.dart';
+import '../../domain/row_title.dart';
 import '../budgets/category_picker.dart';
 import 'day_bar_chart.dart';
 import 'transaction_sheet.dart';
@@ -411,16 +412,6 @@ class TransactionTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
-  // Credits keep the whole NEFT descriptor; SPEC 5.1 shows the first 40 characters.
-  String get _title {
-    final party = row.counterparty;
-    if (party == null) {
-      return category?.name ??
-          (row.type == TransactionType.debit ? 'Expense' : 'Income');
-    }
-    return party.length > 40 ? party.substring(0, 40) : party;
-  }
-
   @override
   Widget build(BuildContext context) {
     final uncategorised = row.categoryId == null;
@@ -436,7 +427,12 @@ class TransactionTile extends StatelessWidget {
       minTileHeight: 57,
       leading: CategoryAvatar(category, plain: true),
       title: Text(
-        _title,
+        rowTitle(
+          name: row.counterparty,
+          note: row.note,
+          categoryName: category?.name,
+          type: row.type,
+        ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: text,

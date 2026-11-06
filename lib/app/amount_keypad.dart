@@ -54,6 +54,12 @@ class AmountKeypad extends StatelessWidget {
   final ValueChanged<String> onKey;
   final VoidCallback? onSubmit;
 
+  static const _keyHeight = 60.0;
+  static const _gap = 8.0;
+
+  /// Four rows of keys and the gaps between them.
+  static const height = 4 * _keyHeight + 3 * _gap;
+
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
@@ -67,17 +73,17 @@ class AmountKeypad extends StatelessWidget {
       ),
     );
     return Column(
-      spacing: 8,
+      spacing: _gap,
       children: [
         for (final row in const ['123', '456', '789'])
           Row(
-            spacing: 8,
+            spacing: _gap,
             children: [
               for (final key in row.split('')) Expanded(child: digit(key)),
             ],
           ),
         Row(
-          spacing: 8,
+          spacing: _gap,
           children: [
             Expanded(child: digit('.')),
             Expanded(child: digit('0')),
@@ -124,7 +130,10 @@ class _Key extends StatelessWidget {
     clipBehavior: Clip.antiAlias,
     child: InkWell(
       onTap: onTap,
-      child: SizedBox(height: 60, child: Center(child: child)),
+      child: SizedBox(
+        height: AmountKeypad._keyHeight,
+        child: Center(child: child),
+      ),
     ),
   );
 }

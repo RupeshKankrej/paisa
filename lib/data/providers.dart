@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
@@ -180,3 +182,26 @@ final widgetSummaryProvider = Provider<String?>((ref) {
 final widgetPublisherProvider = Provider<Future<void> Function(String)>(
   (ref) => publishWidgetSummary,
 );
+
+/// categories.json for the quick-add intent (SPEC 3.3), null until loaded.
+final categoriesJsonProvider = Provider<String?>((ref) {
+  final categories = ref.watch(categoriesProvider).value;
+  if (categories == null) return null;
+  return jsonEncode([
+    for (final c in categories)
+      if (!c.isArchived)
+        {'id': c.id, 'name': c.name, 'emoji': c.emoji, 'type': c.type.name},
+  ]);
+});
+
+final categoriesPublisherProvider = Provider<Future<void> Function(String)>(
+  (ref) => publishCategories,
+);
+
+/// Recent distinct names or notes for this type, most recent first (SPEC 5.18).
+final recentTextsProvider = StreamProvider.autoDispose
+    .family<List<String>, ({TransactionType type, bool notes})>(
+      (ref, key) => ref
+          .watch(databaseProvider)
+          .watchRecentTexts(key.type, notes: key.notes),
+    );

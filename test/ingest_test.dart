@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:paisa/data/database.dart';
@@ -214,4 +215,144 @@ void main() {
       expect(await upgraded.select(upgraded.transactions).get(), hasLength(1));
     },
   );
+
+  test('an SMS party lands in the note, with an empty name', () async {
+    await ingestInbox(db, line(debitSample));
+    final row = (await rows()).single;
+    expect(row.counterparty, isNull);
+    expect(row.note, 'MAHESHWARI ENTERPRISES');
+  });
+
+  group('quick add', () {
+    String quick({
+      String type = 'debit',
+      int paise = 12000,
+      int? category,
+      String? name,
+      String at = '2026-10-30T10:15:30.123Z',
+    }) => jsonEncode({
+      'source': 'quick_add',
+      'received_at': at,
+      'type': type,
+      'amount_paise': paise,
+      'category_id': ?category,
+      'name': ?name,
+    });
+
+    Future<Category> named(String name) async =>
+        (await db.select(db.categories).get()).firstWhere(
+          (c) => c.name == name,
+        );
+
+    test('inserts a manual row with category and name', () async {
+      final food = await named('Food');
+      await ingestInbox(db, quick(category: food.id, name: ' Chai '));
+      final row = (await rows()).single;
+      expect(row.source, TransactionSource.manual);
+      expect(row.type, TransactionType.debit);
+      expect(row.amountPaise, 12000);
+      expect(row.categoryId, food.id);
+      expect(row.counterparty, 'Chai');
+      expect(row.occurredAt, DateTime.utc(2026, 10, 30, 10, 15, 30).toLocal());
+    });
+
+    test('income with an expense category saves uncategorised', () async {
+      final food = await named('Food');
+      final salary = await named('Salary');
+      await ingestInbox(
+        db,
+        '${quick(type: 'credit', category: food.id)}\n'
+        '${quick(type: 'credit', category: salary.id, at: '2026-10-30T10:16:00Z')}\n'
+        '${quick(category: 999, at: '2026-10-30T10:17:00Z')}',
+      );
+      expect((await rows()).map((r) => (r.type, r.categoryId)), [
+        (TransactionType.credit, null),
+        (TransactionType.credit, salary.id),
+        (TransactionType.debit, null),
+      ]);
+    });
+
+    test('two equal adds both land; re-reading the file adds none', () async {
+      final text = '${quick()}\n${quick(at: '2026-10-30T10:15:30.456Z')}';
+      await ingestInbox(db, text);
+      await ingestInbox(db, text);
+      expect(await rows(), hasLength(2));
+    });
+
+    test('older than the last SMS is still kept', () async {
+      await ingestInbox(db, line(debitSample));
+      await ingestInbox(db, quick(at: '2026-10-29T10:00:00Z'));
+      expect(await rows(), hasLength(2));
+    });
+
+    test('a zero amount is not inserted', () async {
+      await ingestInbox(db, quick(paise: 0));
+      expect(await rows(), isEmpty);
+      expect(await statuses(), [IngestStatus.failed]);
+    });
+  });
+
+  test(
+    'upgrading to version 5 moves untouched SMS parties to the note',
+    () async {
+      final dir = await Directory.systemTemp.createTemp('paisa');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/paisa.sqlite');
+
+      final v4 = AppDatabase(NativeDatabase(file));
+      Future<void> add(String? name, {String? note, String? raw}) =>
+          v4.addTransaction(
+            TransactionsCompanion.insert(
+              type: TransactionType.debit,
+              amountPaise: 12000,
+              occurredAt: DateTime(2026, 10, 30),
+              counterparty: Value(name),
+              note: Value(note),
+              bank: const Value(Bank.hdfc),
+              source: raw == null
+                  ? TransactionSource.manual
+                  : TransactionSource.sms,
+              rawText: Value(raw),
+            ),
+          );
+      await add('MAHESHWARI ENTERPRISES', raw: debitSample); // untouched
+      await add('Groceries', raw: debitSample); // renamed
+      await add('MAHESHWARI ENTERPRISES', note: 'mine', raw: debitSample);
+      await add('MAHESHWARI ENTERPRISES'); // manual
+      await v4.customStatement('PRAGMA user_version = 4');
+      await v4.close();
+
+      final upgraded = AppDatabase(NativeDatabase(file));
+      addTearDown(upgraded.close);
+      final all = await upgraded.select(upgraded.transactions).get();
+      expect(all.map((r) => (r.counterparty, r.note)), [
+        (null, 'MAHESHWARI ENTERPRISES'),
+        ('Groceries', null),
+        ('MAHESHWARI ENTERPRISES', 'mine'),
+        ('MAHESHWARI ENTERPRISES', null),
+      ]);
+    },
+  );
+
+  test('recent names: distinct, per type, most recent first', () async {
+    Future<void> add(String? name, int day, TransactionType type) =>
+        db.addTransaction(
+          TransactionsCompanion.insert(
+            type: type,
+            amountPaise: 100,
+            occurredAt: DateTime(2026, 10, day),
+            counterparty: Value(name),
+            source: TransactionSource.manual,
+          ),
+        );
+    await add('Chai', 1, TransactionType.debit);
+    await add('Lunch', 2, TransactionType.debit);
+    await add('Chai', 3, TransactionType.debit);
+    await add(' ', 4, TransactionType.debit);
+    await add('Pay', 5, TransactionType.credit);
+    expect(
+      await db.watchRecentTexts(TransactionType.debit, notes: false).first,
+      ['Chai', 'Lunch'],
+    );
+  });
 }

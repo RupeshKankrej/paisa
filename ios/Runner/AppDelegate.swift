@@ -48,16 +48,17 @@ import UIKit
     FlutterMethodChannel(
       name: "paisa/widget", binaryMessenger: engineBridge.applicationRegistrar.messenger()
     ).setMethodCallHandler { call, result in
-      guard call.method == "write", let json = call.arguments as? String else {
+      let names = ["write": "widget_summary.json", "writeCategories": "categories.json"]
+      guard let name = names[call.method], let json = call.arguments as? String else {
         result(FlutterMethodNotImplemented)
         return
       }
       do {
-        // Atomic, so the widget can never read a half-written file.
+        // Atomic, so a reader never sees a half-written file. Readable while
+        // locked, as the quick-add intent runs on the lock screen (SPEC 5.19).
         try Data(json.utf8).write(
-          to: Inbox.url().deletingLastPathComponent()
-            .appendingPathComponent("widget_summary.json"),
-          options: .atomic)
+          to: Inbox.url().deletingLastPathComponent().appendingPathComponent(name),
+          options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         result(nil)
       } catch {
         result(FlutterError(code: "widget", message: "\(error)", details: nil))

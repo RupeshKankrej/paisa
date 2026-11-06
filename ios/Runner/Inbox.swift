@@ -18,13 +18,30 @@ enum Inbox {
   static func append(
     _ text: String, to url: URL, now: Date = Date(), source: String = "intent"
   ) throws {
+    try appendLine(
+      ["text": text, "received_at": ISO8601DateFormatter().string(from: now), "source": source],
+      to: url)
+  }
+
+  /// SPEC 3.3 quick_add line. Milliseconds keep two equal adds from sharing a fingerprint.
+  static func appendQuickAdd(
+    type: String, amountPaise: Int, categoryId: Int?, name: String?, to url: URL,
+    now: Date = Date()
+  ) throws {
+    let iso = ISO8601DateFormatter()
+    iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    var line: [String: Any] = [
+      "source": "quick_add", "received_at": iso.string(from: now), "type": type,
+      "amount_paise": amountPaise,
+    ]
+    line["category_id"] = categoryId
+    line["name"] = name
+    try appendLine(line, to: url)
+  }
+
+  private static func appendLine(_ object: [String: Any], to url: URL) throws {
     var line = try JSONSerialization.data(
-      withJSONObject: [
-        "text": text,
-        "received_at": ISO8601DateFormatter().string(from: now),
-        "source": source,
-      ],
-      options: [.sortedKeys, .withoutEscapingSlashes])
+      withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes])
     line.append(0x0A)
 
     try locked(url) {
@@ -32,6 +49,10 @@ enum Inbox {
       let fd = open(url.path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
       guard fd >= 0 else { throw Failure.writeFailed(errno: errno) }
       defer { close(fd) }
+      // Writable on the lock screen once unlocked since boot (SPEC 5.19).
+      try? FileManager.default.setAttributes(
+        [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication],
+        ofItemAtPath: url.path)
       let written = line.withUnsafeBytes { write(fd, $0.baseAddress, $0.count) }
       guard written == line.count else { throw Failure.writeFailed(errno: errno) }
     }

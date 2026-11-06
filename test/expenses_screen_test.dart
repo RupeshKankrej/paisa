@@ -410,8 +410,9 @@ void main() {
     await tester.tap(find.byTooltip('Name'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), ' Lunch ');
-    await tester.tap(find.text('Done'));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNothing, reason: 'collapsed');
     await save(tester);
 
     final row = (await rows()).single;
@@ -600,5 +601,198 @@ void main() {
     final credit = row(TransactionType.credit, 5000);
     expect(dayTotal([debit, credit]), '₹100');
     expect(dayTotal([credit]), '+₹50');
+  });
+
+  testWidgets('Name expands with recent names; picking one fills it', (
+    tester,
+  ) async {
+    await add('Chai', categoryId: 1);
+    await add(
+      'Lunch',
+      categoryId: 1,
+      at: today.subtract(const Duration(days: 1)),
+    );
+    await add('Pay', type: TransactionType.credit, categoryId: 1);
+    await pumpScreen(tester);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+
+    await tester.tap(find.byTooltip('Name'));
+    await settle(tester);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(
+      find.byTooltip('All categories'),
+      findsOneWidget,
+      reason: 'strip stays',
+    );
+    final recent = find.byKey(const Key('recent-values'));
+    expect(
+      find.descendant(of: recent, matching: find.byType(ActionChip)),
+      findsNWidgets(2),
+      reason: 'expense names only',
+    );
+
+    await tester.enterText(find.byType(TextField), 'l');
+    await tester.pump();
+    expect(
+      find.descendant(of: recent, matching: find.text('Chai')),
+      findsNothing,
+    );
+    await tester.tap(find.descendant(of: recent, matching: find.text('Lunch')));
+    await settle(tester);
+    expect(find.byType(TextField), findsNothing);
+    expect(
+      find
+          .descendant(
+            of: find.byType(BottomSheet),
+            matching: find.text('Lunch'),
+          )
+          .hitTestable(),
+      findsOneWidget,
+      reason: 'the chip shows the name',
+    );
+  });
+
+  testWidgets('an SMS row with no name shows its note', (tester) async {
+    await db.addTransaction(
+      TransactionsCompanion.insert(
+        type: TransactionType.debit,
+        amountPaise: 100,
+        occurredAt: today,
+        note: const Value('MAHESHWARI ENTERPRISES'),
+        source: TransactionSource.sms,
+      ),
+    );
+    await pumpScreen(tester);
+    expect(find.text('MAHESHWARI ENTERPRISES'), findsOneWidget);
+  });
+
+  testWidgets('Name opens and closes without moving anything around it', (
+    tester,
+  ) async {
+    await db.addTransaction(
+      TransactionsCompanion.insert(
+        type: TransactionType.debit,
+        amountPaise: 50000,
+        occurredAt: today,
+        note: const Value('SHOP'),
+        accountLast4: const Value('2703'),
+        categoryId: const Value(1),
+        source: TransactionSource.manual,
+      ),
+    );
+    await add('Chai', categoryId: 1);
+    await pumpScreen(tester);
+    await tester.tap(find.text('SHOP').first);
+    await settle(tester);
+
+    final still = {
+      'amount': find.byKey(const Key('sheet-amount')),
+      'date': find.byIcon(Icons.calendar_today_outlined),
+      'account': find.text('A/c 2703'),
+      'note': find.byIcon(Icons.notes),
+      'strip': find.byTooltip('All categories'),
+    };
+    Map<String, Rect> rects() => {
+      for (final MapEntry(:key, :value) in still.entries)
+        key: tester.getRect(value.first),
+    };
+    final before = rects();
+    double fieldWidth() => tester.getSize(find.byType(TextField)).width;
+
+    await tester.tap(find.byTooltip('Name'));
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget, reason: 'same frame');
+    var last = fieldWidth();
+    for (var i = 0; i < 16; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(rects(), before, reason: 'opening, frame $i');
+      expect(fieldWidth(), greaterThanOrEqualTo(last));
+      last = fieldWidth();
+    }
+    expect(find.byKey(const Key('recent-values')), findsOneWidget);
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    for (
+      var i = 0;
+      i < 16 && find.byType(TextField).evaluate().isNotEmpty;
+      i++
+    ) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(rects(), before, reason: 'closing, frame $i');
+      if (find.byType(TextField).evaluate().isNotEmpty) {
+        expect(fieldWidth(), lessThanOrEqualTo(last));
+        last = fieldWidth();
+      }
+    }
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNothing);
+    expect(rects(), before);
+  });
+
+  testWidgets('the keyboard moves nothing: it slides over the keypad', (
+    tester,
+  ) async {
+    await add('Chai', categoryId: 1);
+    await pumpScreen(tester);
+    tester.view.padding = const FakeViewPadding(bottom: 34 * 3);
+    tester.view.viewPadding = const FakeViewPadding(bottom: 34 * 3);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Name'));
+    await tester.pumpAndSettle();
+
+    double y(Finder f) => tester.getRect(f.first).top;
+    final amount = find.byKey(const Key('sheet-amount'));
+    final key1 = find.byKey(const Key('key-1'));
+    final field = find.byType(TextField);
+    final amountY = y(amount), keyY = y(key1), fieldY = y(field);
+
+    // Up and back down, as the engine reports it: a new inset every frame.
+    final insets = [
+      for (var i = 0; i <= 14; i++) 336.0 * i / 14,
+      for (var i = 13; i >= 0; i--) 336.0 * i / 14,
+    ];
+    for (final inset in insets) {
+      tester.view.viewInsets = FakeViewPadding(bottom: inset * 3);
+      await tester.pump();
+      expect(y(amount), amountY, reason: 'amount at inset $inset');
+      expect(y(key1), keyY, reason: 'keypad at inset $inset');
+      expect(y(field), fieldY, reason: 'field at inset $inset');
+    }
+    // Nothing keeps moving once the keyboard stops.
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(y(field), fieldY);
+    tester.view.resetViewInsets();
+    tester.view.resetPadding();
+    tester.view.resetViewPadding();
+  });
+
+  testWidgets('focus waits for the field to widen; the clear button clears', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Name'));
+    await tester.pump();
+    bool focused() =>
+        tester.widget<TextField>(find.byType(TextField)).focusNode!.hasFocus;
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(focused(), isFalse, reason: 'no keyboard while it widens');
+    await tester.pumpAndSettle();
+    expect(focused(), isTrue);
+
+    expect(find.byTooltip('Clear'), findsNothing, reason: 'empty field');
+    final before = tester.getSize(find.byType(TextField)).height;
+    await tester.enterText(find.byType(TextField), 'Chai');
+    await tester.pump();
+    expect(tester.getSize(find.byType(TextField)).height, before);
+    await tester.tap(find.byTooltip('Clear'));
+    await tester.pump();
+    expect(find.text('Chai'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget, reason: 'stays open');
+    expect(focused(), isTrue);
   });
 }
