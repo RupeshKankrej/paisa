@@ -12,6 +12,7 @@ Status: built on branch `phase-13-name-note-quick-add`, not merged. The branch s
 - `categories.json`: written by the app on launch and on every category change, over the `paisa/widget` channel. `widget_summary.json` and `inbox.jsonl` now use the `completeUntilFirstUserAuthentication` protection class.
 - `ios/Runner/AddExpenseIntent.swift`: `AddExpenseIntent` with these steps: type, amount (zero is asked again), category list plus Skip, name, then a result card showing amount · category, the name, and "₹X left this month". It also has `CategoryEntity`/`CategoryQuery` reading `categories.json`, and `PaisaShortcuts` ("Add expense in Paisa"). `Inbox.appendQuickAdd` writes the line with millisecond time.
 - Settings → Messages → Quick add: Back Tap setup steps.
+- Name/Note animation matched to reference 28, checked frame by frame against the video. The chip widens leftward to full width in 200 ms (ease-out) while the chips beside it slide out left and fade. The recents cross-fade in over the row above. The outline appears and disappears at once. Closing runs in reverse in 300 ms (ease-in-out). The keyboard slides over the keypad, so the layout stays put. Chip rows are now: date, type, from SMS / account, Name / Note. The amount and chips scroll together only when the sheet is too short (landscape).
 
 ### Decisions
 - Share rows are migrated too, not only `sms`: they are the same bank text and would otherwise keep the old title.
@@ -28,7 +29,7 @@ Status: built on branch `phase-13-name-note-quick-add`, not merged. The branch s
 ### What to verify on the device
 1. Open the app: old SMS rows you never renamed now show the party as the title, with the party in Note. Rows you renamed keep their name.
 2. A new HDFC SMS: Name is empty, Note holds the party, and the row shows the party.
-3. Edit a row, then tap Name: it grows in place with recent names above. Pick one: it fills and collapses, and the chip shows it. Type a letter: the row filters. Tap a category while it is open: it collapses and the category is picked.
+3. Edit a row, then tap Name: it widens from the chip as in reference 28, the keyboard covers the keypad, and the category strip stays visible. It grows in place with recent names above. Pick one: it fills and collapses, and the chip shows it. Type a letter: the row filters. Tap a category while it is open: it collapses and the category is picked.
 4. Shortcuts app: "Add expense in Paisa" is listed without setup.
 5. Back Tap: Settings → Accessibility → Touch → Back Tap → Double Tap → "Add expense in Paisa" (or a one-action shortcut). Lock the phone, double-tap the back: Expense/Income, amount, category, name, then the card, all without unlocking. Try one expense and one income. Try amount 0 (it should ask again), and Skip for category and for name (empty Done).
 6. Open Paisa: both rows are in Activity, with the right type and category.

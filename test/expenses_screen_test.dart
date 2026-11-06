@@ -625,12 +625,9 @@ void main() {
       findsOneWidget,
       reason: 'strip stays',
     );
-    final recent = find.ancestor(
-      of: find.byType(TextField),
-      matching: find.byType(Column),
-    );
+    final recent = find.byKey(const Key('recent-values'));
     expect(
-      find.descendant(of: recent.first, matching: find.byType(ActionChip)),
+      find.descendant(of: recent, matching: find.byType(ActionChip)),
       findsNWidgets(2),
       reason: 'expense names only',
     );
@@ -638,19 +635,19 @@ void main() {
     await tester.enterText(find.byType(TextField), 'l');
     await tester.pump();
     expect(
-      find.descendant(of: recent.first, matching: find.text('Chai')),
+      find.descendant(of: recent, matching: find.text('Chai')),
       findsNothing,
     );
-    await tester.tap(
-      find.descendant(of: recent.first, matching: find.text('Lunch')),
-    );
+    await tester.tap(find.descendant(of: recent, matching: find.text('Lunch')));
     await settle(tester);
     expect(find.byType(TextField), findsNothing);
     expect(
-      find.descendant(
-        of: find.byType(ActionChip),
-        matching: find.text('Lunch'),
-      ),
+      find
+          .descendant(
+            of: find.byType(BottomSheet),
+            matching: find.text('Lunch'),
+          )
+          .hitTestable(),
       findsOneWidget,
       reason: 'the chip shows the name',
     );
