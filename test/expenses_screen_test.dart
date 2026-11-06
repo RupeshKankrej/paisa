@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:paisa/app/amount_keypad.dart';
 import 'package:paisa/app/month_picker.dart';
 import 'package:paisa/core/month_key.dart';
 import 'package:paisa/core/theme/app_theme.dart';
@@ -732,7 +731,7 @@ void main() {
     expect(rects(), before);
   });
 
-  testWidgets('the keyboard moves only the chips, and exactly with its edge', (
+  testWidgets('the keyboard moves nothing: it slides over the keypad', (
     tester,
   ) async {
     await add('Chai', categoryId: 1);
@@ -749,7 +748,6 @@ void main() {
     final key1 = find.byKey(const Key('key-1'));
     final field = find.byType(TextField);
     final amountY = y(amount), keyY = y(key1), fieldY = y(field);
-    final keypadTop = 34 + AmountKeypad.height; // the keyboard covers it here
 
     // Up and back down, as the engine reports it: a new inset every frame.
     final insets = [
@@ -761,8 +759,7 @@ void main() {
       await tester.pump();
       expect(y(amount), amountY, reason: 'amount at inset $inset');
       expect(y(key1), keyY, reason: 'keypad at inset $inset');
-      final lift = inset > keypadTop ? inset - keypadTop : 0.0;
-      expect(y(field), closeTo(fieldY - lift, 0.01), reason: 'inset $inset');
+      expect(y(field), fieldY, reason: 'field at inset $inset');
     }
     // Nothing keeps moving once the keyboard stops.
     await tester.pump(const Duration(milliseconds: 300));
@@ -770,5 +767,32 @@ void main() {
     tester.view.resetViewInsets();
     tester.view.resetPadding();
     tester.view.resetViewPadding();
+  });
+
+  testWidgets('focus waits for the field to widen; the clear button clears', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+    await tester.tap(find.byType(FloatingActionButton));
+    await settle(tester);
+    await tester.tap(find.byTooltip('Name'));
+    await tester.pump();
+    bool focused() =>
+        tester.widget<TextField>(find.byType(TextField)).focusNode!.hasFocus;
+    await tester.pump(const Duration(milliseconds: 150));
+    expect(focused(), isFalse, reason: 'no keyboard while it widens');
+    await tester.pumpAndSettle();
+    expect(focused(), isTrue);
+
+    expect(find.byTooltip('Clear'), findsNothing, reason: 'empty field');
+    final before = tester.getSize(find.byType(TextField)).height;
+    await tester.enterText(find.byType(TextField), 'Chai');
+    await tester.pump();
+    expect(tester.getSize(find.byType(TextField)).height, before);
+    await tester.tap(find.byTooltip('Clear'));
+    await tester.pump();
+    expect(find.text('Chai'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget, reason: 'stays open');
+    expect(focused(), isTrue);
   });
 }

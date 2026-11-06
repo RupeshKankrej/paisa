@@ -1,5 +1,24 @@
 # Progress
 
+## Phase 13d: Field fixes (2026-11-06)
+
+Status: built on branch `phase-13d-field-fixes` (from `phase-13c-keyboard-layout`), not merged. It covers Rupesh's three reports from the iPhone.
+
+### What was built
+- **No widening seen:** bringing the keyboard up blocks frames on iOS, so the 220 ms widening ran unseen. The simulator log had an 830 ms gap after the tap. Focus is now requested when the widening finishes, as in reference 28, where the keyboard starts only after the field is wide. Under Reduce Motion it is instant, as before.
+- **Bounce:** the chips no longer ride the keyboard. In reference 28 the field's y is the same with the keyboard up, and the keyboard covers the keypad and half the strip. 13c lifted the chips about 30 pt. The block is now pinned above the keypad.
+- **Clear button:** a ⊗ at the end of the field while it has text. It empties the field and keeps it open. It sits in the field's tap group, because `TextField` treats its suffix as outside, so the tap would otherwise close it. It is sized to the field's 36 pt, so the field does not grow.
+- SPEC 5.18 updated: clear button, focus after widening, nothing moves for the keyboard. This replaces 13c's "chips ride the keyboard" and 13b's "focus in the same frame".
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 256 passed. Updated: across a rising and falling inset, the field's y never changes. New: focus is not given 150 ms into the widening and is given after it; Clear empties the field, keeps it open and focused, and the field's height does not change.
+- iOS simulator with the real keyboard, using a temporary `integration_test` (not committed) that logs every frame, plus a screen recording. On the second open the field widened over 14 frames at 16 ms, from 89 to 370 px, then the keyboard rose. The amount, keypad, strip and field kept the same y on every frame of two opens and closes. Clear worked.
+
+### What to verify on the device
+1. Tap Name: it widens, then the keyboard comes up. Nothing moves; the keyboard covers the keypad and the lower half of the strip.
+2. Type, then tap ⊗: the text clears and the field stays open.
+3. The first open after launching the app may show fewer frames of the widening. In the debug simulator, the first open drew 2 frames and later ones drew all 14. Check whether the release build shows this.
+
 ## Phase 13c: Keyboard layout (2026-11-06)
 
 Status: built on branch `phase-13c-keyboard-layout` (from `phase-13b-chip-animation`), not merged. Scope: only the add/edit sheet's layout while the keyboard shows and hides.

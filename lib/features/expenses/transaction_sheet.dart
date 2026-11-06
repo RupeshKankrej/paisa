@@ -194,9 +194,19 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
     // Another field still closing snaps shut, so only one row moves.
     if (_shown != field) _morph.value = 0;
     setState(() => _editing = _shown = field);
-    // Same frame as the animation starts; the field attaches on this build.
-    _focus[field]!.requestFocus();
-    context.reduceMotion ? _morph.value = 1 : _morph.forward();
+    // Focus, and so the keyboard, only once the field has widened, as in
+    // reference 28. Bringing the keyboard up blocks frames on iOS, and doing it
+    // at the start swallowed the whole widening on the iPhone.
+    void focus() {
+      if (mounted && _editing == field) _focus[field]!.requestFocus();
+    }
+
+    if (context.reduceMotion) {
+      _morph.value = 1;
+      focus();
+    } else {
+      _morph.forward().then((_) => focus());
+    }
   }
 
   void _collapse() {
@@ -366,9 +376,8 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
         onSubmit: _save,
       ),
     );
-    // The body's bottom stays put (maintainBottomViewPadding), so this is the
-    // keyboard's top edge measured from it. The engine already moves the inset
-    // with the keyboard frame by frame; it is used as is, not animated again.
+    // The keyboard's top edge above the body's bottom, which stays put
+    // (maintainBottomViewPadding). Only the small-screen layout uses it.
     final keyboard = math.max(
       0.0,
       MediaQuery.viewInsetsOf(context).bottom -
@@ -439,10 +448,10 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
                         ],
                       );
                     }
-                    // SPEC 5.18: the amount is pinned from the top and the
-                    // keypad from the bottom, so neither moves; the chips sit
-                    // on the keypad, or on the keyboard's edge once it is
-                    // higher, and ride with it 1:1.
+                    // SPEC 5.18: nothing moves for the keyboard. The amount
+                    // is pinned from the top, the keypad and chips from the
+                    // bottom; the keyboard slides over the keypad and the
+                    // lower part of the strip, as in reference 28.
                     return Stack(
                       children: [
                         Positioned(
@@ -455,7 +464,7 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
                         Positioned(
                           left: 0,
                           right: 0,
-                          bottom: math.max(AmountKeypad.height, keyboard) + 8,
+                          bottom: AmountKeypad.height + 8,
                           child: block,
                         ),
                       ],
@@ -574,6 +583,35 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
                     ),
                     prefixIcon: Icon(icon, size: 18),
                     prefixIconConstraints: const BoxConstraints(minWidth: 40),
+                    // Shown while there is text; sized to the field's 36 so the
+                    // field does not grow when it appears.
+                    suffixIcon: ValueListenableBuilder(
+                      valueListenable: controller,
+                      builder: (context, value, _) => value.text.isEmpty
+                          ? const SizedBox.shrink()
+                          // In the field's tap group: TextField counts only its
+                          // text as inside, so this tap would close it.
+                          : TapRegion(
+                              groupId: _fieldGroup,
+                              child: IconButton(
+                                tooltip: 'Clear',
+                                iconSize: 18,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 36,
+                                  height: 36,
+                                ),
+                                color: palette.textSecondary,
+                                style: IconButton.styleFrom(
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                icon: const Icon(Icons.cancel),
+                                onPressed: controller.clear,
+                              ),
+                            ),
+                    ),
+                    suffixIconConstraints: const BoxConstraints(),
                     enabledBorder: _fieldBorder(context, t),
                     focusedBorder: _fieldBorder(context, t),
                   ),
