@@ -104,17 +104,19 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
   _Field? _editing;
   // The field drawn open or closing; stays set until the close animation ends.
   _Field? _shown;
-  // Timings read off reference 28: a quick open, a slower ease back.
+  // SPEC 5.18 timing: one controller drives the field width, its outline,
+  // the sibling chips' opacity and the recent-values row; closing also
+  // decelerates, so it mirrors opening.
   late final _morph = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 200),
-    reverseDuration: const Duration(milliseconds: 300),
+    duration: const Duration(milliseconds: 220),
   );
   late final _t = CurvedAnimation(
     parent: _morph,
-    curve: Curves.easeOut,
-    reverseCurve: Curves.easeInOut,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeOutCubic.flipped,
   );
+  final _focus = {_Field.name: FocusNode(), _Field.note: FocusNode()};
   late String _amount;
   late TransactionType _type;
   late int? _categoryId;
@@ -153,6 +155,9 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
     _strip.dispose();
     _t.dispose();
     _morph.dispose();
+    for (final node in _focus.values) {
+      node.dispose();
+    }
     _title.dispose();
     _note.dispose();
     super.dispose();
@@ -185,14 +190,19 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
   }
 
   void _open(_Field field) {
+    if (_editing == field) return;
     // Another field still closing snaps shut, so only one row moves.
     if (_shown != field) _morph.value = 0;
     setState(() => _editing = _shown = field);
+    // Same frame as the animation starts; the field attaches on this build.
+    _focus[field]!.requestFocus();
     context.reduceMotion ? _morph.value = 1 : _morph.forward();
   }
 
   void _collapse() {
-    if (_editing == null) return;
+    final field = _editing;
+    if (field == null) return;
+    _focus[field]!.unfocus();
     setState(() => _editing = null);
     void done() {
       if (mounted && _editing == null) setState(() => _shown = null);
@@ -415,25 +425,26 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
                 ),
               ),
               _categoryStrip(),
-              // As in reference 28 the keyboard slides over the keypad, which
-              // stays put; only a taller keyboard lifts the strip above it.
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: math.max(
+              // The sheet is not resized for the keyboard. The keypad stays put
+              // and the keyboard slides over it (reference 28); the padding is
+              // the part of the inset the keypad does not cover, so the strip
+              // and chips move up with a keyboard taller than the keypad.
+              AnimatedPadding(
+                duration: context.motion(const Duration(milliseconds: 250)),
+                curve: const Cubic(0.2, 0.8, 0.2, 1),
+                padding: EdgeInsets.only(
+                  bottom: math.max(
                     0,
                     MediaQuery.viewInsetsOf(context).bottom -
-                        math.max(MediaQuery.paddingOf(context).bottom, 16),
+                        math.max(MediaQuery.paddingOf(context).bottom, 16) -
+                        AmountKeypad.height,
                   ),
                 ),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ExcludeSemantics(
-                    excluding: _editing != null,
-                    child: AmountKeypad(
-                      onKey: (key) =>
-                          _setAmount(Money.keypadPress(_amount, key)),
-                      onSubmit: _save,
-                    ),
+                child: ExcludeSemantics(
+                  excluding: _editing != null,
+                  child: AmountKeypad(
+                    onKey: (key) => _setAmount(Money.keypadPress(_amount, key)),
+                    onSubmit: _save,
                   ),
                 ),
               ),
@@ -445,127 +456,143 @@ class _TransactionSheetState extends ConsumerState<_TransactionSheet>
   }
 
   /// Chips in a row; while [field] opens, its recent values fade in over them.
+  /// The chips stay in the tree, so nothing around them moves.
   Widget _withRecents(_Field field, double t, List<Widget> chips) {
-    final row = Wrap(spacing: 8, runSpacing: 4, children: chips);
-    if (t == 0) return row;
+    // Recents start 20 ms of the 220 behind the field.
+    final shown = ((t - 20 / 220) / (200 / 220)).clamp(0.0, 1.0);
     return Stack(
       children: [
         Opacity(
-          opacity: 1 - t,
-          child: IgnorePointer(child: row),
+          opacity: _siblingOpacity(t),
+          child: IgnorePointer(
+            ignoring: t > 0,
+            child: Wrap(spacing: 8, runSpacing: 4, children: chips),
+          ),
         ),
-        Positioned.fill(
-          child: Opacity(
-            opacity: t,
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: _RecentValues(
-                controller: field == _Field.name ? _title : _note,
-                groupId: _fieldGroup,
-                values:
-                    ref
-                        .watch(
-                          recentTextsProvider((
-                            type: _type,
-                            notes: field == _Field.note,
-                          )),
-                        )
-                        .value ??
-                    const [],
-                onPicked: _collapse,
+        if (t > 0)
+          Positioned.fill(
+            child: Opacity(
+              opacity: shown,
+              child: Transform.translate(
+                offset: Offset(0, 6 * (1 - shown)),
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: _RecentValues(
+                    controller: field == _Field.name ? _title : _note,
+                    groupId: _fieldGroup,
+                    values:
+                        ref
+                            .watch(
+                              recentTextsProvider((
+                                type: _type,
+                                notes: field == _Field.note,
+                              )),
+                            )
+                            .value ??
+                        const [],
+                    onPicked: _collapse,
+                  ),
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
 
-  /// Reference 28: the [field] chip widens leftwards to the full row while
-  /// [siblings] slide out to the left and fade; closing runs it backwards.
+  /// Faded out by 150 ms of the 220.
+  static double _siblingOpacity(double t) =>
+      1 - (t * 220 / 150).clamp(0.0, 1.0);
+
+  /// The [field] chip grows from its own place to the full row, over
+  /// [siblings], which stay where they are and fade (SPEC 5.18 timing).
   Widget _morphRow(_Field field, double t, List<Widget> siblings) {
     final controller = field == _Field.name ? _title : _note;
     final label = field == _Field.name ? 'Name' : 'Note';
     final icon = field == _Field.name ? Icons.edit_note : Icons.notes;
-    Widget chip({VoidCallback? onPressed, VoidCallback? onClear}) => _TextChip(
-      icon,
-      label,
-      controller.text,
-      tooltip: onPressed != null,
-      onPressed: onPressed ?? () {},
-      onClear: onClear ?? () {},
-    );
-    final pill = _editing == field
-        // At least the chip's 48 so the rows do not jump as it opens.
+    final palette = context.palette;
+    // The field stays up while closing, so its outline can fade with the rest.
+    final pill = _shown == field
         ? ConstrainedBox(
+            // At least the chip's 48, so the rows do not move as it opens.
             constraints: const BoxConstraints(minHeight: 48),
             child: Align(
               alignment: Alignment.centerLeft,
-              child: TextField(
-                controller: controller,
-                autofocus: true,
-                groupId: _fieldGroup,
-                minLines: 1,
-                maxLines: field == _Field.note ? 4 : 1,
-                keyboardType: field == _Field.note
-                    ? TextInputType.multiline
-                    : TextInputType.text,
-                textInputAction: field == _Field.note
-                    ? TextInputAction.newline
-                    : TextInputAction.done,
-                textCapitalization: TextCapitalization.sentences,
-                // Chip-label size, so the text does not jump as it opens.
-                style: Theme.of(context).textTheme.labelLarge,
-                decoration: InputDecoration(
-                  hintText: label,
-                  isDense: true,
-                  filled: true,
-                  fillColor: context.palette.surface,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadii.chip),
+                child: TextField(
+                  controller: controller,
+                  focusNode: _focus[field],
+                  groupId: _fieldGroup,
+                  minLines: 1,
+                  // One line while it moves, so nothing wraps mid-animation.
+                  maxLines: field == _Field.note && t == 1 ? 4 : 1,
+                  keyboardType: field == _Field.note
+                      ? TextInputType.multiline
+                      : TextInputType.text,
+                  textInputAction: field == _Field.note
+                      ? TextInputAction.newline
+                      : TextInputAction.done,
+                  textCapitalization: TextCapitalization.sentences,
+                  // Chip-label size, so the text does not jump as it opens.
+                  style: Theme.of(context).textTheme.labelLarge,
+                  decoration: InputDecoration(
+                    hintText: label,
+                    hintMaxLines: 1,
+                    hintStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: palette.textSecondary,
+                      overflow: TextOverflow.clip,
+                    ),
+                    isDense: true,
+                    filled: true,
+                    fillColor: palette.surface,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    prefixIcon: Icon(icon, size: 18),
+                    prefixIconConstraints: const BoxConstraints(minWidth: 40),
+                    enabledBorder: _fieldBorder(context, t),
+                    focusedBorder: _fieldBorder(context, t),
                   ),
-                  prefixIcon: Icon(icon, size: 18),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 40),
-                  enabledBorder: _fieldBorder(context),
-                  focusedBorder: _fieldBorder(context),
+                  onTap: () => _open(field),
+                  onSubmitted: (_) => _collapse(),
+                  onTapOutside: (_) {
+                    if (_editing == field) _collapse();
+                  },
                 ),
-                onSubmitted: (_) => _collapse(),
-                onTapOutside: (_) => _collapse(),
               ),
             ),
           )
-        : chip(
+        : _TextChip(
+            icon,
+            label,
+            controller.text,
             onPressed: () => _open(field),
             onClear: () => setState(controller.clear),
           );
-    return LayoutBuilder(
-      builder: (context, box) {
-        return Row(
-          children: [
-            if (siblings.isNotEmpty)
-              Align(
-                alignment: Alignment.centerRight,
-                widthFactor: 1 - t,
-                child: Opacity(
-                  opacity: 1 - t,
-                  child: IgnorePointer(
-                    ignoring: t > 0,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        spacing: 8,
-                        children: siblings,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            _GrowToWidth(t: t, full: box.maxWidth, rest: chip(), child: pill),
-          ],
-        );
-      },
+    return _MorphRow(
+      t: t,
+      siblings: Opacity(
+        opacity: _siblingOpacity(t),
+        child: IgnorePointer(
+          ignoring: t > 0,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 8,
+            children: siblings,
+          ),
+        ),
+      ),
+      rest: _TextChip(
+        icon,
+        label,
+        controller.text,
+        tooltip: false,
+        onPressed: () {},
+        onClear: () {},
+      ),
+      pill: pill,
     );
   }
 
@@ -742,10 +769,14 @@ class _TextChip extends StatelessWidget {
   }
 }
 
-OutlineInputBorder _fieldBorder(BuildContext context) => OutlineInputBorder(
-  borderRadius: BorderRadius.circular(AppRadii.chip),
-  borderSide: BorderSide(color: context.palette.textSecondary),
-);
+/// The focus outline fades in with the field's width ([t]).
+OutlineInputBorder _fieldBorder(BuildContext context, double t) =>
+    OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadii.chip),
+      borderSide: BorderSide(
+        color: context.palette.textSecondary.withValues(alpha: t),
+      ),
+    );
 
 /// SPEC 5.18: past values for the open field, filtered by what is typed.
 class _RecentValues extends StatelessWidget {
@@ -810,37 +841,36 @@ class _RecentValues extends StatelessWidget {
   );
 }
 
-/// Lays [child] out at a width from [rest]'s natural width (t = 0) to [full]
-/// (t = 1). [rest] is the closed chip: laid out to be measured, never shown.
-class _GrowToWidth extends MultiChildRenderObjectWidget {
-  _GrowToWidth({
+/// Lays out [siblings] at the start, then [pill]: at t = 0 the pill sits after
+/// the siblings at [rest]'s natural width; at t = 1 it covers the whole row.
+/// The siblings never move, so the row's layout does not shift. [rest] is the
+/// closed chip, laid out only to be measured and never shown.
+class _MorphRow extends MultiChildRenderObjectWidget {
+  _MorphRow({
     required this.t,
-    required this.full,
+    required Widget siblings,
     required Widget rest,
-    required Widget child,
-  }) : super(children: [rest, child]);
+    required Widget pill,
+  }) : super(children: [siblings, rest, pill]);
 
   final double t;
-  final double full;
 
   @override
-  _RenderGrowToWidth createRenderObject(BuildContext context) =>
-      _RenderGrowToWidth(t, full);
+  _RenderMorphRow createRenderObject(BuildContext context) =>
+      _RenderMorphRow(t);
 
   @override
-  void updateRenderObject(BuildContext context, _RenderGrowToWidth render) =>
-      render
-        ..t = t
-        ..full = full;
+  void updateRenderObject(BuildContext context, _RenderMorphRow render) =>
+      render.t = t;
 }
 
-class _GrowData extends ContainerBoxParentData<RenderBox> {}
+class _MorphData extends ContainerBoxParentData<RenderBox> {}
 
-class _RenderGrowToWidth extends RenderBox
+class _RenderMorphRow extends RenderBox
     with
-        ContainerRenderObjectMixin<RenderBox, _GrowData>,
-        RenderBoxContainerDefaultsMixin<RenderBox, _GrowData> {
-  _RenderGrowToWidth(this._t, this._full);
+        ContainerRenderObjectMixin<RenderBox, _MorphData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _MorphData> {
+  _RenderMorphRow(this._t);
 
   double _t;
   set t(double value) {
@@ -849,38 +879,66 @@ class _RenderGrowToWidth extends RenderBox
     markNeedsLayout();
   }
 
-  double _full;
-  set full(double value) {
-    if (value == _full) return;
-    _full = value;
-    markNeedsLayout();
-  }
-
-  RenderBox get _shown => lastChild!;
+  RenderBox get _siblings => firstChild!;
+  RenderBox get _rest => childAfter(_siblings)!;
+  RenderBox get _pill => lastChild!;
 
   @override
   void setupParentData(RenderBox child) {
-    if (child.parentData is! _GrowData) child.parentData = _GrowData();
+    if (child.parentData is! _MorphData) child.parentData = _MorphData();
   }
 
   @override
   void performLayout() {
-    final rest = firstChild!
-      ..layout(const BoxConstraints(), parentUsesSize: true);
-    final width = rest.size.width + (_full - rest.size.width) * _t;
-    _shown.layout(BoxConstraints.tightFor(width: width), parentUsesSize: true);
-    size = constraints.constrain(_shown.size);
+    final full = constraints.maxWidth;
+    final loose = BoxConstraints(maxWidth: full);
+    _siblings.layout(loose, parentUsesSize: true);
+    _rest.layout(loose, parentUsesSize: true);
+    final start = _siblings.size.width == 0 ? 0.0 : _siblings.size.width + 8;
+    final rest = math.min(_rest.size.width, full - start);
+    _pill.layout(
+      BoxConstraints.tightFor(width: rest + (full - rest) * _t),
+      parentUsesSize: true,
+    );
+    final height = math.max(_siblings.size.height, _pill.size.height);
+    size = constraints.constrain(Size(full, height));
+    (_siblings.parentData! as _MorphData).offset = Offset(
+      0,
+      (height - _siblings.size.height) / 2,
+    );
+    (_pill.parentData! as _MorphData).offset = Offset(
+      start * (1 - _t),
+      (height - _pill.size.height) / 2,
+    );
   }
 
   @override
-  void paint(PaintingContext context, Offset offset) =>
-      context.paintChild(_shown, offset);
+  void paint(PaintingContext context, Offset offset) {
+    for (final child in [_siblings, _pill]) {
+      context.paintChild(
+        child,
+        offset + (child.parentData! as _MorphData).offset,
+      );
+    }
+  }
 
   @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
-      _shown.hitTest(result, position: position);
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    for (final child in [_pill, _siblings]) {
+      final at = (child.parentData! as _MorphData).offset;
+      final hit = result.addWithPaintOffset(
+        offset: at,
+        position: position,
+        hitTest: (result, local) => child.hitTest(result, position: local),
+      );
+      if (hit) return true;
+    }
+    return false;
+  }
 
   @override
-  void visitChildrenForSemantics(RenderObjectVisitor visitor) =>
-      visitor(_shown);
+  void visitChildrenForSemantics(RenderObjectVisitor visitor) {
+    visitor(_siblings);
+    visitor(_pill);
+  }
 }

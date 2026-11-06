@@ -1,5 +1,33 @@
 # Progress
 
+## Phase 13b: Chip animation (2026-11-06)
+
+Status: built on branch `phase-13b-chip-animation` (from `phase-13-name-note-quick-add`), not merged. Scope: only the Name/Note expand/collapse and the recent-values row.
+
+### What was built
+- One controller, 220 ms, `Curves.easeOutCubic`, with its flipped curve for closing, so both directions decelerate. It drives the field width, the outline's opacity, the siblings' opacity (gone by 150 ms) and the recent-values row (20 ms behind, fading and rising 6 px).
+- `_MorphRow`, a small render object: the chips beside the field stay where they are and fade, and the field grows from the chip's place to the full row, over them. The row is at least 48 high, so the rows above never move.
+- The field stays mounted while closing, so its outline fades out. It shows one clipped line while it moves; Note becomes multi-line only once fully open.
+- Focus is requested in the same frame as the animation starts, through a `FocusNode` that attaches when the field builds.
+- Keyboard: the sheet is not resized. An `AnimatedPadding` (250 ms, `Cubic(0.2, 0.8, 0.2, 1)`) adds only the part of the inset the number pad does not cover (`AmountKeypad.height`). The pad stays under the keyboard, which is what Rupesh asked for earlier.
+- SPEC 5.18 has the Timing paragraph.
+
+### Decisions
+- The brief said to pad by the whole keyboard inset. That would lift the number pad above the keyboard, which goes against Rupesh's earlier request and reference 28, so only the excess is padded.
+- `resizeToAvoidBottomInset` does not apply: the sheet is a modal route with no Scaffold inside, so it was never resized.
+- Several items in the brief describe the 3:35 PM build, such as siblings removed from the tree and the keypad removed. They were already fixed in `6aaef0f`.
+
+### Checks
+- `flutter analyze`: no issues. `flutter test`: 254 passed, including a new test that steps open and close 16 ms at a time. It checks that the amount, date chip, account chip, Note chip and category strip do not move on any frame, and that the field width only grows on open and only shrinks on close.
+- Frames rendered in a test and checked by eye: no text wraps, and the outline fades with the width.
+
+### What to verify on the device
+1. Record expand and collapse at 60 fps on the iPhone 15, and step through: only the field width and the keyboard should change much between frames. The strip rises by about 56 pt as the keyboard passes the number pad.
+2. A Note with several lines collapses to one line as closing starts. That is a single-frame change in height.
+
+### Open issues
+- With the keyboard up, the amount re-centres in a slightly smaller space, so it rises by about half the strip's lift. This comes from the keyboard, not from expand/collapse.
+
 ## Phase 13: Name/note + Quick add (2026-11-06)
 
 Status: built on branch `phase-13-name-note-quick-add`, not merged. The branch starts from `add-readme`, which is one README commit ahead of `main`. Not yet tried on the iPhone.

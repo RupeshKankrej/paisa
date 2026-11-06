@@ -360,6 +360,8 @@ Directly above the expanded field a horizontally scrolling row of **recent-value
 
 Confirming (the keyboard's return key, tapping outside the field, or picking a category) collapses the field back into a chip showing the text; an empty field collapses to the placeholder. Name is one paragraph; Note allows new lines and collapses to its first line. No separate clear button: select-all and delete on the keyboard is enough, and the collapsed chip's text can be long-pressed to clear.
 
+Timing. Expand and collapse run 220 ms on Curves.easeOutCubic from one controller that drives the field width, the focus outline, the sibling chips' opacity and the recent-values row together. Sibling chips and rows stay in the widget tree at reduced opacity so the layout never shifts. The sheet does not resize for the keyboard; a bottom AnimatedPadding (250 ms, Cubic(0.2, 0.8, 0.2, 1)) tracks the keyboard inset so content moves with the keyboard. Chip and field text is single-line, clipped, never wrapped. (The number pad stays under the keyboard, as in reference 28, so the padding is the part of the inset the pad does not cover.)
+
 ### 5.19 Quick add from Shortcuts and Back Tap
 
 References `29-back-tap-quick-add.mp4`, `30-back-tap-amount-prompt.png` (another app's version; ours should be a step up).

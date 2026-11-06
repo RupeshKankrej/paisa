@@ -666,4 +666,68 @@ void main() {
     await pumpScreen(tester);
     expect(find.text('MAHESHWARI ENTERPRISES'), findsOneWidget);
   });
+
+  testWidgets('Name opens and closes without moving anything around it', (
+    tester,
+  ) async {
+    await db.addTransaction(
+      TransactionsCompanion.insert(
+        type: TransactionType.debit,
+        amountPaise: 50000,
+        occurredAt: today,
+        note: const Value('SHOP'),
+        accountLast4: const Value('2703'),
+        categoryId: const Value(1),
+        source: TransactionSource.manual,
+      ),
+    );
+    await add('Chai', categoryId: 1);
+    await pumpScreen(tester);
+    await tester.tap(find.text('SHOP').first);
+    await settle(tester);
+
+    final still = {
+      'amount': find.byKey(const Key('sheet-amount')),
+      'date': find.byIcon(Icons.calendar_today_outlined),
+      'account': find.text('A/c 2703'),
+      'note': find.byIcon(Icons.notes),
+      'strip': find.byTooltip('All categories'),
+    };
+    Map<String, Rect> rects() => {
+      for (final MapEntry(:key, :value) in still.entries)
+        key: tester.getRect(value.first),
+    };
+    final before = rects();
+    double fieldWidth() => tester.getSize(find.byType(TextField)).width;
+
+    await tester.tap(find.byTooltip('Name'));
+    await tester.pump();
+    expect(find.byType(TextField), findsOneWidget, reason: 'same frame');
+    var last = fieldWidth();
+    for (var i = 0; i < 16; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(rects(), before, reason: 'opening, frame $i');
+      expect(fieldWidth(), greaterThanOrEqualTo(last));
+      last = fieldWidth();
+    }
+    expect(find.byKey(const Key('recent-values')), findsOneWidget);
+
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+    for (
+      var i = 0;
+      i < 16 && find.byType(TextField).evaluate().isNotEmpty;
+      i++
+    ) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(rects(), before, reason: 'closing, frame $i');
+      if (find.byType(TextField).evaluate().isNotEmpty) {
+        expect(fieldWidth(), lessThanOrEqualTo(last));
+        last = fieldWidth();
+      }
+    }
+    await tester.pumpAndSettle();
+    expect(find.byType(TextField), findsNothing);
+    expect(rects(), before);
+  });
 }
